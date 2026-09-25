@@ -1,12 +1,12 @@
 ---
 id: intent-001
 title: Core hangout plan loop (organize → RSVP → propose → lock)
-status: draft
+status: accepted
 ---
 
 # Intent: core hangout plan loop
 
-Author: sdlc-lead. Status: draft.
+Author: sdlc-lead. Status: accepted.
 
 ## Problem
 
