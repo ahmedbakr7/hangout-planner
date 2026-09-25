@@ -1,0 +1,4 @@
+[submodule ".sdlc"]
+	path = .sdlc
+	url = https://github.com/ahmedbakr7/Ai-SDLC-kit.git
+	branch = main
