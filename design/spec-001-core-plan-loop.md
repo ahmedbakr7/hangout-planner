@@ -1,7 +1,7 @@
 ---
 id: spec-001
 title: Core hangout plan loop
-status: draft
+status: accepted
 source_intent: intent/intent-001-core-plan-loop.md
 ---
 
@@ -196,12 +196,11 @@ Overturn any of these at spec acceptance. `/architect` implements them and does 
 - **[DECISION: account-mechanism]** Sign-in, account creation, and which account value is the display name are `[DECISION: ADR — account]`. After success the account has a non-empty display name. The gate's secret fields are part of that ADR, not this spec.
 - **[DECISION: screen-addresses]** URL shape for these surfaces is `[DECISION: ADR — screen addresses]`.
 - **[DECISION: no-native-install]** The loop is a web flow, matching the intent.
+- **[DECISION: invite-by-email]** The one in-app identifier is the existing account's email. ADR-0001.
 
 ## Open
 
-Do not close these in `/architect` or in code.
-
-- **[OPEN: in-app-invite-identity]** The invite surface collects one identifier for an existing account (F-001-17). This spec does not decide whether that identifier is an email, a phone number, a handle, a search, or another key. Failure behavior is already required (F-001-19). The field's accepted format waits for a human decision.
+None. In-app invite identity is the account email (`[DECISION: invite-by-email]`). Failure behavior remains F-001-19.
 
 ## Out of scope
 
@@ -218,6 +217,6 @@ Also outside this slice, as decisions above: link revoke and rotate, currency co
 
 ## Hand-off
 
-This spec is `draft` until a human accepts it. Resolve `[OPEN: in-app-invite-identity]` at acceptance, or accept that `/architect` stops on that item.
+Status: accepted. ADR markers in this spec are decided in `decisions/ADR-0001-stack.md` and `arch/CONTRACTS.md`.
 
-Next command: `/architect`. Do not `/build` from this session.
+Next command: `/ticketize`. Do not `/build` from a design or architect session.
