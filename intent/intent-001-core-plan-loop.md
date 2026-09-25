@@ -14,22 +14,23 @@ Groups in Egypt and the wider MENA region settle time, place, and what to do acr
 
 ## Proposed outcome
 
-An organizer can create a night-out plan with day windows, a per-person budget, and ordered outing steps (each with a few options). They share one link. Friends open it with no account, give a name, mark when they are free, drop a rough starting point, and pick preferences per step.
+An organizer can create a night-out plan with day windows, a per-person budget, and ordered outing steps (each with a few options). They invite friends in two ways: a shareable link, and an in-app invitation to people who already use the app. A friend may open the plan with an account or without one. Someone who joins without an account gives a name. Either way, they mark when they are free, drop a rough starting point, and pick preferences per step.
 
-When enough people have answered, the product proposes one full plan: a time most people can make, a place for each step, and travel between steps. Places fit the budget, match group preferences, and avoid leaving one person with a much worse trip than the rest. The organizer can swap a place for another strong option. Friends can signal like/dislike per step. When the organizer locks the plan, everyone sees the confirmed outing.
+When the number of people who have answered reaches a threshold the organizer set for this plan, the product proposes one full plan: a time most people can make, a place for each step, and travel between steps. Places fit the budget, match group preferences, and avoid leaving one person with a much worse trip than the rest. The organizer can swap a place for another strong option. Friends can signal like/dislike per step. When the organizer locks the plan, everyone sees the confirmed outing.
 
 ## Affected users and systems
 
-- Organizer (creates constraints, reviews proposal, swaps options, locks)
-- Invitee / friend (anonymous link join: name, availability, start point, step picks, step reactions)
+- Organizer (creates constraints, sets the answer threshold, reviews proposal, swaps options, locks)
+- Invitee / friend (may join with an account or anonymously; anonymous joiners give a name; all give availability, start point, step picks, and step reactions). Invite paths: shareable link, and in-app invitation for existing app users.
 - Place / venue data used to propose and score options (source TBD — [OPEN])
 - Maps / travel estimate between stops (provider TBD — [OPEN])
 
 ## Constraints
 
 - Primary geography: Egypt first, designed to extend across MENA
-- Invitees must participate without creating an account
-- One shareable link is the join surface for a plan
+- Invitees may participate with an account or without one. Creating an account is optional; anonymous link join stays available.
+- Two invite paths are in scope for this slice: a shareable link, and an in-app invitation for existing app users
+- “Enough people have answered” is a threshold the organizer sets on the plan. It is neither a majority of invitees nor a fixed global minimum.
 - Proposal must respect per-person budget and ordered steps
 - Fairness: avoid solutions that leave one person with a much worse trip than the group
 - Organizer can swap proposed places before lock; lock is the confirmation moment
@@ -45,9 +46,8 @@ When enough people have answered, the product proposes one full plan: a time mos
 
 ## Open questions
 
-- [OPEN: what is “enough people have answered” — organizer threshold, majority of invitees, or fixed minimum?]
 - [OPEN: how is “much worse trip” measured — travel time, distance, cost, or a blend?]
 - [OPEN: which place catalog and maps/travel providers for Egypt v1?]
-- [OPEN: does the organizer need an account, or is create+manage also link-based?]
+- [OPEN: does the organizer need an account, or is create+manage also link-based? Invitees may join with an account or anonymously; that part is decided.]
 - [OPEN: languages for v1 — Arabic, English, or both?]
 - [OPEN: currency and budget unit for Egypt v1 — EGP only?]
