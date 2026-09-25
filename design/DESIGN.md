@@ -1,6 +1,33 @@
 # DESIGN.md
 
-Design-system stub for spec-001. Roles and layout rules only. Concrete values, typefaces, and any component kit are `[DECISION: ADR — visual values]` for `/architect`. Product code maps these names; it does not invent a parallel scale.
+Design system for spec-001. The names below are the only color, space, type, and radius tokens. Values are locked in ADR-0001 and repeated here. Product code maps these names. There is no component kit and no second scale.
+
+## Values
+
+Hex and pixel sizes appear in `src/app/tokens.css` only. Components use the names.
+
+| Token | Value |
+|---|---|
+| `bg` | `#f7f4ef` |
+| `surface` | `#fffcf8` |
+| `text` | `#1f1a14` |
+| `text-muted` | `#6b645b` |
+| `border` | `#e6dfd4` |
+| `accent` | `#0e6b4f` |
+| `danger` | `#9d2c2c` |
+| `warning` | `#8a5b10` |
+| `success` | `#1d6b3a` |
+| `focus` | `#1e4f8c` |
+| `space-2xs` | 4px |
+| `space-xs` | 8px |
+| `space-sm` | 12px |
+| `space-md` | 16px |
+| `space-lg` | 24px |
+| `space-xl` | 40px |
+| `radius-sm` | 6px |
+| `radius-md` | 12px |
+
+Type faces: IBM Plex Sans Arabic for Arabic, IBM Plex Sans for Latin. Ramp: `title` 1.75rem / 2.125rem, `section` 1.25rem / 1.75rem, `body` 1rem / 1.5rem, `caption` 0.8125rem / 1.125rem. Focus ring: 2px solid `focus`, 2px offset, drawn as an outline so it stays visible in RTL and LTR.
 
 ## Color roles
 

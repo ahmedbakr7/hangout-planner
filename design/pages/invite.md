@@ -2,8 +2,8 @@
 
 Who: the organizing account, while the plan is `collecting`, `blocked`, or `proposed`.
 Spec: F-001-16, F-001-17, F-001-18, F-001-19, N-001-19.
-`[DECISION: stable-link]`, `[DECISION: invite-until-lock]`.
-`[OPEN: in-app-invite-identity]` — one identifier field; the accepted format is undecided.
+`[DECISION: stable-link]`, `[DECISION: invite-until-lock]`, `[DECISION: invite-by-email]`.
+The identifier field takes the invitee's account email. Match is exact after trim and lowercase. No handle, no phone, no search.
 
 At `locked` this surface is absent. The link opens the confirmed surface.
 
