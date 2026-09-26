@@ -2,7 +2,7 @@
 id: T-001-13
 title: "Google clients"
 type: backend
-status: ready
+status: in_review
 risk: medium
 depends_on:
   - T-001-04
