@@ -2,7 +2,7 @@
 id: T-001-16
 title: "Invitations"
 type: backend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-06
