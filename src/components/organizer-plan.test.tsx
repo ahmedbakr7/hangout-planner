@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -16,6 +18,12 @@ const { router } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
+
+const TICKET_FILES = [
+  "src/app/plans/[planId]/page.tsx",
+  "src/components/organizer-plan.tsx",
+  "src/components/organizer-plan.test.tsx",
+];
 
 const collectingId = "pln_collectingaaaaaaaaaaaa";
 const blockedId = "pln_blockedaaaaaaaaaaaaaa";
@@ -247,6 +255,10 @@ function participantItem(name: string, index = 0): HTMLElement {
   return item;
 }
 
+function classTokens(el: Element): string[] {
+  return el.className.split(/\s+/);
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -256,6 +268,31 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
+});
+
+describe("OrganizerPlan chrome", () => {
+  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
+    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
+    const root = process.cwd();
+    for (const relative of TICKET_FILES) {
+      const source = readFileSync(join(root, relative), "utf8");
+      expect(source, relative).not.toMatch(hex);
+    }
+    const plan = readFileSync(join(root, "src/components/organizer-plan.tsx"), "utf8");
+    expect(plan).toContain('from "@/components/ui/button"');
+    expect(plan).toContain('from "@/components/ui/input"');
+    expect(plan).toContain('from "@/components/ui/label"');
+    expect(plan).toContain('from "@/components/ui/card"');
+    expect(plan).toContain("bg-primary");
+    expect(plan).toContain("text-destructive");
+    expect(plan).toContain("text-muted-foreground");
+    expect(plan).toContain("text-success");
+    expect(plan).toContain("text-warning");
+    expect(plan).not.toContain('className="danger"');
+    expect(plan).not.toContain("var(--accent)");
+    expect(plan).not.toContain("var(--danger)");
+    expect(plan.includes("style=" + "{{")).toBe(false);
+  });
 });
 
 describe("OrganizerPlan", () => {
@@ -274,17 +311,17 @@ describe("OrganizerPlan", () => {
     const hana = participantItem("Hana");
     expect(hana.textContent).toContain("answered");
     expect(hana.textContent).not.toContain("in progress");
-    expect(hana.querySelector(".success")?.textContent).toBe("answered");
+    expect(hana.querySelector(".text-success")?.textContent).toBe("answered");
 
     const alexInProgress = participantItem("Alex", 0);
     expect(alexInProgress.textContent).toContain("in progress");
-    expect(alexInProgress.querySelector(".warning")?.textContent).toBe(
+    expect(alexInProgress.querySelector(".text-warning")?.textContent).toBe(
       "in progress",
     );
 
     const alexAnswered = participantItem("Alex", 1);
     expect(alexAnswered.textContent).toContain("answered");
-    expect(alexAnswered.querySelector(".success")?.textContent).toBe("answered");
+    expect(alexAnswered.querySelector(".text-success")?.textContent).toBe("answered");
   });
 
   it("shows the distinguisher only when another row in that list has the same display name, and the list has no starting points and no step picks", async () => {
@@ -307,7 +344,7 @@ describe("OrganizerPlan", () => {
     expect(participantItem("Alex", 0).textContent).not.toContain("Grills");
   });
 
-  it("while collecting there is no itinerary, and the waiting copy uses text-muted", async () => {
+  it("while collecting there is no itinerary, and the waiting copy uses text-muted-foreground", async () => {
     stubPlanFetch(collectingId, {
       get: basePlan(collectingId, {
         answered_count: 0,
@@ -319,14 +356,20 @@ describe("OrganizerPlan", () => {
     renderPlan(collectingId);
 
     const waiting = await screen.findByText("The proposal waits for answers.");
-    expect(waiting.className.split(/\s+/)).toContain("text-muted");
-    expect(waiting.className.split(/\s+/)).not.toContain("danger");
+    expect(classTokens(waiting)).toContain("text-muted-foreground");
+    expect(classTokens(waiting)).not.toContain("text-destructive");
     expect(screen.queryByRole("link", { name: "Open proposal" })).toBeNull();
     expect(screen.queryByText("Secret Cafe")).toBeNull();
     expect(screen.queryByText("12 min")).toBeNull();
     expect(screen.queryByText(/itinerary/i)).toBeNull();
     expect(screen.getByText("0 answered of 3")).toBeTruthy();
     expect(screen.getByText("0 in progress")).toBeTruthy();
+    expect(classTokens(screen.getByRole("link", { name: "Invite" }))).toContain(
+      "bg-primary",
+    );
+    expect(
+      classTokens(screen.getByRole("button", { name: "Save" })),
+    ).not.toContain("bg-primary");
   });
 
   it("while blocked or proposed the same counts remain and there is a way to the proposal surface; the itinerary is not duplicated on this page", async () => {
@@ -346,6 +389,10 @@ describe("OrganizerPlan", () => {
     expect(blockedProposal.getAttribute("href")).toBe(
       `/plans/${blockedId}/proposal`,
     );
+    expect(classTokens(blockedProposal)).toContain("bg-primary");
+    expect(classTokens(screen.getByRole("link", { name: "Invite" }))).not.toContain(
+      "bg-primary",
+    );
     expect(screen.queryByText("The proposal waits for answers.")).toBeNull();
     expect(screen.queryByText("Secret Cafe")).toBeNull();
     expect(screen.queryByText(/itinerary/i)).toBeNull();
@@ -364,9 +411,14 @@ describe("OrganizerPlan", () => {
     expect(await screen.findByText("Saturday walk")).toBeTruthy();
     expect(screen.getByText("1 answered of 3")).toBeTruthy();
     expect(screen.getByText("2 in progress")).toBeTruthy();
-    expect(
-      screen.getByRole("link", { name: "Open proposal" }).getAttribute("href"),
-    ).toBe(`/plans/${proposedId}/proposal`);
+    const proposedProposal = screen.getByRole("link", { name: "Open proposal" });
+    expect(proposedProposal.getAttribute("href")).toBe(
+      `/plans/${proposedId}/proposal`,
+    );
+    expect(classTokens(proposedProposal)).toContain("bg-primary");
+    expect(classTokens(screen.getByRole("link", { name: "Invite" }))).not.toContain(
+      "bg-primary",
+    );
     expect(screen.queryByText("Secret Cafe")).toBeNull();
     expect(screen.queryByText("12 min")).toBeNull();
     expect(screen.queryByText(/itinerary/i)).toBeNull();
@@ -408,6 +460,9 @@ describe("OrganizerPlan", () => {
     expect(
       (screen.getByLabelText("Answered threshold") as HTMLInputElement).disabled,
     ).toBe(false);
+    expect(
+      classTokens(screen.getByRole("button", { name: "Save" })),
+    ).not.toContain("bg-primary");
 
     cleanup();
 
@@ -482,9 +537,11 @@ describe("OrganizerPlan", () => {
   it("an invite action is present while collecting, blocked, or proposed", async () => {
     stubPlanFetch(collectingId, { get: basePlan(collectingId) });
     renderPlan(collectingId);
-    expect(
-      (await screen.findByRole("link", { name: "Invite" })).getAttribute("href"),
-    ).toBe(`/plans/${collectingId}/invite`);
+    const collectingInvite = await screen.findByRole("link", { name: "Invite" });
+    expect(collectingInvite.getAttribute("href")).toBe(
+      `/plans/${collectingId}/invite`,
+    );
+    expect(classTokens(collectingInvite)).toContain("bg-primary");
 
     cleanup();
     stubPlanFetch(blockedId, {
@@ -494,9 +551,9 @@ describe("OrganizerPlan", () => {
       }),
     });
     renderPlan(blockedId);
-    expect(
-      (await screen.findByRole("link", { name: "Invite" })).getAttribute("href"),
-    ).toBe(`/plans/${blockedId}/invite`);
+    const blockedInvite = await screen.findByRole("link", { name: "Invite" });
+    expect(blockedInvite.getAttribute("href")).toBe(`/plans/${blockedId}/invite`);
+    expect(classTokens(blockedInvite)).not.toContain("bg-primary");
 
     cleanup();
     stubPlanFetch(proposedId, {
@@ -506,9 +563,11 @@ describe("OrganizerPlan", () => {
       }),
     });
     renderPlan(proposedId);
-    expect(
-      (await screen.findByRole("link", { name: "Invite" })).getAttribute("href"),
-    ).toBe(`/plans/${proposedId}/invite`);
+    const proposedInvite = await screen.findByRole("link", { name: "Invite" });
+    expect(proposedInvite.getAttribute("href")).toBe(
+      `/plans/${proposedId}/invite`,
+    );
+    expect(classTokens(proposedInvite)).not.toContain("bg-primary");
   });
 
   it("a locked open shows the confirmed surface instead of this page", async () => {
@@ -527,7 +586,7 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByRole("link", { name: "Open proposal" })).toBeNull();
   });
 
-  it("a load failure uses danger and retry and omits any other plan's title, people, and places", async () => {
+  it("a load failure uses text-destructive and retry and omits any other plan's title, people, and places", async () => {
     let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -548,9 +607,10 @@ describe("OrganizerPlan", () => {
     renderPlan(collectingId);
 
     const alert = await screen.findByRole("alert");
-    expect(alert.className.split(/\s+/)).toContain("danger");
+    expect(classTokens(alert)).toContain("text-destructive");
     expect(alert.textContent).toBe("This plan could not be loaded.");
-    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy();
+    const retry = screen.getByRole("button", { name: "Retry" });
+    expect(classTokens(retry)).not.toContain("bg-primary");
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
     expect(screen.queryByText("Secret Person")).toBeNull();
     expect(screen.queryByText("Hidden venue")).toBeNull();
@@ -559,7 +619,7 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByText("Hana")).toBeNull();
     expect(screen.queryByText("Alex")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(retry);
 
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();

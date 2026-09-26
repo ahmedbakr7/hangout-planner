@@ -2,7 +2,7 @@
 id: T-001-12
 title: "Organizer plan"
 type: frontend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-11

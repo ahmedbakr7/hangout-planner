@@ -9,5 +9,9 @@ export default async function OrganizerPlanPage({
   params,
 }: OrganizerPlanPageProps): Promise<ReactElement> {
   const { planId } = await params;
-  return <OrganizerPlan planId={planId} />;
+  return (
+    <div className="mx-auto w-full max-w-md bg-background text-foreground">
+      <OrganizerPlan planId={planId} />
+    </div>
+  );
 }
