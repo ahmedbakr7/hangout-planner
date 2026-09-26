@@ -11,5 +11,9 @@ export default async function AccountPage({
   const params = await searchParams;
   const raw = params.next;
   const next = Array.isArray(raw) ? raw[0] : raw;
-  return <AccountGate next={next} />;
+  return (
+    <div className="mx-auto w-full max-w-md bg-background text-foreground">
+      <AccountGate next={next} />
+    </div>
+  );
 }

@@ -10,6 +10,7 @@ import {
 import React, { useId, useState, type ReactNode } from "react";
 import arCatalog from "../../messages/ar.json";
 import enCatalog from "../../messages/en.json";
+import { Label } from "@/components/ui/label";
 
 const LOCALE_COOKIE = "hp_locale";
 const LOCALE_MAX_AGE = 60 * 60 * 24 * 30;
@@ -76,15 +77,8 @@ function LanguageSwitcher({
   const id = useId();
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "var(--space-2xs)",
-        alignItems: "start",
-      }}
-    >
-      <label htmlFor={id}>{t("language")}</label>
+    <div className="flex flex-col items-start gap-1">
+      <Label htmlFor={id}>{t("language")}</Label>
       <select
         id={id}
         value={locale}
@@ -93,15 +87,7 @@ function LanguageSwitcher({
             onLocaleChange(event.target.value);
           }
         }}
-        style={{
-          border: "var(--focus-ring-width) solid var(--border)",
-          borderRadius: "var(--radius-sm)",
-          paddingBlock: "var(--space-xs)",
-          paddingInline: "var(--space-sm)",
-          backgroundColor: "var(--surface)",
-          color: "var(--text)",
-          font: "inherit",
-        }}
+        className="flex h-9 w-full max-w-xs rounded-sm border border-input bg-background px-3 py-1 text-sm text-foreground text-start shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <option value="en">{t("english")}</option>
         <option value="ar">{t("arabic")}</option>
@@ -134,8 +120,10 @@ export function LanguageControl({
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <LanguageSwitcher locale={locale} onLocaleChange={selectLocale} />
-      {children}
+      <div className="flex flex-col gap-6">
+        <LanguageSwitcher locale={locale} onLocaleChange={selectLocale} />
+        {children}
+      </div>
     </NextIntlClientProvider>
   );
 }

@@ -2,8 +2,23 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useEffect, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import React, {
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { LanguageControl } from "@/components/language-control";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const JOIN_NEXT = /^\/join\/jt_[A-Za-z0-9-_]{43}$/;
 const FIXED_NEXT = new Set(["/", "/plans/new", "/invitations"]);
@@ -42,53 +57,6 @@ export function allowedNextPath(value: string | undefined): string {
 export function isJoinNextPath(value: string | undefined): boolean {
   return typeof value === "string" && JOIN_NEXT.test(value);
 }
-
-const stackStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-md)",
-  alignItems: "stretch",
-};
-
-const fieldStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-2xs)",
-  alignItems: "stretch",
-};
-
-const inputStyle: CSSProperties = {
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-sm)",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  font: "inherit",
-};
-
-const primaryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--accent)",
-  color: "var(--surface)",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
-};
-
-const tabStyle: CSSProperties = {
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-};
 
 function parseError(body: unknown): ParsedError {
   if (typeof body !== "object" || body === null) {
@@ -144,6 +112,42 @@ async function readJson(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+function GateShell({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <main className="bg-background text-foreground">
+      <Card className="border-border bg-card text-card-foreground">
+        {children}
+      </Card>
+    </main>
+  );
+}
+
+function FieldBlock({
+  id,
+  label,
+  errorId,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  errorId: string;
+  error: string | null;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error ? (
+        <p id={errorId} className="text-sm text-destructive text-start">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function AccountGateBody({ next }: AccountGateProps): ReactNode {
@@ -279,19 +283,33 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
 
   if (session === "checking") {
     return (
-      <main className="surface" style={stackStyle}>
-        <h1 className="title">{t("title")}</h1>
-      </main>
+      <GateShell>
+        <CardHeader>
+          <h1 className="title text-foreground text-start text-pretty">
+            {t("title")}
+          </h1>
+        </CardHeader>
+      </GateShell>
     );
   }
 
   if (session === "signed_in") {
     return (
-      <main className="surface" style={stackStyle}>
-        <h1 className="title">{t("title")}</h1>
-        <p className="body">{t("signedInAs", { name: displayName })}</p>
-        <a href="/">{t("goHome")}</a>
-      </main>
+      <GateShell>
+        <CardHeader className="gap-3">
+          <h1 className="title text-foreground text-start text-pretty">
+            {t("title")}
+          </h1>
+          <p className="body text-foreground text-start text-pretty">
+            {t("signedInAs", { name: displayName })}
+          </p>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild className="bg-primary">
+            <a href="/">{t("goHome")}</a>
+          </Button>
+        </CardFooter>
+      </GateShell>
     );
   }
 
@@ -300,114 +318,128 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
   const nameError = fieldMessage("display_name");
 
   return (
-    <main className="surface" style={stackStyle}>
-      <h1 className="title">{t("title")}</h1>
-      <p className="body">{t("requiredToOrganize")}</p>
-      {joinPath ? <a href={joinPath}>{t("joinWithoutAccount")}</a> : null}
-
-      <div role="tablist" style={{ display: "flex", gap: "var(--space-xs)" }}>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "signIn"}
-          onClick={() => {
-            setMode("signIn");
-            setFormError(null);
-            setFieldErrors([]);
-          }}
-          style={tabStyle}
-        >
-          {t("signIn")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "register"}
-          onClick={() => {
-            setMode("register");
-            setFormError(null);
-            setFieldErrors([]);
-          }}
-          style={tabStyle}
-        >
-          {t("register")}
-        </button>
-      </div>
-
-      <form onSubmit={onSubmit} style={stackStyle}>
-        {formError ? (
-          <p className="danger" role="alert">
-            {formError}
-          </p>
+    <GateShell>
+      <CardHeader className="gap-3">
+        <h1 className="title text-foreground text-start text-pretty">
+          {t("title")}
+        </h1>
+        <CardDescription className="body text-muted-foreground text-start text-pretty">
+          {t("requiredToOrganize")}
+        </CardDescription>
+        {joinPath ? (
+          <Button variant="link" asChild className="h-auto self-start p-0">
+            <a href={joinPath}>{t("joinWithoutAccount")}</a>
+          </Button>
         ) : null}
+      </CardHeader>
 
-        <div style={fieldStyle}>
-          <label htmlFor="hp-email">{t("email")}</label>
-          <input
+      <CardContent className="flex flex-col gap-4">
+        <div role="tablist" className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            role="tab"
+            variant={mode === "signIn" ? "secondary" : "outline"}
+            aria-selected={mode === "signIn"}
+            onClick={() => {
+              setMode("signIn");
+              setFormError(null);
+              setFieldErrors([]);
+            }}
+          >
+            {t("signIn")}
+          </Button>
+          <Button
+            type="button"
+            role="tab"
+            variant={mode === "register" ? "secondary" : "outline"}
+            aria-selected={mode === "register"}
+            onClick={() => {
+              setMode("register");
+              setFormError(null);
+              setFieldErrors([]);
+            }}
+          >
+            {t("register")}
+          </Button>
+        </div>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          {formError ? (
+            <p className="text-destructive text-start" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <FieldBlock
             id="hp-email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            aria-invalid={emailError ? true : undefined}
-            aria-describedby={emailError ? "hp-email-error" : undefined}
-            style={inputStyle}
-          />
-          {emailError ? (
-            <p id="hp-email-error" className="danger">
-              {emailError}
-            </p>
-          ) : null}
-        </div>
-
-        <div style={fieldStyle}>
-          <label htmlFor="hp-password">{t("password")}</label>
-          <input
-            id="hp-password"
-            name="password"
-            type="password"
-            autoComplete={mode === "signIn" ? "current-password" : "new-password"}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-invalid={passwordError ? true : undefined}
-            aria-describedby={passwordError ? "hp-password-error" : undefined}
-            style={inputStyle}
-          />
-          {passwordError ? (
-            <p id="hp-password-error" className="danger">
-              {passwordError}
-            </p>
-          ) : null}
-        </div>
-
-        {mode === "register" ? (
-          <div style={fieldStyle}>
-            <label htmlFor="hp-display-name">{t("displayName")}</label>
-            <input
-              id="hp-display-name"
-              name="display_name"
-              type="text"
-              autoComplete="nickname"
-              value={registerName}
-              onChange={(event) => setRegisterName(event.target.value)}
-              aria-invalid={nameError ? true : undefined}
-              aria-describedby={nameError ? "hp-display-name-error" : undefined}
-              style={inputStyle}
+            label={t("email")}
+            errorId="hp-email-error"
+            error={emailError}
+          >
+            <Input
+              id="hp-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              aria-invalid={emailError ? true : undefined}
+              aria-describedby={emailError ? "hp-email-error" : undefined}
             />
-            {nameError ? (
-              <p id="hp-display-name-error" className="danger">
-                {nameError}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+          </FieldBlock>
 
-        <button type="submit" disabled={submitting} style={primaryButtonStyle}>
-          {mode === "signIn" ? t("submitSignIn") : t("submitRegister")}
-        </button>
-      </form>
-    </main>
+          <FieldBlock
+            id="hp-password"
+            label={t("password")}
+            errorId="hp-password-error"
+            error={passwordError}
+          >
+            <Input
+              id="hp-password"
+              name="password"
+              type="password"
+              autoComplete={
+                mode === "signIn" ? "current-password" : "new-password"
+              }
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={passwordError ? true : undefined}
+              aria-describedby={passwordError ? "hp-password-error" : undefined}
+            />
+          </FieldBlock>
+
+          {mode === "register" ? (
+            <FieldBlock
+              id="hp-display-name"
+              label={t("displayName")}
+              errorId="hp-display-name-error"
+              error={nameError}
+            >
+              <Input
+                id="hp-display-name"
+                name="display_name"
+                type="text"
+                autoComplete="nickname"
+                value={registerName}
+                onChange={(event) => setRegisterName(event.target.value)}
+                aria-invalid={nameError ? true : undefined}
+                aria-describedby={
+                  nameError ? "hp-display-name-error" : undefined
+                }
+              />
+            </FieldBlock>
+          ) : null}
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="self-start bg-primary"
+          >
+            {mode === "signIn" ? t("submitSignIn") : t("submitRegister")}
+          </Button>
+        </form>
+      </CardContent>
+    </GateShell>
   );
 }
 
