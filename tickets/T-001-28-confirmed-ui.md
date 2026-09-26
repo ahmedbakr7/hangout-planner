@@ -2,7 +2,7 @@
 id: T-001-28
 title: "Confirmed UI"
 type: frontend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-26
