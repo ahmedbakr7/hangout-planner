@@ -8,8 +8,8 @@
 #
 # Conveyor /review Approve path: after lead squash-merges a build/test PR,
 # call this with the ticket id(s) so status flips without a later bulk PR.
-# GitHub Action `.github/workflows/mark-ticket-done.yml` does the same on
-# pull_request closed+merged by parsing title/body/head ref for T-NNN-NN.
+# GitHub Action (install from ops/mark-ticket-done.yml → .github/workflows/)
+# does the same on pull_request closed+merged by parsing title/body/head for T-NNN-NN.
 #
 # Reuses kit frontmatter finder at .sdlc/scripts/lib/frontmatter.py (read-only;
 # do not edit .sdlc/). Idempotent when status is already done.
