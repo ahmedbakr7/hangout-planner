@@ -1,17 +1,28 @@
 import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
-import { resetClock } from "@/server/clock";
+import { resetClock, setClock } from "@/server/clock";
 import { generateId, generateJoinToken, isId } from "@/server/ids";
+import {
+  PLACES_SEARCH_TEXT_URL,
+  type FetchFn,
+} from "@/server/google/places";
+import { ROUTES_MATRIX_URL } from "@/server/google/routes";
+import { ATTEMPT_LOCK_MS, closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { editableFor } from "@/server/plans/edit-rules";
 import {
   POST as createAccount,
   closeDatabase as closeAccounts,
 } from "../../accounts/route";
 import { POST as createPlan, closeDatabase } from "../route";
-import { GET, PATCH } from "./route";
+import {
+  GET,
+  PATCH,
+  PROPOSAL_ATTEMPT_HOUR_CAP,
+  setProposalAttemptGoogleOptions,
+} from "./route";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -30,6 +41,7 @@ const sql = postgres(databaseUrl, {
 const createdEmails: string[] = [];
 const extraGuestIds: string[] = [];
 const extraLinkIds: string[] = [];
+const originalProposalEnabled = process.env.HP_PROPOSAL_ENABLED;
 
 function uniqueEmail(label = "user"): string {
   return `${label}.${randomBytes(8).toString("hex")}@example.com`;
@@ -99,11 +111,23 @@ beforeAll(async () => {
 
 beforeEach(() => {
   process.env.HP_HASH_TEST = "1";
+  delete process.env.HP_PROPOSAL_ENABLED;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+    throw new Error(`unit tests must not call the network: ${String(input)}`);
+  });
+  setProposalAttemptGoogleOptions(undefined);
 });
 
 afterEach(async () => {
   resetClock();
   delete process.env.HP_HASH_TEST;
+  if (originalProposalEnabled === undefined) {
+    delete process.env.HP_PROPOSAL_ENABLED;
+  } else {
+    process.env.HP_PROPOSAL_ENABLED = originalProposalEnabled;
+  }
+  setProposalAttemptGoogleOptions(undefined);
+  vi.unstubAllGlobals();
   const emails = createdEmails.splice(0, createdEmails.length);
   for (const email of emails) {
     await forget(email);
@@ -122,6 +146,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await sql.end({ timeout: 5 });
+  await closeAttempt();
   await closeDatabase();
   await closeAccounts();
 });
@@ -657,7 +682,7 @@ describe("PATCH /v1/plans/{planId}", () => {
       {
         title: "Updated title",
         budget: { amount_minor: 50_001, currency: "EGP" },
-        threshold: 1,
+        threshold: 2,
       },
       { cookie: `hp_session=${organizer.token}` },
     );
@@ -665,7 +690,7 @@ describe("PATCH /v1/plans/{planId}", () => {
     const raisedBody = (await raised.json()) as OrganizerPlanBody;
     expect(raisedBody.title).toBe("Updated title");
     expect(raisedBody.budget.amount_minor).toBe(50_001);
-    expect(raisedBody.threshold).toBe(1);
+    expect(raisedBody.threshold).toBe(2);
     expect(raisedBody.state).toBe("collecting");
   });
 
@@ -721,39 +746,35 @@ describe("PATCH /v1/plans/{planId}", () => {
     expect(stored[0]?.title).toBe("Thursday in Maadi");
   });
 
-  it("does not call a proposal attempt when the threshold meets answered_count or the budget is raised while blocked", async () => {
-    const email = track(uniqueEmail("attempt"));
+  it("a title-only patch while collecting does not run an attempt", async () => {
+    const email = track(uniqueEmail("title"));
     const organizer = await register(email);
     const plan = await openPlan(organizer.token);
     await sql`UPDATE plans SET answered_count = 2 WHERE id = ${plan.id}`;
-    const lowered = await patchPlan(
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: async (request) => {
+        const url =
+          typeof request === "string"
+            ? request
+            : request instanceof URL
+              ? request.href
+              : request.url;
+        captured.push(url);
+        throw new Error(`unexpected Google URL: ${url}`);
+      },
+    });
+    const patched = await patchPlan(
       plan.id,
-      { threshold: 2 },
+      { title: "Still collecting" },
       { cookie: `hp_session=${organizer.token}` },
     );
-    expect(lowered.status).toBe(200);
-    const loweredBody = (await lowered.json()) as OrganizerPlanBody;
-    expect(loweredBody.threshold).toBe(2);
-    expect(loweredBody.state).toBe("collecting");
-    expect(loweredBody).not.toHaveProperty("proposal");
-
-    await sql`UPDATE plans SET state = 'blocked' WHERE id = ${plan.id}`;
-    const raised = await patchPlan(
-      plan.id,
-      { budget: { amount_minor: 90_000, currency: "EGP" } },
-      { cookie: `hp_session=${organizer.token}` },
-    );
-    expect(raised.status).toBe(200);
-    const raisedBody = (await raised.json()) as OrganizerPlanBody;
-    expect(raisedBody.budget.amount_minor).toBe(90_000);
-    expect(raisedBody.state).toBe("blocked");
-    const source = await import("node:fs/promises").then((fs) =>
-      fs.readFile(
-        resolve(process.cwd(), "src/app/api/v1/plans/[planId]/route.ts"),
-        "utf8",
-      ),
-    );
-    expect(source).not.toContain("runProposalAttempt");
+    expect(patched.status).toBe(200);
+    const body = (await patched.json()) as OrganizerPlanBody;
+    expect(body.title).toBe("Still collecting");
+    expect(body.state).toBe("collecting");
+    expect(captured).toEqual([]);
   });
 
   it("returns 404 envelope only for a stranger PATCH", async () => {
@@ -784,3 +805,328 @@ describe("PATCH /v1/plans/{planId}", () => {
     expect(stored[0]?.title).toBe("Thursday in Maadi");
   });
 });
+
+const START_A = { id: "ChIJ-start-a", name: "Maadi, Cairo", lat: 29.96, lng: 31.25 };
+const START_B = { id: "ChIJ-start-b", name: "Zamalek Garden", lat: 30.06, lng: 31.22 };
+const DINNER_A = {
+  id: "ChIJ-dinner-a",
+  name: "Abu Tarek",
+  lat: 30.01,
+  lng: 31.235,
+  units: 120,
+};
+const DINNER_B = {
+  id: "ChIJ-dinner-b",
+  name: "Koshary El Tahrir",
+  lat: 30.012,
+  lng: 31.236,
+  units: 90,
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function venuePlace(place: {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  units: number;
+}) {
+  return {
+    id: place.id,
+    displayName: { text: place.name },
+    location: { latitude: place.lat, longitude: place.lng },
+    priceRange: {
+      startPrice: { currencyCode: "EGP", units: place.units, nanos: 0 },
+    },
+  };
+}
+
+function waypointLatLng(value: unknown): { latitude: number; longitude: number } | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const latLng = (
+    (value as { waypoint?: { location?: { latLng?: unknown } } }).waypoint
+      ?.location as { latLng?: { latitude?: unknown; longitude?: unknown } } | undefined
+  )?.latLng;
+  if (
+    latLng === undefined ||
+    typeof latLng.latitude !== "number" ||
+    typeof latLng.longitude !== "number"
+  ) {
+    return null;
+  }
+  return { latitude: latLng.latitude, longitude: latLng.longitude };
+}
+
+function attemptGoogleFetch(captured: string[]): FetchFn {
+  const byQuery: Record<string, unknown[]> = {
+    Koshary: [venuePlace(DINNER_A), venuePlace(DINNER_B)],
+  };
+  return async (request, init) => {
+    const url =
+      typeof request === "string"
+        ? request
+        : request instanceof URL
+          ? request.href
+          : request.url;
+    captured.push(url);
+    if (url === PLACES_SEARCH_TEXT_URL) {
+      const body =
+        init?.body === undefined
+          ? {}
+          : (JSON.parse(String(init.body)) as { textQuery?: string });
+      return jsonResponse({ places: byQuery[body.textQuery ?? ""] ?? [] });
+    }
+    if (url === ROUTES_MATRIX_URL) {
+      const body =
+        init?.body === undefined
+          ? { origins: [], destinations: [] }
+          : (JSON.parse(String(init.body)) as {
+              origins?: unknown[];
+              destinations?: unknown[];
+            });
+      const origins = (body.origins ?? []).map(waypointLatLng);
+      const destinations = (body.destinations ?? []).map(waypointLatLng);
+      const elements: unknown[] = [];
+      for (let i = 0; i < origins.length; i += 1) {
+        for (let j = 0; j < destinations.length; j += 1) {
+          elements.push({
+            originIndex: i,
+            destinationIndex: j,
+            status: { code: 0 },
+            condition: "ROUTE_EXISTS",
+            duration: "180s",
+          });
+        }
+      }
+      return jsonResponse(elements);
+    }
+    throw new Error(`unexpected Google URL: ${url}`);
+  };
+}
+
+function expectNoLiveGoogle(urls: readonly string[]): void {
+  expect(
+    urls.every(
+      (url) => url === PLACES_SEARCH_TEXT_URL || url === ROUTES_MATRIX_URL,
+    ),
+  ).toBe(true);
+}
+
+async function seedAccountParticipant(
+  planId: string,
+  accountId: string,
+  displayName: string,
+  distinguisher: string,
+): Promise<string> {
+  const participantId = generateId("prt_");
+  await sql`
+    INSERT INTO participants (
+      id, plan_id, account_id, guest_session_id, display_name, distinguisher
+    ) VALUES (
+      ${participantId}, ${planId}, ${accountId}, NULL, ${displayName}, ${distinguisher}
+    )
+  `;
+  return participantId;
+}
+
+async function seedCompleteMember(
+  planId: string,
+  participantId: string,
+  start: { id: string; name: string; lat: number; lng: number },
+): Promise<void> {
+  const windows = await sql<{ id: string }[]>`
+    SELECT id FROM plan_windows WHERE plan_id = ${planId} ORDER BY position
+  `;
+  const steps = await sql<{ id: string }[]>`
+    SELECT id FROM plan_steps WHERE plan_id = ${planId} ORDER BY position
+  `;
+  const options = await sql<{ id: string; label: string }[]>`
+    SELECT id, label FROM plan_options
+    WHERE step_id = ${steps[0]!.id}
+    ORDER BY position
+  `;
+  const koshary = options.find((row) => row.label === "Koshary");
+  await sql`
+    INSERT INTO responses (
+      participant_id, start_google_place_id, start_name, start_lat, start_lng,
+      complete, first_completed_at
+    ) VALUES (
+      ${participantId}, ${start.id}, ${start.name}, ${start.lat}, ${start.lng},
+      true, ${new Date("2026-09-01T00:00:00.000Z")}
+    )
+  `;
+  await sql`
+    INSERT INTO response_windows (
+      participant_id, window_id, kind, earliest_local, latest_local
+    ) VALUES (
+      ${participantId}, ${windows[0]!.id}, 'free', '18:00', '23:00'
+    )
+  `;
+  await sql`
+    INSERT INTO response_picks (participant_id, step_id, option_id)
+    VALUES (${participantId}, ${steps[0]!.id}, ${koshary!.id})
+  `;
+}
+
+async function seedTwoComplete(planId: string): Promise<void> {
+  const nour = await register(track(uniqueEmail("nour")), "Nour");
+  const ziad = await register(track(uniqueEmail("ziad")), "Ziad");
+  const nourId = await seedAccountParticipant(planId, nour.account.id, "Nour", "a3k9");
+  const ziadId = await seedAccountParticipant(planId, ziad.account.id, "Ziad", "m2n4");
+  await seedCompleteMember(planId, nourId, START_A);
+  await seedCompleteMember(planId, ziadId, START_B);
+  await sql`UPDATE plans SET answered_count = 2 WHERE id = ${planId}`;
+}
+
+async function seedHourRuns(planId: string, count: number, startedAt: Date): Promise<void> {
+  for (let i = 0; i < count; i += 1) {
+    await sql`
+      INSERT INTO proposal_runs (
+        id, plan_id, started_at, outcome, block_time, block_budget, block_venue_data
+      ) VALUES (
+        ${`prn_${randomBytes(16).toString("hex")}`},
+        ${planId},
+        ${startedAt},
+        'blocked',
+        false,
+        false,
+        true
+      )
+    `;
+  }
+}
+
+async function runCount(planId: string): Promise<number> {
+  const rows = await sql<{ count: string }[]>`
+    SELECT count(*)::text AS count FROM proposal_runs WHERE plan_id = ${planId}
+  `;
+  return Number(rows[0]?.count ?? 0);
+}
+
+describe("PATCH /v1/plans/{planId} attempt trigger", () => {
+  it("runs an attempt when it lowers the threshold onto answered_count while collecting, or raises the budget while blocked, and the returned plan includes the new state", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const plan = await openPlan(organizer.token);
+    await seedTwoComplete(plan.id);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+
+    const lowered = await patchPlan(
+      plan.id,
+      { threshold: 2 },
+      { cookie: `hp_session=${organizer.token}` },
+    );
+    expect(lowered.status).toBe(200);
+    const loweredBody = (await lowered.json()) as OrganizerPlanBody;
+    expect(loweredBody.threshold).toBe(2);
+    expect(loweredBody.answered_count).toBe(2);
+    expect(loweredBody.state).toBe("proposed");
+    expect(loweredBody).not.toHaveProperty("proposal");
+    expectNoLiveGoogle(captured);
+    expect(await runCount(plan.id)).toBe(1);
+
+    await sql`UPDATE plans SET state = 'blocked' WHERE id = ${plan.id}`;
+    captured.length = 0;
+    const raised = await patchPlan(
+      plan.id,
+      { budget: { amount_minor: 90_000, currency: "EGP" } },
+      { cookie: `hp_session=${organizer.token}` },
+    );
+    expect(raised.status).toBe(200);
+    const raisedBody = (await raised.json()) as OrganizerPlanBody;
+    expect(raisedBody.budget.amount_minor).toBe(90_000);
+    expect(raisedBody.state).toBe("proposed");
+    expectNoLiveGoogle(captured);
+  });
+
+  it("returns 409 attempt_in_progress for a young lock after the patch has committed, and takes over a lock older than 20s", async () => {
+    const organizer = await register(track(uniqueEmail("lock")), "Omar");
+    const cookie = `hp_session=${organizer.token}`;
+    const youngPlan = await openPlan(organizer.token);
+    const oldPlan = await openPlan(organizer.token);
+    await seedTwoComplete(youngPlan.id);
+    await seedTwoComplete(oldPlan.id);
+    const frozen = new Date("2026-09-26T12:00:00.000Z");
+    setClock(frozen);
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${frozen}
+      WHERE id = ${youngPlan.id}
+    `;
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+
+    const young = await patchPlan(youngPlan.id, { threshold: 2 }, { cookie });
+    expect(young.status).toBe(409);
+    expect(await young.json()).toMatchObject({
+      error: { code: "conflict", reason: "attempt_in_progress", fields: [] },
+    });
+    const stored = await sql<{ threshold: number; state: string }[]>`
+      SELECT threshold, state FROM plans WHERE id = ${youngPlan.id}
+    `;
+    expect(stored[0]?.threshold).toBe(2);
+    expect(stored[0]?.state).toBe("collecting");
+    expect(captured).toEqual([]);
+
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${frozen}
+      WHERE id = ${oldPlan.id}
+    `;
+    setClock(new Date(frozen.getTime() + ATTEMPT_LOCK_MS + 1));
+    const takeover = await patchPlan(oldPlan.id, { threshold: 2 }, { cookie });
+    expect(takeover.status).toBe(200);
+    const body = (await takeover.json()) as OrganizerPlanBody;
+    expect(body.state).toBe("proposed");
+    expect(body.threshold).toBe(2);
+    expectNoLiveGoogle(captured);
+  });
+
+  it("does not call Google when a budget raise finds the hour full, finishes as venue_data, and still returns 200 for the committed write", async () => {
+    const organizer = await register(track(uniqueEmail("cap")), "Omar");
+    const plan = await openPlan(organizer.token);
+    await seedTwoComplete(plan.id);
+    await sql`UPDATE plans SET state = 'blocked' WHERE id = ${plan.id}`;
+    await seedHourRuns(plan.id, PROPOSAL_ATTEMPT_HOUR_CAP, new Date());
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+
+    const raised = await patchPlan(
+      plan.id,
+      { budget: { amount_minor: 90_000, currency: "EGP" } },
+      { cookie: `hp_session=${organizer.token}` },
+    );
+    expect(raised.status).toBe(200);
+    const body = (await raised.json()) as OrganizerPlanBody;
+    expect(body.budget.amount_minor).toBe(90_000);
+    expect(body.state).toBe("blocked");
+    expect(captured).toEqual([]);
+    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 1);
+    const latest = await sql<{ block_venue_data: boolean; outcome: string }[]>`
+      SELECT block_venue_data, outcome
+      FROM proposal_runs
+      WHERE plan_id = ${plan.id}
+      ORDER BY started_at DESC, id DESC
+      LIMIT 1
+    `;
+    expect(latest[0]).toEqual({ block_venue_data: true, outcome: "blocked" });
+  });
+});
+
