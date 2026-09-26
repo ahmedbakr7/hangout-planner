@@ -2,7 +2,7 @@
 id: T-001-30
 title: "shadcn theme bootstrap"
 type: frontend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-07
