@@ -1,0 +1,34 @@
+:root {
+  --bg: #f7f4ef;
+  --surface: #fffcf8;
+  --text: #1f1a14;
+  --text-muted: #6b645b;
+  --border: #e6dfd4;
+  --accent: #0e6b4f;
+  --danger: #9d2c2c;
+  --warning: #8a5b10;
+  --success: #1d6b3a;
+  --focus: #1e4f8c;
+
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+
+  --type-title-size: 1.75rem;
+  --type-title-leading: 2.125rem;
+  --type-section-size: 1.25rem;
+  --type-section-leading: 1.75rem;
+  --type-body-size: 1rem;
+  --type-body-leading: 1.5rem;
+  --type-caption-size: 0.8125rem;
+  --type-caption-leading: 1.125rem;
+
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+}
