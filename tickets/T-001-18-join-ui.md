@@ -2,7 +2,7 @@
 id: T-001-18
 title: "Join UI"
 type: frontend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-08
