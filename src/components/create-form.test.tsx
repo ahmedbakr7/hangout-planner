@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -15,6 +17,12 @@ const { router } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
+
+const TICKET_FILES = [
+  "src/app/plans/new/page.tsx",
+  "src/components/create-form.tsx",
+  "src/components/create-form.test.tsx",
+];
 
 const missingSession = {
   error: {
@@ -160,6 +168,10 @@ function postCall(
   return match?.[1];
 }
 
+function classTokens(el: Element): string[] {
+  return el.className.split(/\s+/);
+}
+
 function fillValidForm(): void {
   fireEvent.change(screen.getByLabelText("Plan title"), {
     target: { value: "Thursday in Maadi" },
@@ -200,6 +212,28 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
+});
+
+describe("CreateForm chrome", () => {
+  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
+    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
+    const root = process.cwd();
+    for (const relative of TICKET_FILES) {
+      const source = readFileSync(join(root, relative), "utf8");
+      expect(source, relative).not.toMatch(hex);
+    }
+    const form = readFileSync(join(root, "src/components/create-form.tsx"), "utf8");
+    expect(form).toContain('from "@/components/ui/button"');
+    expect(form).toContain('from "@/components/ui/input"');
+    expect(form).toContain('from "@/components/ui/label"');
+    expect(form).toContain('from "@/components/ui/card"');
+    expect(form).toContain("bg-primary");
+    expect(form).toContain("text-destructive");
+    expect(form).not.toContain('className="danger"');
+    expect(form).not.toContain("var(--accent)");
+    expect(form).not.toContain("var(--danger)");
+    expect(form.includes("style=" + "{{")).toBe(false);
+  });
 });
 
 describe("decimalToAmountMinor", () => {
@@ -244,6 +278,16 @@ describe("CreateForm", () => {
     expect(timezone.value).toBe(Intl.DateTimeFormat().resolvedOptions().timeZone);
     fireEvent.change(timezone, { target: { value: "America/New_York" } });
     expect(timezone.value).toBe("America/New_York");
+
+    expect(classTokens(screen.getByRole("button", { name: "Create" }))).toContain(
+      "bg-primary",
+    );
+    expect(
+      classTokens(screen.getByRole("button", { name: "Add a day window" })),
+    ).not.toContain("bg-primary");
+    expect(
+      classTokens(screen.getByRole("button", { name: "Add a step" })),
+    ).not.toContain("bg-primary");
 
     expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
     expect(screen.queryByText(/venue/i)).toBeNull();
@@ -328,13 +372,13 @@ describe("CreateForm", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
-  it("a save failure keeps the entered values, uses danger, and does not navigate", async () => {
+  it("a save failure keeps the entered values, uses text-destructive, and does not navigate", async () => {
     const fetchMock = await renderSignedInForm({ plansPost: "fail" });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.className.split(/\s+/)).toContain("danger");
+    expect(classTokens(alert)).toContain("text-destructive");
     expect(alert.textContent).toBe("A data source is unavailable. Retry.");
     expect((screen.getByLabelText("Plan title") as HTMLInputElement).value).toBe(
       "Thursday in Maadi",
