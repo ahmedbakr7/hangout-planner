@@ -2,7 +2,7 @@
 id: T-001-23
 title: "Proposal attempt"
 type: backend
-status: ready
+status: in_review
 risk: high
 depends_on:
   - T-001-13
