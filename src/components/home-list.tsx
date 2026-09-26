@@ -1,8 +1,14 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import React, { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { LanguageControl } from "@/components/language-control";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
 
 type SessionState = "checking" | "signed_out" | "signed_in";
 type LoadState = "idle" | "loading" | "loaded" | "error";
@@ -16,57 +22,6 @@ type HomePlan = {
   answeredCount: number;
   threshold: number;
   state: PlanState;
-};
-
-const stackStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-md)",
-  alignItems: "stretch",
-};
-
-const rowStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-2xs)",
-  alignItems: "start",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-sm)",
-  paddingInline: "var(--space-sm)",
-  textDecoration: "none",
-  color: "var(--text)",
-};
-
-const primaryLinkStyle: CSSProperties = {
-  backgroundColor: "var(--accent)",
-  color: "var(--surface)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  textDecoration: "none",
-  alignSelf: "start",
-};
-
-const retryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
-};
-
-const listStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-sm)",
-  listStyle: "none",
-  margin: 0,
-  padding: 0,
 };
 
 function isPlanState(value: unknown): value is PlanState {
@@ -154,12 +109,25 @@ function planHref(plan: HomePlan): string {
 
 function stateClassName(state: PlanState): string {
   if (state === "blocked") {
-    return "danger";
+    return "text-destructive";
   }
   if (state === "locked") {
-    return "success";
+    return "text-success";
   }
-  return "";
+  if (state === "proposed") {
+    return "text-foreground";
+  }
+  return "text-muted-foreground";
+}
+
+function HomeShell({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <main className="bg-background text-foreground">
+      <Card className="border-border bg-card text-card-foreground">
+        {children}
+      </Card>
+    </main>
+  );
 }
 
 function HomeListBody(): ReactNode {
@@ -227,9 +195,13 @@ function HomeListBody(): ReactNode {
 
   if (session === "checking") {
     return (
-      <main className="surface" style={stackStyle}>
-        <h1 className="title">{t("title")}</h1>
-      </main>
+      <HomeShell>
+        <CardHeader>
+          <h1 className="title text-foreground text-start text-pretty">
+            {t("title")}
+          </h1>
+        </CardHeader>
+      </HomeShell>
     );
   }
 
@@ -237,59 +209,80 @@ function HomeListBody(): ReactNode {
     session === "signed_out" ? "/account?next=/plans/new" : "/plans/new";
 
   return (
-    <main className="surface" style={stackStyle}>
-      <h1 className="title">{t("title")}</h1>
-      <a href={createHref} style={primaryLinkStyle}>
-        {t("create")}
-      </a>
+    <HomeShell>
+      <CardHeader className="gap-3">
+        <h1 className="title text-foreground text-start text-pretty">
+          {t("title")}
+        </h1>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <Button asChild className="self-start bg-primary">
+          <a href={createHref}>{t("create")}</a>
+        </Button>
 
-      {session === "signed_out" ? (
-        <p className="body">{t("signedOutFriends")}</p>
-      ) : null}
-
-      {session === "signed_in" ? (
-        <a href="/invitations">{t("invitations")}</a>
-      ) : null}
-
-      {load === "error" ? (
-        <>
-          <p className="danger" role="alert">
-            {t("loadError")}
+        {session === "signed_out" ? (
+          <p className="body text-foreground text-start text-pretty">
+            {t("signedOutFriends")}
           </p>
-          <button type="button" onClick={() => void loadPlans()} style={retryButtonStyle}>
-            {t("retry")}
-          </button>
-        </>
-      ) : null}
+        ) : null}
 
-      {load === "loaded" && plans.length === 0 ? (
-        <p className="text-muted body">{t("empty")}</p>
-      ) : null}
+        {session === "signed_in" ? (
+          <Button variant="link" asChild className="h-auto self-start p-0">
+            <a href="/invitations">{t("invitations")}</a>
+          </Button>
+        ) : null}
 
-      {load === "loaded" && plans.length > 0 ? (
-        <ul style={listStyle}>
-          {plans.map((plan) => {
-            const stateClass = stateClassName(plan.state);
-            return (
-              <li key={plan.id}>
-                <a href={planHref(plan)} style={rowStyle}>
-                  <span className="body">{plan.title}</span>
-                  <span className="caption">
-                    {t("answered", {
-                      answered: plan.answeredCount,
-                      threshold: plan.threshold,
-                    })}
-                  </span>
-                  <span className={stateClass || "body"}>
-                    {t(`state.${plan.state}`)}
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </main>
+        {load === "error" ? (
+          <>
+            <p className="text-destructive text-start" role="alert">
+              {t("loadError")}
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              className="self-start"
+              onClick={() => void loadPlans()}
+            >
+              {t("retry")}
+            </Button>
+          </>
+        ) : null}
+
+        {load === "loaded" ? (
+          plans.length === 0 ? (
+            <p className="body text-muted-foreground text-start text-pretty">
+              {t("empty")}
+            </p>
+          ) : (
+            <ul className="m-0 flex list-none flex-col gap-3 p-0">
+              {plans.map((plan) => (
+                <li key={plan.id}>
+                  <a
+                    href={planHref(plan)}
+                    className="flex flex-col gap-1 rounded-md border border-border bg-card p-3 text-foreground no-underline"
+                  >
+                    <span className="body text-foreground text-start">
+                      {plan.title}
+                    </span>
+                    <span className="caption text-muted-foreground text-start tabular-nums">
+                      {t("answered", {
+                        answered: plan.answeredCount,
+                        threshold: plan.threshold,
+                      })}
+                    </span>
+                    <span
+                      className={`caption text-start ${stateClassName(plan.state)}`}
+                    >
+                      {t(`state.${plan.state}`)}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
+      </CardContent>
+    </HomeShell>
   );
 }
 

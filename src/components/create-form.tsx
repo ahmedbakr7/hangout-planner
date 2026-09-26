@@ -5,12 +5,19 @@ import { useTranslations } from "next-intl";
 import React, {
   useEffect,
   useState,
-  type CSSProperties,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { AccountGate } from "@/components/account-gate";
 import { LanguageControl } from "@/components/language-control";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const AMOUNT_MINOR_MAX = 100_000_000_000;
 const TITLE_MAX = 80;
@@ -31,6 +38,9 @@ const DEFAULT_CURRENCIES: CurrencyOption[] = [
   { code: "SAR", exponent: 2 },
   { code: "AED", exponent: 2 },
 ];
+
+const selectClassName =
+  "flex h-9 w-full rounded-sm border border-input bg-background px-3 py-1 text-sm text-foreground text-start shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 type SessionState = "checking" | "signed_out" | "signed_in";
 
@@ -59,61 +69,6 @@ type WindowDraft = {
 type StepDraft = {
   name: string;
   options: string[];
-};
-
-const stackStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-md)",
-  alignItems: "stretch",
-};
-
-const sectionStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-sm)",
-  alignItems: "stretch",
-};
-
-const fieldStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-2xs)",
-  alignItems: "stretch",
-};
-
-const inputStyle: CSSProperties = {
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-sm)",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  font: "inherit",
-};
-
-const primaryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--accent)",
-  color: "var(--surface)",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
 };
 
 function environmentTimeZone(): string {
@@ -293,6 +248,42 @@ function compactOptions(options: readonly string[]): {
     }
   }
   return { labels, blanks };
+}
+
+function FormShell({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <main className="bg-background text-foreground">
+      <Card className="border-border bg-card text-card-foreground">
+        {children}
+      </Card>
+    </main>
+  );
+}
+
+function FieldBlock({
+  id,
+  label,
+  errorId,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  errorId: string;
+  error: string | null;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error ? (
+        <p id={errorId} className="text-sm text-destructive text-start">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function CreateFormFields(): ReactNode {
@@ -620,311 +611,328 @@ function CreateFormFields(): ReactNode {
   const thresholdError = fieldMessage("threshold");
 
   return (
-    <main className="surface" style={stackStyle}>
-      <h1 className="title">{t("title")}</h1>
-      <form onSubmit={onSubmit} style={stackStyle} noValidate>
-        {formError ? (
-          <p className="danger" role="alert">
-            {formError}
-          </p>
-        ) : null}
+    <FormShell>
+      <CardHeader>
+        <h1 className="title text-foreground text-start text-pretty">
+          {t("title")}
+        </h1>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={onSubmit} className="flex flex-col gap-6" noValidate>
+          {formError ? (
+            <p className="text-destructive text-start" role="alert">
+              {formError}
+            </p>
+          ) : null}
 
-        <section style={sectionStyle}>
-          <h2 className="section">{t("sectionTitle")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-title">{t("planTitle")}</label>
-            <input
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {t("sectionTitle")}
+            </h2>
+            <FieldBlock
               id="hp-title"
-              name="title"
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              aria-invalid={titleError ? true : undefined}
-              aria-describedby={titleError ? "hp-title-error" : undefined}
-              style={inputStyle}
-            />
-            {titleError ? (
-              <p id="hp-title-error" className="danger">
-                {titleError}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{t("sectionWhen")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-timezone">{t("timezone")}</label>
-            <input
-              id="hp-timezone"
-              name="timezone"
-              type="text"
-              value={timezone}
-              onChange={(event) => setTimezone(event.target.value)}
-              aria-invalid={timezoneError ? true : undefined}
-              aria-describedby={timezoneError ? "hp-timezone-error" : undefined}
-              style={inputStyle}
-            />
-            {timezoneError ? (
-              <p id="hp-timezone-error" className="danger">
-                {timezoneError}
-              </p>
-            ) : null}
-          </div>
-          {windowsError ? (
-            <p id="hp-windows-error" className="danger">
-              {windowsError}
-            </p>
-          ) : null}
-          {windows.map((window, index) => {
-            const dateError = fieldMessage(`windows[${index}].local_date`);
-            const startError = fieldMessage(`windows[${index}].start_local`);
-            const endError = fieldMessage(`windows[${index}].end_local`);
-            return (
-              <div key={index} style={sectionStyle}>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-date`}>{t("date")}</label>
-                  <input
-                    id={`hp-window-${index}-date`}
-                    name={`windows[${index}].local_date`}
-                    type="date"
-                    value={window.localDate}
-                    onChange={(event) =>
-                      updateWindow(index, { localDate: event.target.value })
-                    }
-                    aria-invalid={dateError ? true : undefined}
-                    aria-describedby={dateError ? `hp-window-${index}-date-error` : undefined}
-                    style={inputStyle}
-                  />
-                  {dateError ? (
-                    <p id={`hp-window-${index}-date-error`} className="danger">
-                      {dateError}
-                    </p>
-                  ) : null}
-                </div>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-start`}>{t("start")}</label>
-                  <input
-                    id={`hp-window-${index}-start`}
-                    name={`windows[${index}].start_local`}
-                    type="time"
-                    value={window.startLocal}
-                    onChange={(event) =>
-                      updateWindow(index, { startLocal: event.target.value })
-                    }
-                    aria-invalid={startError ? true : undefined}
-                    aria-describedby={
-                      startError ? `hp-window-${index}-start-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {startError ? (
-                    <p id={`hp-window-${index}-start-error`} className="danger">
-                      {startError}
-                    </p>
-                  ) : null}
-                </div>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-end`}>{t("end")}</label>
-                  <input
-                    id={`hp-window-${index}-end`}
-                    name={`windows[${index}].end_local`}
-                    type="time"
-                    value={window.endLocal}
-                    onChange={(event) =>
-                      updateWindow(index, { endLocal: event.target.value })
-                    }
-                    aria-invalid={endError ? true : undefined}
-                    aria-describedby={endError ? `hp-window-${index}-end-error` : undefined}
-                    style={inputStyle}
-                  />
-                  {endError ? (
-                    <p id={`hp-window-${index}-end-error`} className="danger">
-                      {endError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => {
-              setWindows((current) =>
-                current.length < WINDOWS_MAX ? [...current, emptyWindow()] : current,
-              );
-            }}
-            style={secondaryButtonStyle}
-          >
-            {t("addWindow")}
-          </button>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{t("sectionBudget")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-amount">{t("amount")}</label>
-            <input
-              id="hp-amount"
-              name="amount"
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              aria-invalid={amountError ? true : undefined}
-              aria-describedby={amountError ? "hp-amount-error" : undefined}
-              style={inputStyle}
-            />
-            {amountError ? (
-              <p id="hp-amount-error" className="danger">
-                {amountError}
-              </p>
-            ) : null}
-          </div>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-currency">{t("currency")}</label>
-            <select
-              id="hp-currency"
-              name="currency"
-              value={currency}
-              onChange={(event) => setCurrency(event.target.value)}
-              aria-invalid={currencyError ? true : undefined}
-              aria-describedby={currencyError ? "hp-currency-error" : undefined}
-              style={inputStyle}
+              label={t("planTitle")}
+              errorId="hp-title-error"
+              error={titleError}
             >
-              {currencies.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.code}
-                </option>
-              ))}
-            </select>
-            {currencyError ? (
-              <p id="hp-currency-error" className="danger">
-                {currencyError}
+              <Input
+                id="hp-title"
+                name="title"
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                aria-invalid={titleError ? true : undefined}
+                aria-describedby={titleError ? "hp-title-error" : undefined}
+              />
+            </FieldBlock>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {t("sectionWhen")}
+            </h2>
+            <FieldBlock
+              id="hp-timezone"
+              label={t("timezone")}
+              errorId="hp-timezone-error"
+              error={timezoneError}
+            >
+              <Input
+                id="hp-timezone"
+                name="timezone"
+                type="text"
+                value={timezone}
+                onChange={(event) => setTimezone(event.target.value)}
+                aria-invalid={timezoneError ? true : undefined}
+                aria-describedby={
+                  timezoneError ? "hp-timezone-error" : undefined
+                }
+              />
+            </FieldBlock>
+            {windowsError ? (
+              <p id="hp-windows-error" className="text-sm text-destructive text-start">
+                {windowsError}
               </p>
             ) : null}
-          </div>
-        </section>
+            {windows.map((window, index) => {
+              const dateError = fieldMessage(`windows[${index}].local_date`);
+              const startError = fieldMessage(`windows[${index}].start_local`);
+              const endError = fieldMessage(`windows[${index}].end_local`);
+              return (
+                <div
+                  key={index}
+                  className="flex flex-col gap-3 rounded-md border border-border p-3"
+                >
+                  <FieldBlock
+                    id={`hp-window-${index}-date`}
+                    label={t("date")}
+                    errorId={`hp-window-${index}-date-error`}
+                    error={dateError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-date`}
+                      name={`windows[${index}].local_date`}
+                      type="date"
+                      value={window.localDate}
+                      onChange={(event) =>
+                        updateWindow(index, { localDate: event.target.value })
+                      }
+                      aria-invalid={dateError ? true : undefined}
+                      aria-describedby={
+                        dateError ? `hp-window-${index}-date-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock
+                    id={`hp-window-${index}-start`}
+                    label={t("start")}
+                    errorId={`hp-window-${index}-start-error`}
+                    error={startError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-start`}
+                      name={`windows[${index}].start_local`}
+                      type="time"
+                      value={window.startLocal}
+                      onChange={(event) =>
+                        updateWindow(index, { startLocal: event.target.value })
+                      }
+                      aria-invalid={startError ? true : undefined}
+                      aria-describedby={
+                        startError ? `hp-window-${index}-start-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock
+                    id={`hp-window-${index}-end`}
+                    label={t("end")}
+                    errorId={`hp-window-${index}-end-error`}
+                    error={endError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-end`}
+                      name={`windows[${index}].end_local`}
+                      type="time"
+                      value={window.endLocal}
+                      onChange={(event) =>
+                        updateWindow(index, { endLocal: event.target.value })
+                      }
+                      aria-invalid={endError ? true : undefined}
+                      aria-describedby={
+                        endError ? `hp-window-${index}-end-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                </div>
+              );
+            })}
+            <Button
+              type="button"
+              variant="secondary"
+              className="self-start"
+              onClick={() => {
+                setWindows((current) =>
+                  current.length < WINDOWS_MAX
+                    ? [...current, emptyWindow()]
+                    : current,
+                );
+              }}
+            >
+              {t("addWindow")}
+            </Button>
+          </section>
 
-        <section style={sectionStyle}>
-          <h2 className="section">{t("sectionSteps")}</h2>
-          {stepsError ? (
-            <p id="hp-steps-error" className="danger">
-              {stepsError}
-            </p>
-          ) : null}
-          {steps.map((step, index) => {
-            const nameError = fieldMessage(`steps[${index}].name`);
-            const optionsError = fieldMessage(`steps[${index}].options`);
-            return (
-              <div key={index} style={sectionStyle}>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-step-${index}-name`}>{t("stepName")}</label>
-                  <input
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {t("sectionBudget")}
+            </h2>
+            <FieldBlock
+              id="hp-amount"
+              label={t("amount")}
+              errorId="hp-amount-error"
+              error={amountError}
+            >
+              <Input
+                id="hp-amount"
+                name="amount"
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                onChange={(event) => setAmount(event.target.value)}
+                aria-invalid={amountError ? true : undefined}
+                aria-describedby={amountError ? "hp-amount-error" : undefined}
+              />
+            </FieldBlock>
+            <FieldBlock
+              id="hp-currency"
+              label={t("currency")}
+              errorId="hp-currency-error"
+              error={currencyError}
+            >
+              <select
+                id="hp-currency"
+                name="currency"
+                value={currency}
+                onChange={(event) => setCurrency(event.target.value)}
+                aria-invalid={currencyError ? true : undefined}
+                aria-describedby={
+                  currencyError ? "hp-currency-error" : undefined
+                }
+                className={selectClassName}
+              >
+                {currencies.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code}
+                  </option>
+                ))}
+              </select>
+            </FieldBlock>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {t("sectionSteps")}
+            </h2>
+            {stepsError ? (
+              <p id="hp-steps-error" className="text-sm text-destructive text-start">
+                {stepsError}
+              </p>
+            ) : null}
+            {steps.map((step, index) => {
+              const nameError = fieldMessage(`steps[${index}].name`);
+              const optionsError = fieldMessage(`steps[${index}].options`);
+              return (
+                <div
+                  key={index}
+                  className="flex flex-col gap-3 rounded-md border border-border p-3"
+                >
+                  <FieldBlock
                     id={`hp-step-${index}-name`}
-                    name={`steps[${index}].name`}
-                    type="text"
-                    value={step.name}
-                    onChange={(event) =>
-                      updateStep(index, { name: event.target.value })
-                    }
-                    aria-invalid={nameError ? true : undefined}
-                    aria-describedby={
-                      nameError ? `hp-step-${index}-name-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {nameError ? (
-                    <p id={`hp-step-${index}-name-error`} className="danger">
-                      {nameError}
+                    label={t("stepName")}
+                    errorId={`hp-step-${index}-name-error`}
+                    error={nameError}
+                  >
+                    <Input
+                      id={`hp-step-${index}-name`}
+                      name={`steps[${index}].name`}
+                      type="text"
+                      value={step.name}
+                      onChange={(event) =>
+                        updateStep(index, { name: event.target.value })
+                      }
+                      aria-invalid={nameError ? true : undefined}
+                      aria-describedby={
+                        nameError ? `hp-step-${index}-name-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  {optionsError ? (
+                    <p className="text-sm text-destructive text-start">
+                      {optionsError}
                     </p>
                   ) : null}
-                </div>
-                {optionsError ? (
-                  <p className="danger">{optionsError}</p>
-                ) : null}
-                {step.options.map((option, optionIndex) => {
-                  const optionError = fieldMessage(
-                    `steps[${index}].options[${optionIndex}]`,
-                  );
-                  return (
-                    <div key={optionIndex} style={fieldStyle}>
-                      <label htmlFor={`hp-step-${index}-option-${optionIndex}`}>
-                        {t("optionLabel")}
-                      </label>
-                      <input
+                  {step.options.map((option, optionIndex) => {
+                    const optionError = fieldMessage(
+                      `steps[${index}].options[${optionIndex}]`,
+                    );
+                    return (
+                      <FieldBlock
+                        key={optionIndex}
                         id={`hp-step-${index}-option-${optionIndex}`}
-                        name={`steps[${index}].options[${optionIndex}]`}
-                        type="text"
-                        value={option}
-                        onChange={(event) =>
-                          updateOption(index, optionIndex, event.target.value)
-                        }
-                        aria-invalid={optionError ? true : undefined}
-                        aria-describedby={
-                          optionError
-                            ? `hp-step-${index}-option-${optionIndex}-error`
-                            : undefined
-                        }
-                        style={inputStyle}
-                      />
-                      {optionError ? (
-                        <p
-                          id={`hp-step-${index}-option-${optionIndex}-error`}
-                          className="danger"
-                        >
-                          {optionError}
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            onClick={() => {
-              setSteps((current) =>
-                current.length < STEPS_MAX ? [...current, emptyStep()] : current,
+                        label={t("optionLabel")}
+                        errorId={`hp-step-${index}-option-${optionIndex}-error`}
+                        error={optionError}
+                      >
+                        <Input
+                          id={`hp-step-${index}-option-${optionIndex}`}
+                          name={`steps[${index}].options[${optionIndex}]`}
+                          type="text"
+                          value={option}
+                          onChange={(event) =>
+                            updateOption(index, optionIndex, event.target.value)
+                          }
+                          aria-invalid={optionError ? true : undefined}
+                          aria-describedby={
+                            optionError
+                              ? `hp-step-${index}-option-${optionIndex}-error`
+                              : undefined
+                          }
+                        />
+                      </FieldBlock>
+                    );
+                  })}
+                </div>
               );
-            }}
-            style={secondaryButtonStyle}
-          >
-            {t("addStep")}
-          </button>
-        </section>
+            })}
+            <Button
+              type="button"
+              variant="secondary"
+              className="self-start"
+              onClick={() => {
+                setSteps((current) =>
+                  current.length < STEPS_MAX ? [...current, emptyStep()] : current,
+                );
+              }}
+            >
+              {t("addStep")}
+            </Button>
+          </section>
 
-        <section style={sectionStyle}>
-          <h2 className="section">{t("sectionThreshold")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-threshold">{t("threshold")}</label>
-            <input
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {t("sectionThreshold")}
+            </h2>
+            <FieldBlock
               id="hp-threshold"
-              name="threshold"
-              type="text"
-              inputMode="numeric"
-              value={threshold}
-              onChange={(event) => setThreshold(event.target.value)}
-              aria-invalid={thresholdError ? true : undefined}
-              aria-describedby={
-                thresholdError ? "hp-threshold-error" : undefined
-              }
-              style={inputStyle}
-            />
-            {thresholdError ? (
-              <p id="hp-threshold-error" className="danger">
-                {thresholdError}
-              </p>
-            ) : null}
-          </div>
-        </section>
+              label={t("threshold")}
+              errorId="hp-threshold-error"
+              error={thresholdError}
+            >
+              <Input
+                id="hp-threshold"
+                name="threshold"
+                type="text"
+                inputMode="numeric"
+                value={threshold}
+                onChange={(event) => setThreshold(event.target.value)}
+                aria-invalid={thresholdError ? true : undefined}
+                aria-describedby={
+                  thresholdError ? "hp-threshold-error" : undefined
+                }
+              />
+            </FieldBlock>
+          </section>
 
-        <button type="submit" disabled={submitting} style={primaryButtonStyle}>
-          {t("submit")}
-        </button>
-      </form>
-    </main>
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="self-start bg-primary"
+          >
+            {t("submit")}
+          </Button>
+        </form>
+      </CardContent>
+    </FormShell>
   );
 }
 
@@ -962,9 +970,13 @@ function CreateFormRoot(): ReactNode {
   if (session === "checking") {
     return (
       <LanguageControl>
-        <main className="surface" style={stackStyle}>
-          <h1 className="title">{t("title")}</h1>
-        </main>
+        <FormShell>
+          <CardHeader>
+            <h1 className="title text-foreground text-start text-pretty">
+              {t("title")}
+            </h1>
+          </CardHeader>
+        </FormShell>
       </LanguageControl>
     );
   }

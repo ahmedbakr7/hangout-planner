@@ -2,5 +2,9 @@ import type { ReactElement } from "react";
 import { CreateForm } from "@/components/create-form";
 
 export default function CreatePlanPage(): ReactElement {
-  return <CreateForm />;
+  return (
+    <div className="mx-auto w-full max-w-md bg-background text-foreground">
+      <CreateForm />
+    </div>
+  );
 }
