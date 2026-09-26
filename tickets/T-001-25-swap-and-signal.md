@@ -2,7 +2,7 @@
 id: T-001-25
 title: "Swap and signal"
 type: backend
-status: ready
+status: in_review
 risk: medium
 depends_on:
   - T-001-23
