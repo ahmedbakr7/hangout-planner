@@ -2,7 +2,7 @@
 id: T-001-09
 title: "Plan edit rules"
 type: backend
-status: ready
+status: in_review
 risk: medium
 depends_on:
   - T-001-02
