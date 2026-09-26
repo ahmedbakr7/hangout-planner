@@ -42,7 +42,12 @@ describe("LanguageControl", () => {
     const notes = screen.getByLabelText("Notes") as HTMLInputElement;
     fireEvent.change(notes, { target: { value: "still here" } });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+    const language = screen.getByRole("combobox", { name: "Language" });
+    expect(language.className.split(/\s+/)).toContain("border-input");
+    expect(language.className.split(/\s+/)).toContain("bg-background");
+    expect(language.getAttribute("style")).toBeNull();
+
+    fireEvent.change(language, {
       target: { value: "ar" },
     });
 

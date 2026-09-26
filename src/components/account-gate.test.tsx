@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -18,6 +20,15 @@ vi.mock("next/navigation", () => ({
 
 const JOIN_TOKEN = `jt_${"A".repeat(43)}`;
 const JOIN_PATH = `/join/${JOIN_TOKEN}`;
+
+const TICKET_FILES = [
+  "src/app/account/page.tsx",
+  "src/components/account-gate.tsx",
+  "src/components/account-gate.test.tsx",
+  "src/components/language-control.tsx",
+  "src/components/language-control.test.tsx",
+  "src/i18n/fallback.test.ts",
+];
 
 const missingSession = {
   error: {
@@ -124,6 +135,10 @@ function postCall(
   return match?.[1];
 }
 
+function classTokens(el: Element): string[] {
+  return el.className.split(/\s+/);
+}
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
@@ -158,6 +173,34 @@ describe("allowedNextPath", () => {
   });
 });
 
+describe("AccountGate chrome", () => {
+  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
+    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
+    const root = process.cwd();
+    for (const relative of TICKET_FILES) {
+      const source = readFileSync(join(root, relative), "utf8");
+      expect(source, relative).not.toMatch(hex);
+    }
+    const gate = readFileSync(join(root, "src/components/account-gate.tsx"), "utf8");
+    expect(gate).toContain('from "@/components/ui/button"');
+    expect(gate).toContain('from "@/components/ui/input"');
+    expect(gate).toContain('from "@/components/ui/label"');
+    expect(gate).toContain('from "@/components/ui/card"');
+    expect(gate).toContain("bg-primary");
+    expect(gate).toContain("text-destructive");
+    expect(gate).not.toContain('className="danger"');
+    expect(gate).not.toContain("var(--accent)");
+    expect(gate).not.toContain("var(--danger)");
+    expect(gate.includes("style=" + "{{")).toBe(false);
+    const language = readFileSync(
+      join(root, "src/components/language-control.tsx"),
+      "utf8",
+    );
+    expect(language.includes("style=" + "{{")).toBe(false);
+    expect(language).toContain('from "@/components/ui/label"');
+  });
+});
+
 describe("AccountGate", () => {
   beforeEach(() => {
     stubFetch({ me: "out" });
@@ -169,15 +212,25 @@ describe("AccountGate", () => {
     expect(
       screen.queryByRole("link", { name: "Join without an account" }),
     ).toBeNull();
+    expect(
+      classTokens(screen.getByRole("button", { name: "Sign in" })),
+    ).toContain("bg-primary");
+    expect(classTokens(screen.getByRole("tab", { name: "Sign in" }))).not.toContain(
+      "bg-primary",
+    );
+    expect(
+      classTokens(screen.getByRole("tab", { name: "Create account" })),
+    ).not.toContain("bg-primary");
   });
 
   it("offers a way back to join without an account when next is a join path", async () => {
     await renderSignedOut(JOIN_PATH);
     const link = screen.getByRole("link", { name: "Join without an account" });
     expect(link.getAttribute("href")).toBe(JOIN_PATH);
+    expect(classTokens(link)).not.toContain("bg-primary");
   });
 
-  it("keeps a failed sign-in on the gate, signed out, with non-secret values and danger", async () => {
+  it("keeps a failed sign-in on the gate, signed out, with non-secret values and text-destructive", async () => {
     const fetchMock = stubFetch({ me: "out", sessions: "fail" });
     renderGate("/plans/new");
     await screen.findByText("An account is required to organize a plan.");
@@ -191,7 +244,7 @@ describe("AccountGate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.className.split(/\s+/)).toContain("danger");
+    expect(classTokens(alert)).toContain("text-destructive");
     expect(alert.textContent).toBe("Email or password is wrong.");
     expect(screen.getByText("An account is required to organize a plan.")).toBeTruthy();
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe(
@@ -218,7 +271,7 @@ describe("AccountGate", () => {
     });
   });
 
-  it("keeps a failed registration on the gate, signed out, with non-secret values and danger", async () => {
+  it("keeps a failed registration on the gate, signed out, with non-secret values and text-destructive", async () => {
     const fetchMock = stubFetch({ me: "out", accounts: "fail" });
     renderGate();
     await screen.findByText("An account is required to organize a plan.");
@@ -236,7 +289,7 @@ describe("AccountGate", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create account" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.className.split(/\s+/)).toContain("danger");
+    expect(classTokens(alert)).toContain("text-destructive");
     expect(alert.textContent).toBe("That email already has an account.");
     expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe(
       "nour@example.com",
@@ -355,6 +408,7 @@ describe("AccountGate", () => {
     expect(await screen.findByText("Signed in as Nour")).toBeTruthy();
     const home = screen.getByRole("link", { name: "Go home" });
     expect(home.getAttribute("href")).toBe("/");
+    expect(classTokens(home)).toContain("bg-primary");
     expect(screen.queryByText("An account is required to organize a plan.")).toBeNull();
     expect(router.push).not.toHaveBeenCalled();
   });

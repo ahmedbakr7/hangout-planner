@@ -117,7 +117,9 @@ describe("Arabic chrome fallback", () => {
     const email = screen.getByLabelText("البريد") as HTMLInputElement;
     fireEvent.change(email, { target: { value: "nour@example.com" } });
     expect(email.value).toBe("nour@example.com");
-    expect(screen.getByRole("button", { name: "تسجيل الدخول" })).toBeTruthy();
+    const signIn = screen.getByRole("button", { name: "تسجيل الدخول" });
+    expect(signIn).toBeTruthy();
+    expect(signIn.className.split(/\s+/)).toContain("bg-primary");
     expect(screen.getByRole("tab", { name: "إنشاء حساب" })).toBeTruthy();
     expect(email.disabled).toBe(false);
   });

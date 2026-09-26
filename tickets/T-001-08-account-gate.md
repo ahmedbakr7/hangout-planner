@@ -2,7 +2,7 @@
 id: T-001-08
 title: "Account gate"
 type: frontend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-06
