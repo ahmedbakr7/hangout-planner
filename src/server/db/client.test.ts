@@ -31,37 +31,43 @@ describe("package.json", () => {
   it("has the locked dependency set", () => {
     expect(Object.keys(pkg.dependencies ?? {}).sort()).toEqual(
       [
+        "@radix-ui/react-label",
+        "@radix-ui/react-slot",
         "argon2",
+        "class-variance-authority",
+        "clsx",
         "drizzle-orm",
         "next",
         "next-intl",
         "postgres",
         "react",
         "react-dom",
+        "tailwind-merge",
       ].sort(),
     );
     expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(
       [
+        "@tailwindcss/postcss",
         "@testing-library/react",
         "@types/node",
         "@types/react",
         "@types/react-dom",
         "drizzle-kit",
         "jsdom",
+        "postcss",
+        "tailwindcss",
         "typescript",
         "vitest",
       ].sort(),
     );
   });
 
-  it("does not include Tailwind, Prisma, NextAuth, or a second HTTP client", () => {
+  it("does not include Prisma, NextAuth, or a second HTTP client", () => {
     const names = [
       ...Object.keys(pkg.dependencies ?? {}),
       ...Object.keys(pkg.devDependencies ?? {}),
     ];
     const forbidden = [
-      "tailwindcss",
-      "@tailwindcss/postcss",
       "prisma",
       "@prisma/client",
       "next-auth",

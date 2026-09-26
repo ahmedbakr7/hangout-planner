@@ -1,13 +1,36 @@
 :root {
+  --background: #f7f4ef;
+  --foreground: #1f1a14;
+  --card: #fffcf8;
+  --card-foreground: #1f1a14;
+  --popover: #fffcf8;
+  --popover-foreground: #1f1a14;
+  --primary: #0e6b4f;
+  --primary-foreground: #fffcf8;
+  --secondary: color-mix(in srgb, var(--background) 72%, var(--border) 28%);
+  --secondary-foreground: #1f1a14;
+  --muted: color-mix(in srgb, var(--background) 72%, var(--border) 28%);
+  --muted-foreground: #6b645b;
+  --destructive: #9d2c2c;
+  --destructive-foreground: #fffcf8;
+  --warning: #8a5b10;
+  --warning-foreground: #fffcf8;
+  --success: #1d6b3a;
+  --success-foreground: #fffcf8;
+  --border: #e6dfd4;
+  --input: #e6dfd4;
+  --ring: #1e4f8c;
+  --radius: 6px;
+  --accent-foreground: var(--foreground);
+
+  /* Product --accent is the brand CTA for existing var(--accent) consumers.
+     shadcn accent utilities map to --muted (hover pair), not this value. */
   --bg: #f7f4ef;
   --surface: #fffcf8;
   --text: #1f1a14;
   --text-muted: #6b645b;
-  --border: #e6dfd4;
   --accent: #0e6b4f;
   --danger: #9d2c2c;
-  --warning: #8a5b10;
-  --success: #1d6b3a;
   --focus: #1e4f8c;
 
   --space-2xs: 4px;
