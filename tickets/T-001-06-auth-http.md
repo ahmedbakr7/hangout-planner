@@ -2,7 +2,7 @@
 id: T-001-06
 title: "Auth HTTP"
 type: backend
-status: in_review
+status: done
 risk: high
 depends_on:
   - T-001-05

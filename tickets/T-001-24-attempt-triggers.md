@@ -2,7 +2,7 @@
 id: T-001-24
 title: "Attempt triggers"
 type: backend
-status: in_review
+status: done
 risk: high
 depends_on:
   - T-001-10

@@ -2,7 +2,7 @@
 id: T-001-17
 title: "Invitation inbox"
 type: backend
-status: in_review
+status: done
 risk: low
 depends_on:
   - T-001-16
