@@ -2,7 +2,7 @@
 id: T-001-02
 title: "Schema migration"
 type: backend
-status: ready
+status: in_review
 risk: low
 depends_on:
   - T-001-01
