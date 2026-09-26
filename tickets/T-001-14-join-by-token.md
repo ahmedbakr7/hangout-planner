@@ -2,7 +2,7 @@
 id: T-001-14
 title: "Join by token"
 type: backend
-status: in_review
+status: done
 risk: medium
 depends_on:
   - T-001-06

@@ -2,7 +2,7 @@
 id: T-001-26
 title: "Lock and confirmed"
 type: backend
-status: in_review
+status: done
 risk: medium
 depends_on:
   - T-001-25

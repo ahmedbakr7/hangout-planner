@@ -2,7 +2,7 @@
 id: T-001-27
 title: "Proposal UI"
 type: frontend
-status: in_review
+status: done
 risk: medium
 depends_on:
   - T-001-12

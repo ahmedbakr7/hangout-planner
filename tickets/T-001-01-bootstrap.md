@@ -2,7 +2,7 @@
 id: T-001-01
 title: "App bootstrap"
 type: backend
-status: in_review
+status: done
 risk: low
 depends_on: []
 files:

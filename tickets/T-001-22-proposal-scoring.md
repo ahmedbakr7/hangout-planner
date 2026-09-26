@@ -2,7 +2,7 @@
 id: T-001-22
 title: "Proposal scoring"
 type: backend
-status: in_review
+status: done
 risk: high
 depends_on:
   - T-001-03

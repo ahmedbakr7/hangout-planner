@@ -2,7 +2,7 @@
 id: T-001-11
 title: "Home and create"
 type: frontend
-status: in_review
+status: done
 risk: low
 depends_on:
   - T-001-08

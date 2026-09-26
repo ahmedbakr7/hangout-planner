@@ -2,7 +2,7 @@
 id: T-001-05
 title: "Auth core"
 type: backend
-status: in_review
+status: done
 risk: high
 depends_on:
   - T-001-02
