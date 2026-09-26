@@ -1,0 +1,91 @@
+# Product PR checks — installed from kit template:
+#   .sdlc/adapters/github/product-pr-checks.yml @ 6ac198c
+#
+# Required merge gate (with /review Approve): lint + typecheck + unit.
+# Integration left disabled until a dedicated integration target exists.
+#
+# Adaptations for hangout-planner:
+#   - node-version 22 (package.json engines)
+#   - lint/typecheck via tsc -p tsconfig.typecheck.json (excludes *.test.*;
+#     no ESLint yet — adding it would require unlocking T-001-01 dep set)
+#   - unit job provides Postgres + DATABASE_URL (suite mixes unit + DB tests)
+
+name: product-pr-checks
+
+on:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: |
+          if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
+      - name: lint
+        run: npm run lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: |
+          if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
+      - name: typecheck
+        run: npm run typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: hp
+          POSTGRES_PASSWORD: hp
+          POSTGRES_DB: hangout_planner
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hp -d hangout_planner"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://hp:hp@localhost:5432/hangout_planner
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: |
+          if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
+      - name: unit
+        run: |
+          if [ -x .sdlc/scripts/run-tests.sh ]; then .sdlc/scripts/run-tests.sh
+          elif [ -x scripts/run-tests.sh ]; then scripts/run-tests.sh
+          else npm test
+          fi
+
+  # Optional: enable when hangout-planner has a dedicated integration/e2e target.
+  # integration:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         submodules: true
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: "22"
+  #         cache: npm
+  #     - run: |
+  #         if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi
+  #     - name: integration
+  #       run: npm run test:integration
