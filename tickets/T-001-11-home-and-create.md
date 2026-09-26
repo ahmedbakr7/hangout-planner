@@ -2,11 +2,12 @@
 id: T-001-11
 title: "Home and create"
 type: frontend
-status: in_review
+status: ready
 risk: low
 depends_on:
   - T-001-08
   - T-001-10
+  - T-001-30
 files:
   - "src/app/page.tsx"
   - "src/app/plans/new/page.tsx"
@@ -17,6 +18,9 @@ files:
 skills:
   - build
   - frontend-patterns
+  - design-taste-frontend
+  - redesign-existing-projects
+  - vercel-react-best-practices
 contracts: "arch/CONTRACTS.md#Screens"
 requirements:
   - F-001-4
@@ -28,19 +32,21 @@ requirements:
   - N-001-14
   - N-001-15
 acceptance_criteria:
-  - "Signed-out home shows a create action that opens the account gate and shows no plan rows; signed-in empty copy uses text-muted and is distinct from the error"
-  - "A home load failure uses danger, offers retry, keeps create available, and does not show the empty-state sentence or another account's plan"
+  - "Signed-out home shows a create action that uses bg-primary and opens the account gate and shows no plan rows; signed-in empty copy uses text-muted-foreground and is distinct from the error"
+  - "A home load failure uses text-destructive, offers retry, keeps create available, and does not show the empty-state sentence or another account's plan"
   - "A loaded row shows the authored title, answered count, threshold, and one state; collecting, blocked, and proposed open the organizer plan; locked opens confirmed"
   - "Create is one form in the order title, when, budget, steps, threshold; currency defaults to EGP; the timezone starts from the environment and stays editable; there is no venue search and no map"
-  - "An invalid submit creates no plan, identifies each invalid field, and keeps the entered values; a save failure keeps the entered values, uses danger, and does not navigate"
+  - "An invalid submit creates no plan, identifies each invalid field, and keeps the entered values; a save failure keeps the entered values, uses text-destructive, and does not navigate"
   - "A valid submit opens the new organizer plan in collecting with answered count 0"
   - "A signed-out open of create is the account gate with next=/plans/new"
   - "Switching language keeps unsaved create input"
+  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
 source_adr:
   - decisions/ADR-0001-stack.md
+  - decisions/ADR-0002-shadcn-ui.md
 ---
 
-Build home and the one create form from design/pages/home.md and design/pages/create-plan.md. Call the plans routes. No extra files.
+Rebuild home and the one create form from design/pages/home.md and design/pages/create-plan.md with shadcn/ui per ADR-0002 and redesign-existing-projects. Same product outcomes. Call the plans routes. No extra files.
