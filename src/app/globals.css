@@ -1,0 +1,81 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color: var(--text);
+  background-color: var(--bg);
+  font-family: var(--font-latin), sans-serif;
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+}
+
+html[lang="ar"] {
+  font-family: var(--font-arabic), var(--font-latin), sans-serif;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100%;
+  padding-block: var(--space-lg);
+  padding-inline: var(--space-md);
+  text-align: start;
+}
+
+.title {
+  font-size: var(--type-title-size);
+  line-height: var(--type-title-leading);
+}
+
+.section {
+  font-size: var(--type-section-size);
+  line-height: var(--type-section-leading);
+}
+
+.body {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+}
+
+.caption {
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-leading);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.warning {
+  color: var(--warning);
+}
+
+.success {
+  color: var(--success);
+}
+
+.accent {
+  color: var(--accent);
+}
+
+.surface {
+  background-color: var(--surface);
+  border-radius: var(--radius-md);
+  padding-block: var(--space-md);
+  padding-inline: var(--space-md);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus);
+  outline-offset: var(--focus-ring-offset);
+}
+
+[dir="rtl"] .icon-forward {
+  scale: -1 1;
+}
