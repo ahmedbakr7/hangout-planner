@@ -43,6 +43,7 @@ import {
   readJsonObject,
   rejectCsrf,
 } from "../../../accounts/route";
+import { LOCALE_COOKIE, localeFromCookie } from "@/i18n/request";
 import {
   db,
   loadPlanRow,
@@ -51,6 +52,11 @@ import {
   storedCurrency,
   type PlanRow,
 } from "../../route";
+import {
+  applyHourFullVenueData,
+  attemptInProgressResponse,
+  runTriggeredAttempt,
+} from "../route";
 import { planRoleFor } from "../opening/route";
 
 export const runtime = "nodejs";
@@ -381,6 +387,8 @@ async function writeResponse(input: {
   complete: boolean;
   firstCompletion: boolean;
   planState: PlanState;
+  answeredCount: number;
+  threshold: number;
 }> {
   return db().transaction(async (tx) => {
     const planRows = await tx
@@ -488,11 +496,14 @@ async function writeResponse(input: {
       validated.windows,
       validated.picks,
     );
+    const answeredCount = decision.incrementCount
+      ? plan.answeredCount + 1
+      : plan.answeredCount;
     if (decision.incrementCount) {
       await tx
         .update(plans)
         .set({
-          answeredCount: plan.answeredCount + 1,
+          answeredCount,
           updatedAt: instant,
         })
         .where(eq(plans.id, input.planId));
@@ -501,6 +512,8 @@ async function writeResponse(input: {
       complete: decision.complete,
       firstCompletion: decision.firstCompletion,
       planState: asPlanState(plan.state),
+      answeredCount,
+      threshold: plan.threshold,
     };
   });
 }
@@ -684,12 +697,32 @@ export async function PUT(
       startPlace,
       startPlaceIdPresent: parsed.startPlaceId !== undefined,
     });
+    let planState = written.planState;
+    const shouldAttempt =
+      written.firstCompletion &&
+      written.planState === "collecting" &&
+      written.answeredCount === written.threshold;
+    if (shouldAttempt) {
+      const languageCode = localeFromCookie(
+        readCookie(request, LOCALE_COOKIE) ?? undefined,
+      );
+      const triggered = await runTriggeredAttempt(plan.id, languageCode);
+      if (triggered.status === "hour_full") {
+        await applyHourFullVenueData(plan.id);
+        planState = "blocked";
+      } else if (triggered.status === "attempt_in_progress") {
+        return logged(request, attemptInProgressResponse());
+      } else {
+        const latest = await loadPlanRow(plan.id);
+        planState = latest ? asPlanState(latest.state) : planState;
+      }
+    }
     return logged(
       request,
       NextResponse.json({
         complete: written.complete,
         first_completion: written.firstCompletion,
-        plan_state: written.planState,
+        plan_state: planState,
       }),
     );
   } catch (err) {
