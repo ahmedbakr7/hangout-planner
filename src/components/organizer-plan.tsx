@@ -5,11 +5,18 @@ import { useTranslations } from "next-intl";
 import React, {
   useEffect,
   useState,
-  type CSSProperties,
   type FormEvent,
   type ReactNode,
 } from "react";
 import { LanguageControl } from "@/components/language-control";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const AMOUNT_MINOR_MAX = 100_000_000_000;
 const TITLE_MAX = 80;
@@ -29,6 +36,9 @@ const DEFAULT_CURRENCIES: CurrencyOption[] = [
   { code: "SAR", exponent: 2 },
   { code: "AED", exponent: 2 },
 ];
+
+const selectClassName =
+  "flex h-9 w-full rounded-sm border border-input bg-background px-3 py-1 text-sm text-foreground text-start shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 type PlanState = "collecting" | "blocked" | "proposed" | "locked";
 type BudgetEditMode = "any" | "raise" | "frozen";
@@ -111,92 +121,6 @@ type WindowDraft = {
 type StepDraft = {
   name: string;
   options: string[];
-};
-
-const stackStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-md)",
-  alignItems: "stretch",
-};
-
-const sectionStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-sm)",
-  alignItems: "stretch",
-};
-
-const fieldStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-2xs)",
-  alignItems: "stretch",
-};
-
-const rowStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-2xs)",
-  alignItems: "start",
-};
-
-const listStyle: CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "var(--space-sm)",
-  listStyle: "none",
-  margin: 0,
-  padding: 0,
-};
-
-const inputStyle: CSSProperties = {
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-sm)",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  font: "inherit",
-};
-
-const primaryLinkStyle: CSSProperties = {
-  backgroundColor: "var(--accent)",
-  color: "var(--surface)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  textDecoration: "none",
-  alignSelf: "start",
-};
-
-const secondaryLinkStyle: CSSProperties = {
-  color: "var(--text)",
-  alignSelf: "start",
-};
-
-const retryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
-};
-
-const secondaryButtonStyle: CSSProperties = {
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  border: "var(--focus-ring-width) solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  paddingBlock: "var(--space-xs)",
-  paddingInline: "var(--space-md)",
-  font: "inherit",
-  cursor: "pointer",
-  alignSelf: "start",
 };
 
 function isPlanState(value: unknown): value is PlanState {
@@ -667,12 +591,19 @@ function collidingNameKeys(participants: readonly ParticipantRow[]): Set<string>
 
 function stateClassName(state: PlanState): string {
   if (state === "blocked") {
-    return "danger";
+    return "text-destructive";
   }
   if (state === "locked") {
-    return "success";
+    return "text-success";
   }
-  return "body";
+  if (state === "proposed") {
+    return "text-foreground";
+  }
+  return "text-muted-foreground";
+}
+
+function participantStatusClass(status: ParticipantStatus): string {
+  return status === "answered" ? "text-success" : "text-warning";
 }
 
 function frozenPathSet(fields: readonly FieldError[]): Set<string> {
@@ -691,6 +622,42 @@ function frozenPathSet(fields: readonly FieldError[]): Set<string> {
     }
   }
   return paths;
+}
+
+function PlanShell({ children }: { children: ReactNode }): ReactNode {
+  return (
+    <main className="bg-background text-foreground">
+      <Card className="border-border bg-card text-card-foreground">
+        {children}
+      </Card>
+    </main>
+  );
+}
+
+function FieldBlock({
+  id,
+  label,
+  errorId,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  errorId: string;
+  error: string | null;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error ? (
+        <p id={errorId} className="text-sm text-destructive text-start">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export type OrganizerPlanProps = {
@@ -1290,23 +1257,38 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
 
   if (load === "error") {
     return (
-      <main className="surface" style={stackStyle}>
-        <h1 className="title">{t("title")}</h1>
-        <p className="danger" role="alert">
-          {t("loadError")}
-        </p>
-        <button type="button" onClick={() => void loadPlan()} style={retryButtonStyle}>
-          {t("retry")}
-        </button>
-      </main>
+      <PlanShell>
+        <CardHeader>
+          <h1 className="title text-foreground text-start text-pretty">
+            {t("title")}
+          </h1>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <p className="text-destructive text-start" role="alert">
+            {t("loadError")}
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="self-start"
+            onClick={() => void loadPlan()}
+          >
+            {t("retry")}
+          </Button>
+        </CardContent>
+      </PlanShell>
     );
   }
 
   if (load !== "loaded" || !plan) {
     return (
-      <main className="surface" style={stackStyle}>
-        <h1 className="title">{t("title")}</h1>
-      </main>
+      <PlanShell>
+        <CardHeader>
+          <h1 className="title text-foreground text-start text-pretty">
+            {t("title")}
+          </h1>
+        </CardHeader>
+      </PlanShell>
     );
   }
 
@@ -1322,428 +1304,434 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
     currencyEditable() ||
     thresholdEditable() ||
     stepsEditable();
+  const invitePrimary = plan.state === "collecting";
 
   return (
-    <main className="surface" style={stackStyle}>
-      <h1 className="title">{plan.title}</h1>
-      <p className={stateClassName(plan.state)}>{tHome(`state.${plan.state}`)}</p>
-      <p className="body">{plan.timezone}</p>
+    <PlanShell>
+      <CardHeader className="gap-3">
+        <h1 className="title text-foreground text-start text-pretty">
+          {plan.title}
+        </h1>
+        <p className={`${stateClassName(plan.state)} text-start`}>
+          {tHome(`state.${plan.state}`)}
+        </p>
+        <p className="body text-foreground text-start">{plan.timezone}</p>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p className="body text-foreground text-start tabular-nums">
+          {t("answered", {
+            answered: plan.answeredCount,
+            threshold: plan.threshold,
+          })}
+        </p>
+        <p className="body text-foreground text-start tabular-nums">
+          {t("inProgress", { count: plan.inProgressCount })}
+        </p>
 
-      <p className="body">
-        {t("answered", {
-          answered: plan.answeredCount,
-          threshold: plan.threshold,
-        })}
-      </p>
-      <p className="body">
-        {t("inProgress", { count: plan.inProgressCount })}
-      </p>
-
-      {plan.state === "collecting" ? (
-        <p className="text-muted body">{t("waiting")}</p>
-      ) : null}
-
-      {showProposalWay ? (
-        <a href={proposalHref} style={primaryLinkStyle}>
-          {t("openProposal")}
-        </a>
-      ) : null}
-
-      {plan.state === "collecting" ? (
-        <a href={inviteHref} style={primaryLinkStyle}>
-          {t("invite")}
-        </a>
-      ) : (
-        <a href={inviteHref} style={secondaryLinkStyle}>
-          {t("invite")}
-        </a>
-      )}
-
-      <ul style={listStyle}>
-        {plan.participants.map((participant) => {
-          const showDistinguisher = colliding.has(
-            foldDisplayName(participant.displayName),
-          );
-          const statusClass =
-            participant.status === "answered" ? "success" : "warning";
-          const statusLabel =
-            participant.status === "answered"
-              ? t("statusAnswered")
-              : t("statusInProgress");
-          return (
-            <li key={participant.id} style={rowStyle}>
-              <span className="body">{participant.displayName}</span>
-              {showDistinguisher ? (
-                <span className="caption">{participant.distinguisher}</span>
-              ) : null}
-              <span className={statusClass}>{statusLabel}</span>
-            </li>
-          );
-        })}
-      </ul>
-
-      <form onSubmit={onSave} style={stackStyle} noValidate>
-        {formError ? (
-          <p className="danger" role="alert">
-            {formError}
+        {plan.state === "collecting" ? (
+          <p className="body text-muted-foreground text-start text-pretty">
+            {t("waiting")}
           </p>
         ) : null}
 
-        <section style={sectionStyle}>
-          <h2 className="section">{tCreate("sectionTitle")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-title">{tCreate("planTitle")}</label>
-            <input
-              id="hp-title"
-              name="title"
-              type="text"
-              value={title}
-              disabled={!titleEditable()}
-              onChange={(event) => setTitle(event.target.value)}
-              aria-invalid={titleError ? true : undefined}
-              aria-describedby={
-                titleError || titleFrozen ? "hp-title-error" : undefined
-              }
-              style={inputStyle}
-            />
-            {titleError || titleFrozen ? (
-              <p id="hp-title-error" className="danger">
-                {titleError ?? titleFrozen}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{tCreate("sectionWhen")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-timezone">{tCreate("timezone")}</label>
-            <input
-              id="hp-timezone"
-              name="timezone"
-              type="text"
-              value={timezone}
-              disabled={!timezoneEditable()}
-              onChange={(event) => setTimezone(event.target.value)}
-              aria-invalid={timezoneError ? true : undefined}
-              aria-describedby={
-                timezoneError || timezoneFrozen
-                  ? "hp-timezone-error"
-                  : undefined
-              }
-              style={inputStyle}
-            />
-            {timezoneError || timezoneFrozen ? (
-              <p id="hp-timezone-error" className="danger">
-                {timezoneError ?? timezoneFrozen}
-              </p>
-            ) : null}
-          </div>
-          {windowsError ? (
-            <p id="hp-windows-error" className="danger">
-              {windowsError}
-            </p>
-          ) : null}
-          {windowsFrozen ? (
-            <p className="danger">{windowsFrozen}</p>
-          ) : null}
-          {windows.map((window, index) => {
-            const dateError = fieldMessage(`windows[${index}].local_date`);
-            const startError = fieldMessage(`windows[${index}].start_local`);
-            const endError = fieldMessage(`windows[${index}].end_local`);
-            return (
-              <div key={plan.windows[index]?.id ?? index} style={sectionStyle}>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-date`}>
-                    {tCreate("date")}
-                  </label>
-                  <input
-                    id={`hp-window-${index}-date`}
-                    name={`windows[${index}].local_date`}
-                    type="date"
-                    value={window.localDate}
-                    disabled={!windowsEditable()}
-                    onChange={(event) =>
-                      updateWindow(index, { localDate: event.target.value })
-                    }
-                    aria-invalid={dateError ? true : undefined}
-                    aria-describedby={
-                      dateError ? `hp-window-${index}-date-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {dateError ? (
-                    <p id={`hp-window-${index}-date-error`} className="danger">
-                      {dateError}
-                    </p>
-                  ) : null}
-                </div>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-start`}>
-                    {tCreate("start")}
-                  </label>
-                  <input
-                    id={`hp-window-${index}-start`}
-                    name={`windows[${index}].start_local`}
-                    type="time"
-                    value={window.startLocal}
-                    disabled={!windowsEditable()}
-                    onChange={(event) =>
-                      updateWindow(index, { startLocal: event.target.value })
-                    }
-                    aria-invalid={startError ? true : undefined}
-                    aria-describedby={
-                      startError ? `hp-window-${index}-start-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {startError ? (
-                    <p id={`hp-window-${index}-start-error`} className="danger">
-                      {startError}
-                    </p>
-                  ) : null}
-                </div>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-window-${index}-end`}>
-                    {tCreate("end")}
-                  </label>
-                  <input
-                    id={`hp-window-${index}-end`}
-                    name={`windows[${index}].end_local`}
-                    type="time"
-                    value={window.endLocal}
-                    disabled={!windowsEditable()}
-                    onChange={(event) =>
-                      updateWindow(index, { endLocal: event.target.value })
-                    }
-                    aria-invalid={endError ? true : undefined}
-                    aria-describedby={
-                      endError ? `hp-window-${index}-end-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {endError ? (
-                    <p id={`hp-window-${index}-end-error`} className="danger">
-                      {endError}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-          {windowsEditable() ? (
-            <button
-              type="button"
-              onClick={() => {
-                setWindows((current) =>
-                  current.length < WINDOWS_MAX
-                    ? [...current, emptyWindow()]
-                    : current,
-                );
-              }}
-              style={secondaryButtonStyle}
-            >
-              {tCreate("addWindow")}
-            </button>
-          ) : null}
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{tCreate("sectionBudget")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-amount">{tCreate("amount")}</label>
-            <input
-              id="hp-amount"
-              name="amount"
-              type="text"
-              inputMode="decimal"
-              value={amount}
-              disabled={!budgetEditable()}
-              onChange={(event) => setAmount(event.target.value)}
-              aria-invalid={amountError ? true : undefined}
-              aria-describedby={
-                amountError || budgetFrozen ? "hp-amount-error" : undefined
-              }
-              style={inputStyle}
-            />
-            {amountError || budgetFrozen ? (
-              <p id="hp-amount-error" className="danger">
-                {amountError ?? budgetFrozen}
-              </p>
-            ) : null}
-          </div>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-currency">{tCreate("currency")}</label>
-            <select
-              id="hp-currency"
-              name="currency"
-              value={currency}
-              disabled={!currencyEditable()}
-              onChange={(event) => setCurrency(event.target.value)}
-              aria-invalid={currencyError ? true : undefined}
-              aria-describedby={
-                currencyError || currencyFrozen
-                  ? "hp-currency-error"
-                  : undefined
-              }
-              style={inputStyle}
-            >
-              {DEFAULT_CURRENCIES.some((item) => item.code === currency) ? null : (
-                <option value={currency}>{currency}</option>
-              )}
-              {DEFAULT_CURRENCIES.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.code}
-                </option>
-              ))}
-            </select>
-            {currencyError || currencyFrozen ? (
-              <p id="hp-currency-error" className="danger">
-                {currencyError ?? currencyFrozen}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{tCreate("sectionSteps")}</h2>
-          {stepsError ? (
-            <p id="hp-steps-error" className="danger">
-              {stepsError}
-            </p>
-          ) : null}
-          {stepsFrozen ? <p className="danger">{stepsFrozen}</p> : null}
-          {steps.map((step, index) => {
-            const nameError = fieldMessage(`steps[${index}].name`);
-            const optionsError = fieldMessage(`steps[${index}].options`);
-            return (
-              <div key={plan.steps[index]?.id ?? index} style={sectionStyle}>
-                <div style={fieldStyle}>
-                  <label htmlFor={`hp-step-${index}-name`}>
-                    {tCreate("stepName")}
-                  </label>
-                  <input
-                    id={`hp-step-${index}-name`}
-                    name={`steps[${index}].name`}
-                    type="text"
-                    value={step.name}
-                    disabled={!stepsEditable()}
-                    onChange={(event) =>
-                      updateStep(index, { name: event.target.value })
-                    }
-                    aria-invalid={nameError ? true : undefined}
-                    aria-describedby={
-                      nameError ? `hp-step-${index}-name-error` : undefined
-                    }
-                    style={inputStyle}
-                  />
-                  {nameError ? (
-                    <p id={`hp-step-${index}-name-error`} className="danger">
-                      {nameError}
-                    </p>
-                  ) : null}
-                </div>
-                {optionsError ? (
-                  <p className="danger">{optionsError}</p>
-                ) : null}
-                {step.options.map((option, optionIndex) => {
-                  const optionError = fieldMessage(
-                    `steps[${index}].options[${optionIndex}]`,
-                  );
-                  return (
-                    <div key={optionIndex} style={fieldStyle}>
-                      <label htmlFor={`hp-step-${index}-option-${optionIndex}`}>
-                        {tCreate("optionLabel")}
-                      </label>
-                      <input
-                        id={`hp-step-${index}-option-${optionIndex}`}
-                        name={`steps[${index}].options[${optionIndex}]`}
-                        type="text"
-                        value={option}
-                        disabled={!stepsEditable()}
-                        onChange={(event) =>
-                          updateOption(index, optionIndex, event.target.value)
-                        }
-                        aria-invalid={optionError ? true : undefined}
-                        aria-describedby={
-                          optionError
-                            ? `hp-step-${index}-option-${optionIndex}-error`
-                            : undefined
-                        }
-                        style={inputStyle}
-                      />
-                      {optionError ? (
-                        <p
-                          id={`hp-step-${index}-option-${optionIndex}-error`}
-                          className="danger"
-                        >
-                          {optionError}
-                        </p>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
-          {stepsEditable() ? (
-            <button
-              type="button"
-              onClick={() => {
-                setSteps((current) =>
-                  current.length < STEPS_MAX
-                    ? [...current, emptyStep()]
-                    : current,
-                );
-              }}
-              style={secondaryButtonStyle}
-            >
-              {tCreate("addStep")}
-            </button>
-          ) : null}
-        </section>
-
-        <section style={sectionStyle}>
-          <h2 className="section">{tCreate("sectionThreshold")}</h2>
-          <div style={fieldStyle}>
-            <label htmlFor="hp-threshold">{tCreate("threshold")}</label>
-            <input
-              id="hp-threshold"
-              name="threshold"
-              type="text"
-              inputMode="numeric"
-              value={threshold}
-              disabled={!thresholdEditable()}
-              onChange={(event) => setThreshold(event.target.value)}
-              aria-invalid={thresholdError ? true : undefined}
-              aria-describedby={
-                thresholdError || thresholdFrozen
-                  ? "hp-threshold-error"
-                  : undefined
-              }
-              style={inputStyle}
-            />
-            {thresholdError || thresholdFrozen ? (
-              <p id="hp-threshold-error" className="danger">
-                {thresholdError ?? thresholdFrozen}
-              </p>
-            ) : null}
-          </div>
-        </section>
-
-        {somethingEditable ? (
-          <button
-            type="submit"
-            disabled={submitting}
-            style={secondaryButtonStyle}
-          >
-            {plan.editable.budget === "raise" && plan.state === "blocked"
-              ? t("raiseBudget")
-              : tCommon("save")}
-          </button>
+        {showProposalWay ? (
+          <Button asChild className="self-start bg-primary">
+            <a href={proposalHref}>{t("openProposal")}</a>
+          </Button>
         ) : null}
-      </form>
-    </main>
+
+        <Button
+          asChild
+          variant={invitePrimary ? "default" : "secondary"}
+          className={invitePrimary ? "self-start bg-primary" : "self-start"}
+        >
+          <a href={inviteHref}>{t("invite")}</a>
+        </Button>
+
+        <ul className="m-0 flex list-none flex-col gap-3 p-0">
+          {plan.participants.map((participant) => {
+            const showDistinguisher = colliding.has(
+              foldDisplayName(participant.displayName),
+            );
+            const statusLabel =
+              participant.status === "answered"
+                ? t("statusAnswered")
+                : t("statusInProgress");
+            return (
+              <li key={participant.id} className="flex flex-col items-start gap-1">
+                <span className="body text-foreground text-start">
+                  {participant.displayName}
+                </span>
+                {showDistinguisher ? (
+                  <span className="caption text-muted-foreground text-start">
+                    {participant.distinguisher}
+                  </span>
+                ) : null}
+                <span
+                  className={`caption text-start ${participantStatusClass(participant.status)}`}
+                >
+                  {statusLabel}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <form onSubmit={onSave} className="flex flex-col gap-6" noValidate>
+          {formError ? (
+            <p className="text-destructive text-start" role="alert">
+              {formError}
+            </p>
+          ) : null}
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {tCreate("sectionTitle")}
+            </h2>
+            <FieldBlock
+              id="hp-title"
+              label={tCreate("planTitle")}
+              errorId="hp-title-error"
+              error={titleError ?? titleFrozen}
+            >
+              <Input
+                id="hp-title"
+                name="title"
+                type="text"
+                value={title}
+                disabled={!titleEditable()}
+                onChange={(event) => setTitle(event.target.value)}
+                aria-invalid={titleError ? true : undefined}
+                aria-describedby={
+                  titleError || titleFrozen ? "hp-title-error" : undefined
+                }
+              />
+            </FieldBlock>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {tCreate("sectionWhen")}
+            </h2>
+            <FieldBlock
+              id="hp-timezone"
+              label={tCreate("timezone")}
+              errorId="hp-timezone-error"
+              error={timezoneError ?? timezoneFrozen}
+            >
+              <Input
+                id="hp-timezone"
+                name="timezone"
+                type="text"
+                value={timezone}
+                disabled={!timezoneEditable()}
+                onChange={(event) => setTimezone(event.target.value)}
+                aria-invalid={timezoneError ? true : undefined}
+                aria-describedby={
+                  timezoneError || timezoneFrozen
+                    ? "hp-timezone-error"
+                    : undefined
+                }
+              />
+            </FieldBlock>
+            {windowsError ? (
+              <p id="hp-windows-error" className="text-sm text-destructive text-start">
+                {windowsError}
+              </p>
+            ) : null}
+            {windowsFrozen ? (
+              <p className="text-sm text-destructive text-start">{windowsFrozen}</p>
+            ) : null}
+            {windows.map((window, index) => {
+              const dateError = fieldMessage(`windows[${index}].local_date`);
+              const startError = fieldMessage(`windows[${index}].start_local`);
+              const endError = fieldMessage(`windows[${index}].end_local`);
+              return (
+                <div
+                  key={plan.windows[index]?.id ?? index}
+                  className="flex flex-col gap-3 rounded-md border border-border p-3"
+                >
+                  <FieldBlock
+                    id={`hp-window-${index}-date`}
+                    label={tCreate("date")}
+                    errorId={`hp-window-${index}-date-error`}
+                    error={dateError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-date`}
+                      name={`windows[${index}].local_date`}
+                      type="date"
+                      value={window.localDate}
+                      disabled={!windowsEditable()}
+                      onChange={(event) =>
+                        updateWindow(index, { localDate: event.target.value })
+                      }
+                      aria-invalid={dateError ? true : undefined}
+                      aria-describedby={
+                        dateError ? `hp-window-${index}-date-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock
+                    id={`hp-window-${index}-start`}
+                    label={tCreate("start")}
+                    errorId={`hp-window-${index}-start-error`}
+                    error={startError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-start`}
+                      name={`windows[${index}].start_local`}
+                      type="time"
+                      value={window.startLocal}
+                      disabled={!windowsEditable()}
+                      onChange={(event) =>
+                        updateWindow(index, { startLocal: event.target.value })
+                      }
+                      aria-invalid={startError ? true : undefined}
+                      aria-describedby={
+                        startError ? `hp-window-${index}-start-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  <FieldBlock
+                    id={`hp-window-${index}-end`}
+                    label={tCreate("end")}
+                    errorId={`hp-window-${index}-end-error`}
+                    error={endError}
+                  >
+                    <Input
+                      id={`hp-window-${index}-end`}
+                      name={`windows[${index}].end_local`}
+                      type="time"
+                      value={window.endLocal}
+                      disabled={!windowsEditable()}
+                      onChange={(event) =>
+                        updateWindow(index, { endLocal: event.target.value })
+                      }
+                      aria-invalid={endError ? true : undefined}
+                      aria-describedby={
+                        endError ? `hp-window-${index}-end-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                </div>
+              );
+            })}
+            {windowsEditable() ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="self-start"
+                onClick={() => {
+                  setWindows((current) =>
+                    current.length < WINDOWS_MAX
+                      ? [...current, emptyWindow()]
+                      : current,
+                  );
+                }}
+              >
+                {tCreate("addWindow")}
+              </Button>
+            ) : null}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {tCreate("sectionBudget")}
+            </h2>
+            <FieldBlock
+              id="hp-amount"
+              label={tCreate("amount")}
+              errorId="hp-amount-error"
+              error={amountError ?? budgetFrozen}
+            >
+              <Input
+                id="hp-amount"
+                name="amount"
+                type="text"
+                inputMode="decimal"
+                value={amount}
+                disabled={!budgetEditable()}
+                onChange={(event) => setAmount(event.target.value)}
+                aria-invalid={amountError ? true : undefined}
+                aria-describedby={
+                  amountError || budgetFrozen ? "hp-amount-error" : undefined
+                }
+              />
+            </FieldBlock>
+            <FieldBlock
+              id="hp-currency"
+              label={tCreate("currency")}
+              errorId="hp-currency-error"
+              error={currencyError ?? currencyFrozen}
+            >
+              <select
+                id="hp-currency"
+                name="currency"
+                value={currency}
+                disabled={!currencyEditable()}
+                onChange={(event) => setCurrency(event.target.value)}
+                aria-invalid={currencyError ? true : undefined}
+                aria-describedby={
+                  currencyError || currencyFrozen
+                    ? "hp-currency-error"
+                    : undefined
+                }
+                className={selectClassName}
+              >
+                {DEFAULT_CURRENCIES.some((item) => item.code === currency) ? null : (
+                  <option value={currency}>{currency}</option>
+                )}
+                {DEFAULT_CURRENCIES.map((item) => (
+                  <option key={item.code} value={item.code}>
+                    {item.code}
+                  </option>
+                ))}
+              </select>
+            </FieldBlock>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {tCreate("sectionSteps")}
+            </h2>
+            {stepsError ? (
+              <p id="hp-steps-error" className="text-sm text-destructive text-start">
+                {stepsError}
+              </p>
+            ) : null}
+            {stepsFrozen ? (
+              <p className="text-sm text-destructive text-start">{stepsFrozen}</p>
+            ) : null}
+            {steps.map((step, index) => {
+              const nameError = fieldMessage(`steps[${index}].name`);
+              const optionsError = fieldMessage(`steps[${index}].options`);
+              return (
+                <div
+                  key={plan.steps[index]?.id ?? index}
+                  className="flex flex-col gap-3 rounded-md border border-border p-3"
+                >
+                  <FieldBlock
+                    id={`hp-step-${index}-name`}
+                    label={tCreate("stepName")}
+                    errorId={`hp-step-${index}-name-error`}
+                    error={nameError}
+                  >
+                    <Input
+                      id={`hp-step-${index}-name`}
+                      name={`steps[${index}].name`}
+                      type="text"
+                      value={step.name}
+                      disabled={!stepsEditable()}
+                      onChange={(event) =>
+                        updateStep(index, { name: event.target.value })
+                      }
+                      aria-invalid={nameError ? true : undefined}
+                      aria-describedby={
+                        nameError ? `hp-step-${index}-name-error` : undefined
+                      }
+                    />
+                  </FieldBlock>
+                  {optionsError ? (
+                    <p className="text-sm text-destructive text-start">
+                      {optionsError}
+                    </p>
+                  ) : null}
+                  {step.options.map((option, optionIndex) => {
+                    const optionError = fieldMessage(
+                      `steps[${index}].options[${optionIndex}]`,
+                    );
+                    return (
+                      <FieldBlock
+                        key={optionIndex}
+                        id={`hp-step-${index}-option-${optionIndex}`}
+                        label={tCreate("optionLabel")}
+                        errorId={`hp-step-${index}-option-${optionIndex}-error`}
+                        error={optionError}
+                      >
+                        <Input
+                          id={`hp-step-${index}-option-${optionIndex}`}
+                          name={`steps[${index}].options[${optionIndex}]`}
+                          type="text"
+                          value={option}
+                          disabled={!stepsEditable()}
+                          onChange={(event) =>
+                            updateOption(index, optionIndex, event.target.value)
+                          }
+                          aria-invalid={optionError ? true : undefined}
+                          aria-describedby={
+                            optionError
+                              ? `hp-step-${index}-option-${optionIndex}-error`
+                              : undefined
+                          }
+                        />
+                      </FieldBlock>
+                    );
+                  })}
+                </div>
+              );
+            })}
+            {stepsEditable() ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="self-start"
+                onClick={() => {
+                  setSteps((current) =>
+                    current.length < STEPS_MAX
+                      ? [...current, emptyStep()]
+                      : current,
+                  );
+                }}
+              >
+                {tCreate("addStep")}
+              </Button>
+            ) : null}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="section text-foreground text-start">
+              {tCreate("sectionThreshold")}
+            </h2>
+            <FieldBlock
+              id="hp-threshold"
+              label={tCreate("threshold")}
+              errorId="hp-threshold-error"
+              error={thresholdError ?? thresholdFrozen}
+            >
+              <Input
+                id="hp-threshold"
+                name="threshold"
+                type="text"
+                inputMode="numeric"
+                value={threshold}
+                disabled={!thresholdEditable()}
+                onChange={(event) => setThreshold(event.target.value)}
+                aria-invalid={thresholdError ? true : undefined}
+                aria-describedby={
+                  thresholdError || thresholdFrozen
+                    ? "hp-threshold-error"
+                    : undefined
+                }
+              />
+            </FieldBlock>
+          </section>
+
+          {somethingEditable ? (
+            <Button
+              type="submit"
+              disabled={submitting}
+              variant="secondary"
+              className="self-start"
+            >
+              {plan.editable.budget === "raise" && plan.state === "blocked"
+                ? t("raiseBudget")
+                : tCommon("save")}
+            </Button>
+          ) : null}
+        </form>
+      </CardContent>
+    </PlanShell>
   );
 }
 
