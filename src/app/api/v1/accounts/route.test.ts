@@ -6,7 +6,8 @@ import { verifyPassword } from "@/server/auth/password";
 import { hashCookieToken, SESSION_MAX_AGE_SECONDS } from "@/server/auth/session";
 import { resetClock } from "@/server/clock";
 import { isId } from "@/server/ids";
-import { POST, closeDatabase } from "./route";
+import { POST } from "./route";
+import { closeDatabase } from "@/server/auth/http";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

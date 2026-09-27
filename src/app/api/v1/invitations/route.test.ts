@@ -4,13 +4,13 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import postgres from "postgres";
 import { resetClock } from "@/server/clock";
 import { generateId, generateJoinToken } from "@/server/ids";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../plans/route";
+import { POST as createAccount } from "../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../plans/route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
 import { POST as sendInvite } from "../plans/[planId]/invitations/route";
-import { GET, closeDatabase } from "./route";
+import { GET } from "./route";
+import { closeDatabase } from "@/server/invites/inbox";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

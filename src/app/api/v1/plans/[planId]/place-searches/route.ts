@@ -1,31 +1,35 @@
 import { NextResponse } from "next/server";
-import { now } from "@/server/clock";
+import {
+  allowPlaceSearch,
+  placeSearchGoogleOptions,
+} from "@/server/response/place-search";
 import {
   regionCodeForTimezone,
   searchStartPlaces,
-  type GoogleClientOptions,
 } from "@/server/google/places";
 import { asPlanState } from "@/server/join/open";
 import { LOCALE_COOKIE, localeFromCookie } from "@/i18n/request";
 import type { PlanState } from "@/server/plans/edit-rules";
 import {
-  PLACE_SEARCH_LIMIT,
   PLACE_SEARCH_RESULT_CAP,
-  PLACE_SEARCH_WINDOW_MS,
   parsePlaceSearchQuery,
   placeSearchRateLimitedError,
   responseValidationFailed,
   responsesClosedError,
   upstreamPlacesError,
 } from "@/server/response/save";
-import { errorResponse, logged, readCookie } from "../../../accounts/route";
+import {
+  errorResponse,
+  logged,
+  readCookie,
+} from "@/server/auth/http";
 import {
   loadPlanRow,
   notFoundResponse,
   planLockedResponse,
-} from "../../route";
-import { planRoleFor } from "../opening/route";
-import { loadCallerParticipant } from "../response/route";
+} from "@/server/plans/http";
+import { planRoleFor } from "@/server/plans/role";
+import { loadCallerParticipant } from "@/server/response/caller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,34 +37,6 @@ export const dynamic = "force-dynamic";
 type PlaceSearchRouteContext = {
   params: Promise<{ planId: string }>;
 };
-
-let googleClientOptions: GoogleClientOptions | undefined;
-const placeSearchLog = new Map<string, number[]>();
-
-export function setGoogleClientOptions(
-  options: GoogleClientOptions | undefined,
-): void {
-  googleClientOptions = options;
-}
-
-export function resetPlaceSearchLog(): void {
-  placeSearchLog.clear();
-}
-
-function allowPlaceSearch(participantId: string): boolean {
-  const ts = now().getTime();
-  const cutoff = ts - PLACE_SEARCH_WINDOW_MS;
-  const kept = (placeSearchLog.get(participantId) ?? []).filter(
-    (stamp) => stamp > cutoff,
-  );
-  if (kept.length >= PLACE_SEARCH_LIMIT) {
-    placeSearchLog.set(participantId, kept);
-    return false;
-  }
-  kept.push(ts);
-  placeSearchLog.set(participantId, kept);
-  return true;
-}
 
 function closedResponse(state: PlanState): NextResponse | null {
   if (state === "proposed") {
@@ -114,7 +90,7 @@ export async function GET(
         languageCode,
         ...(regionCode !== undefined ? { regionCode } : {}),
       },
-      googleClientOptions,
+      placeSearchGoogleOptions(),
     );
     return logged(
       request,

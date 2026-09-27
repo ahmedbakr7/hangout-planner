@@ -17,12 +17,15 @@ import {
   isJoinToken,
 } from "@/server/ids";
 import { PARTICIPANT_CAP } from "@/server/join/open";
+import { POST as createAccount } from "../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../../plans/route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
 import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../../plans/route";
-import { GET, POST, closeDatabase } from "./route";
+  GET,
+  POST,
+} from "./route";
+import { closeDatabase } from "@/server/join/db";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

@@ -10,11 +10,10 @@ import {
   closeDatabase as closeAttempt,
   runProposalAttempt,
 } from "@/server/proposal/attempt";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../../route";
+import { POST as createAccount } from "../../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../../route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
 import { GET } from "./route";
 
 const databaseUrl = process.env.DATABASE_URL;

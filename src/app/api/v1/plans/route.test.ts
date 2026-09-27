@@ -5,8 +5,13 @@ import postgres from "postgres";
 import { resetClock } from "@/server/clock";
 import { generateId, generateJoinToken, isId, isJoinToken } from "@/server/ids";
 import { editableFor } from "@/server/plans/edit-rules";
-import { POST as createAccount, closeDatabase as closeAccounts } from "../accounts/route";
-import { GET, POST, closeDatabase } from "./route";
+import { POST as createAccount } from "../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import {
+  GET,
+  POST,
+} from "./route";
+import { closeDatabase } from "@/server/plans/http";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

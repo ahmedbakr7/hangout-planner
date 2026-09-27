@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { swapGoogleOptions } from "@/server/proposal/swap-google";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { now } from "@/server/clock";
 import { httpError } from "@/server/http/errors";
@@ -37,7 +38,7 @@ import {
   readJsonObject,
   rejectCsrf,
   validationFailed,
-} from "../../../../../accounts/route";
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
@@ -47,8 +48,8 @@ import {
   storedCurrency,
   storedState,
   type PlanRow,
-} from "../../../../route";
-import { planRoleFor } from "../../../opening/route";
+} from "@/server/plans/http";
+import { planRoleFor } from "@/server/plans/role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,14 +125,6 @@ type SwapWrite = {
   }[];
   alternatives: { position: number; googlePlaceId: string }[];
 };
-
-let googleClientOptions: GoogleClientOptions | undefined;
-
-export function setGoogleClientOptions(
-  options: GoogleClientOptions | undefined,
-): void {
-  googleClientOptions = options;
-}
 
 function notProposedResponse(): NextResponse {
   return errorResponse(
@@ -994,7 +987,7 @@ export async function POST(
       durationSeconds: leg.durationSeconds,
     })),
     remaining,
-    google: googleClientOptions,
+    google: swapGoogleOptions(),
   });
   if (routed === "route_unavailable") {
     return logged(request, routeUnavailableResponse());

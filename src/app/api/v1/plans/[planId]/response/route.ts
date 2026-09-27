@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
-import { and, asc, eq, inArray } from "drizzle-orm";
-import { hashCookieToken } from "@/server/auth/session";
+import { loadCallerParticipant } from "@/server/response/caller";
+import { responseGoogleOptions } from "@/server/response/google";
+import {
+  asc,
+  eq,
+  inArray,
+} from "drizzle-orm";
 import { now } from "@/server/clock";
 import {
-  guestSessions,
-  participants,
   planOptions,
   planSteps,
   planWindows,
@@ -15,7 +18,6 @@ import {
 } from "@/server/db/schema";
 import {
   getStartPlaceDetails,
-  type GoogleClientOptions,
   type StartPlace,
 } from "@/server/google/places";
 import { asPlanState } from "@/server/join/open";
@@ -38,11 +40,10 @@ import {
 import {
   errorResponse,
   logged,
-  readAccountSession,
   readCookie,
   readJsonObject,
   rejectCsrf,
-} from "../../../accounts/route";
+} from "@/server/auth/http";
 import { LOCALE_COOKIE, localeFromCookie } from "@/i18n/request";
 import {
   db,
@@ -51,13 +52,13 @@ import {
   planLockedResponse,
   storedCurrency,
   type PlanRow,
-} from "../../route";
+} from "@/server/plans/http";
 import {
   applyHourFullVenueData,
   attemptInProgressResponse,
   runTriggeredAttempt,
-} from "../route";
-import { planRoleFor } from "../opening/route";
+} from "@/server/proposal/trigger";
+import { planRoleFor } from "@/server/plans/role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,79 +107,12 @@ function rejectWrite(response: NextResponse): WriteRejected {
   });
 }
 
-let googleClientOptions: GoogleClientOptions | undefined;
-
-export function setGoogleClientOptions(
-  options: GoogleClientOptions | undefined,
-): void {
-  googleClientOptions = options;
-}
-
-function tokenHash(token: string | null): string | null {
-  if (!token) {
-    return null;
-  }
-  try {
-    return hashCookieToken(token);
-  } catch {
-    return null;
-  }
-}
-
-function isFuture(value: Date | string): boolean {
-  const date = value instanceof Date ? value : new Date(value);
-  const time = date.getTime();
-  return Number.isFinite(time) && time > now().getTime();
-}
-
 function isWriteRejected(err: unknown): err is WriteRejected {
   if (typeof err !== "object" || err === null) {
     return false;
   }
   const reject = (err as { writeReject?: unknown }).writeReject;
   return typeof reject === "object" && reject !== null;
-}
-
-export async function loadCallerParticipant(
-  request: Request,
-  planId: string,
-): Promise<ParticipantRow | null> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
-  if (session.ok) {
-    const rows = await db()
-      .select({ id: participants.id })
-      .from(participants)
-      .where(
-        and(
-          eq(participants.planId, planId),
-          eq(participants.accountId, session.account.id),
-        ),
-      )
-      .limit(1);
-    if (rows[0]) {
-      return rows[0];
-    }
-  }
-  const hash = tokenHash(readCookie(request, "hp_guest"));
-  if (!hash) {
-    return null;
-  }
-  const rows = await db()
-    .select({ id: participants.id, expiresAt: guestSessions.expiresAt })
-    .from(participants)
-    .innerJoin(
-      guestSessions,
-      eq(guestSessions.id, participants.guestSessionId),
-    )
-    .where(
-      and(eq(participants.planId, planId), eq(guestSessions.tokenHash, hash)),
-    )
-    .limit(1);
-  const row = rows[0];
-  if (!row || !isFuture(row.expiresAt)) {
-    return null;
-  }
-  return { id: row.id };
 }
 
 async function loadPlanShape(planId: string): Promise<PlanShape> {
@@ -336,7 +270,7 @@ function responseWindowView(row: {
 
 async function resolveStartPlace(placeId: string): Promise<StartPlace | null> {
   try {
-    return await getStartPlaceDetails(placeId, googleClientOptions);
+    return await getStartPlaceDetails(placeId, responseGoogleOptions());
   } catch {
     return null;
   }

@@ -12,7 +12,7 @@ import {
   signInAccount,
   signInFields,
   validationFailed,
-} from "../accounts/route";
+} from "@/server/auth/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

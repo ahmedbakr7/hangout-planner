@@ -5,7 +5,8 @@ import postgres from "postgres";
 import { verifyPassword } from "@/server/auth/password";
 import { SESSION_MAX_AGE_SECONDS } from "@/server/auth/session";
 import { resetClock } from "@/server/clock";
-import { POST as createAccount, closeDatabase } from "../accounts/route";
+import { POST as createAccount } from "../accounts/route";
+import { closeDatabase } from "@/server/auth/http";
 import { GET } from "../me/route";
 import { DELETE, POST } from "./route";
 

@@ -23,14 +23,14 @@ import {
   readJsonObject,
   rejectCsrf,
   validationFailed,
-} from "../../../accounts/route";
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
   notFoundResponse,
   type PlanRow,
-} from "../../route";
-import { planRoleFor } from "../opening/route";
+} from "@/server/plans/http";
+import { planRoleFor } from "@/server/plans/role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -7,13 +7,13 @@ import { generateId } from "@/server/ids";
 import { PLACES_SEARCH_TEXT_URL, type FetchFn } from "@/server/google/places";
 import { ROUTES_MATRIX_URL } from "@/server/google/routes";
 import { ATTEMPT_LOCK_MS, closeDatabase as closeAttempt } from "@/server/proposal/attempt";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../../route";
-import { PROPOSAL_ATTEMPT_HOUR_CAP } from "../route";
-import { POST, setGoogleClientOptions } from "./route";
+import { POST as createAccount } from "../../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../../route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
+import { PROPOSAL_ATTEMPT_HOUR_CAP } from "@/server/proposal/trigger";
+import { POST } from "./route";
+import { setProposalAttemptGoogleOptions as setGoogleClientOptions } from "@/server/proposal/trigger";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

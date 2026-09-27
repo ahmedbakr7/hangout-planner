@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { resetClock } from "@/server/clock";
-import { POST as createAccount, closeDatabase } from "../accounts/route";
+import { POST as createAccount } from "../accounts/route";
+import { closeDatabase } from "@/server/auth/http";
 import { GET } from "./route";
 
 const databaseUrl = process.env.DATABASE_URL;

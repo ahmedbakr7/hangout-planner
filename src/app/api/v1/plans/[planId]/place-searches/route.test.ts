@@ -10,12 +10,15 @@ import {
   START_SEARCH_FIELD_MASK,
   type FetchFn,
 } from "@/server/google/places";
+import { POST as createAccount } from "../../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../../route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
+import { GET } from "./route";
 import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../../route";
-import { GET, resetPlaceSearchLog, setGoogleClientOptions } from "./route";
+  resetPlaceSearchLog,
+  setGoogleClientOptions,
+} from "@/server/response/place-search";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
