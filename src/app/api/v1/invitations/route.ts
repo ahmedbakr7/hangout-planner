@@ -1,37 +1,16 @@
 import { NextResponse } from "next/server";
 import { desc, eq } from "drizzle-orm";
-import { createDb } from "@/server/db/client";
-import { accounts, invitations, plans } from "@/server/db/schema";
 import {
   logged,
   missingSessionResponse,
   readAccountSession,
   readCookie,
-} from "../accounts/route";
+} from "@/server/auth/http";
+import { accounts, invitations, plans } from "@/server/db/schema";
+import { INBOX_LIMIT, db } from "@/server/invites/inbox";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export const INBOX_LIMIT = 100;
-
-type Database = ReturnType<typeof createDb>;
-
-let database: Database | undefined;
-
-function db(): Database {
-  if (!database) {
-    database = createDb();
-  }
-  return database;
-}
-
-export async function closeDatabase(): Promise<void> {
-  if (!database) {
-    return;
-  }
-  await database.$client.end({ timeout: 5 });
-  database = undefined;
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
   const session = await readAccountSession(readCookie(request, "hp_session"));

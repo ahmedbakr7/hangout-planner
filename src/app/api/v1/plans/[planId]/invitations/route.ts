@@ -19,16 +19,16 @@ import {
   readJsonObject,
   rejectCsrf,
   validationFailed,
-} from "../../../accounts/route";
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
   notFoundResponse,
   storedState,
   type PlanRow,
-} from "../../route";
-import { planRoleFor } from "../opening/route";
-import { loadSentInvitations } from "../invite/route";
+} from "@/server/plans/http";
+import { planRoleFor } from "@/server/plans/role";
+import { loadSentInvitations } from "@/server/invites/sent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

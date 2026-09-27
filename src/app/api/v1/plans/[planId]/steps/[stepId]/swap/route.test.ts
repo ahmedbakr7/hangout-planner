@@ -6,13 +6,13 @@ import { resetClock } from "@/server/clock";
 import { generateId } from "@/server/ids";
 import { PLACES_SEARCH_TEXT_URL, type FetchFn } from "@/server/google/places";
 import { ROUTES_MATRIX_URL } from "@/server/google/routes";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../../../../accounts/route";
-import { POST as createPlan, closeDatabase as closePlans } from "../../../../route";
+import { POST as createAccount } from "../../../../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../../../../route";
+import { closeDatabase as closePlans } from "@/server/plans/http";
 import { GET as getProposal } from "../../../proposal/route";
-import { POST, setGoogleClientOptions } from "./route";
+import { POST } from "./route";
+import { setGoogleClientOptions } from "@/server/proposal/swap-google";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {

@@ -4,7 +4,11 @@ import { now } from "@/server/clock";
 import { plans } from "@/server/db/schema";
 import { httpError } from "@/server/http/errors";
 import { asPlanState } from "@/server/join/open";
-import { errorResponse, logged, rejectCsrf } from "../../../accounts/route";
+import {
+  errorResponse,
+  logged,
+  rejectCsrf,
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
@@ -13,9 +17,9 @@ import {
   planLockedResponse,
   storedState,
   type PlanRow,
-} from "../../route";
-import { loadConfirmedDocument } from "../confirmed/route";
-import { planRoleFor } from "../opening/route";
+} from "@/server/plans/http";
+import { loadConfirmedDocument } from "@/server/plans/confirmed";
+import { planRoleFor } from "@/server/plans/role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

@@ -17,7 +17,11 @@ import {
   stepSignals,
 } from "@/server/db/schema";
 import { LOCALE_COOKIE, localeFromCookie } from "@/i18n/request";
-import { logged, readCookie, rejectCsrf } from "../../../accounts/route";
+import {
+  logged,
+  readCookie,
+  rejectCsrf,
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
@@ -27,20 +31,17 @@ import {
   storedCurrency,
   storedState,
   type PlanRow,
-} from "../../route";
+} from "@/server/plans/http";
 import {
   attemptInProgressResponse,
   notBlockedResponse,
   proposalAttemptHourCapResponse,
   runTriggeredAttempt,
-  setProposalAttemptGoogleOptions,
-} from "../route";
-import { planRoleFor } from "../opening/route";
+} from "@/server/proposal/trigger";
+import { planRoleFor } from "@/server/plans/role";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export { setProposalAttemptGoogleOptions as setGoogleClientOptions };
 
 type AttemptsRouteContext = {
   params: Promise<{ planId: string }>;

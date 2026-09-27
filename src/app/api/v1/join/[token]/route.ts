@@ -9,7 +9,7 @@ import {
   type AuthCookieOptions,
 } from "@/server/auth/session";
 import { now } from "@/server/clock";
-import { createDb } from "@/server/db/client";
+import { db } from "@/server/join/db";
 import {
   accounts,
   guestSessions,
@@ -49,7 +49,7 @@ import {
   readJsonObject,
   rejectCsrf,
   validationFailed,
-} from "../../accounts/route";
+} from "@/server/auth/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export const dynamic = "force-dynamic";
 const GUEST_COOKIE = "hp_guest" as const;
 const LINK_COOKIE = "hp_link" as const;
 
-type Database = ReturnType<typeof createDb>;
+type Database = ReturnType<typeof db>;
 type PlanRow = typeof plans.$inferSelect;
 type JoinRouteContext = {
   params: Promise<{ token: string }>;
@@ -72,23 +72,6 @@ type ParticipantRow = {
   displayName: string;
   distinguisher: string;
 };
-
-let database: Database | undefined;
-
-export function db(): Database {
-  if (!database) {
-    database = createDb();
-  }
-  return database;
-}
-
-export async function closeDatabase(): Promise<void> {
-  if (!database) {
-    return;
-  }
-  await database.$client.end({ timeout: 5 });
-  database = undefined;
-}
 
 function newGuestSessionId(): string {
   return `gst_${randomBytes(16).toString("hex")}`;

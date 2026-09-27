@@ -17,16 +17,16 @@ import {
   readJsonObject,
   rejectCsrf,
   validationFailed,
-} from "../../../../../accounts/route";
+} from "@/server/auth/http";
 import {
   db,
   loadPlanRow,
   notFoundResponse,
   planLockedResponse,
   storedState,
-} from "../../../../route";
-import { planRoleFor } from "../../../opening/route";
-import { loadCallerParticipant } from "../../../response/route";
+} from "@/server/plans/http";
+import { planRoleFor } from "@/server/plans/role";
+import { loadCallerParticipant } from "@/server/response/caller";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

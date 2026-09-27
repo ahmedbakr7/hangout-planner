@@ -12,17 +12,18 @@ import {
 import { ROUTES_MATRIX_URL } from "@/server/google/routes";
 import { ATTEMPT_LOCK_MS, closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { editableFor } from "@/server/plans/edit-rules";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "../../accounts/route";
-import { POST as createPlan, closeDatabase } from "../route";
+import { POST as createAccount } from "../../accounts/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { POST as createPlan } from "../route";
+import { closeDatabase } from "@/server/plans/http";
 import {
   GET,
   PATCH,
+} from "./route";
+import {
   PROPOSAL_ATTEMPT_HOUR_CAP,
   setProposalAttemptGoogleOptions,
-} from "./route";
+} from "@/server/proposal/trigger";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
