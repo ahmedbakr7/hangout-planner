@@ -3,6 +3,7 @@ id: T-001-11
 title: "Home and create"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-08

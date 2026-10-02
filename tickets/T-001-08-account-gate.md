@@ -3,6 +3,7 @@ id: T-001-08
 title: "Account gate"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-06

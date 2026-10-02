@@ -3,6 +3,7 @@ id: T-001-06
 title: "Auth HTTP"
 type: backend
 status: done
+legacy: v0
 risk: high
 depends_on:
   - T-001-05

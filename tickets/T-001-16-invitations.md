@@ -3,6 +3,7 @@ id: T-001-16
 title: "Invitations"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-06

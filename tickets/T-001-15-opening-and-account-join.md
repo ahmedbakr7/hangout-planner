@@ -3,6 +3,7 @@ id: T-001-15
 title: "Opening and account join"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-14

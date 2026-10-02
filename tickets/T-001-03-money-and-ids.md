@@ -3,6 +3,7 @@ id: T-001-03
 title: "Money and ids"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-01

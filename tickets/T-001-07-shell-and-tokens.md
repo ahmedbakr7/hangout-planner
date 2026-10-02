@@ -3,6 +3,7 @@ id: T-001-07
 title: "Shell and tokens"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-01

@@ -3,6 +3,7 @@ id: T-001-17
 title: "Invitation inbox"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-16

@@ -3,6 +3,7 @@ id: T-001-04
 title: "Errors and clock"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-01

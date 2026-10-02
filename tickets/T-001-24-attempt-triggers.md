@@ -3,6 +3,7 @@ id: T-001-24
 title: "Attempt triggers"
 type: backend
 status: done
+legacy: v0
 risk: high
 depends_on:
   - T-001-10

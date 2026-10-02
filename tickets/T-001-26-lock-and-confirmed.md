@@ -3,6 +3,7 @@ id: T-001-26
 title: "Lock and confirmed"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-25

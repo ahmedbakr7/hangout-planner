@@ -3,6 +3,7 @@ id: T-001-23
 title: "Proposal attempt"
 type: backend
 status: done
+legacy: v0
 risk: high
 depends_on:
   - T-001-13

@@ -3,6 +3,7 @@ id: T-001-02
 title: "Schema migration"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-01

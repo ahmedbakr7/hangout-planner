@@ -3,6 +3,7 @@ id: T-001-19
 title: "Invite UI"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-12

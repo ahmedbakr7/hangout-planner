@@ -3,6 +3,7 @@ id: T-001-25
 title: "Swap and signal"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-23

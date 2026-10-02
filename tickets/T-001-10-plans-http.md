@@ -3,6 +3,7 @@ id: T-001-10
 title: "Plans HTTP"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-06

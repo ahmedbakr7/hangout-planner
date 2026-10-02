@@ -3,6 +3,7 @@ id: T-001-21
 title: "Response UI"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-18

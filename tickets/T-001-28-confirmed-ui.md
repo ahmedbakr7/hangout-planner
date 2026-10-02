@@ -3,6 +3,7 @@ id: T-001-28
 title: "Confirmed UI"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-26
