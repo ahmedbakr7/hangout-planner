@@ -18,12 +18,12 @@ skills:
 contracts: "arch/CONTRACTS.md"
 requirements: []
 acceptance_criteria:
-  - "package.json engines field is Node 22"
-  - "dependencies are next, react, react-dom, drizzle-orm, postgres, argon2, and next-intl, and devDependencies are typescript, @types/node, @types/react, @types/react-dom, drizzle-kit, vitest, jsdom, and @testing-library/react"
-  - "The dependency set does not include Tailwind, Prisma, NextAuth, or a second HTTP client"
-  - "tsconfig is TypeScript strict and @/ maps to src/"
-  - "Vitest runs"
-  - "The Drizzle client reads DATABASE_URL"
+  - "AC-1: package.json engines field is Node 22"
+  - "AC-2: dependencies are next, react, react-dom, drizzle-orm, postgres, argon2, and next-intl, and devDependencies are typescript, @types/node, @types/react, @types/react-dom, drizzle-kit, vitest, jsdom, and @testing-library/react"
+  - "AC-3: The dependency set does not include Tailwind, Prisma, NextAuth, or a second HTTP client"
+  - "AC-4: tsconfig is TypeScript strict and @/ maps to src/"
+  - "AC-5: Vitest runs"
+  - "AC-6: The Drizzle client reads DATABASE_URL"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

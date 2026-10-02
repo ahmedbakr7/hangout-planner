@@ -29,13 +29,13 @@ requirements:
   - N-001-18
   - N-001-20
 acceptance_criteria:
-  - "The preview shows the authored title, organizer display name, timezone, day windows, per-person budget with currency, and step names"
-  - "Option labels, answered count, threshold, other people's statuses, starting points, and any itinerary are absent"
-  - "Two actions are offered: join with an account, and join without an account; the without-account path shows a display name field and no password field"
-  - "An unknown link uses text-destructive and shows no other plan's title and no participant list; a failed account join stays here and still is not a participant; an empty display name is identified and creates no participant"
-  - "While locked this surface is absent and the open shows the confirmed surface"
-  - "A direct hit on the wrong path for this plan redirects to next"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: The preview shows the authored title, organizer display name, timezone, day windows, per-person budget with currency, and step names"
+  - "AC-2: Option labels, answered count, threshold, other people's statuses, starting points, and any itinerary are absent"
+  - "AC-3: Two actions are offered: join with an account, and join without an account; the without-account path shows a display name field and no password field"
+  - "AC-4: An unknown link uses text-destructive and shows no other plan's title and no participant list; a failed account join stays here and still is not a participant; an empty display name is identified and creates no participant"
+  - "AC-5: While locked this surface is absent and the open shows the confirmed surface"
+  - "AC-6: A direct hit on the wrong path for this plan redirects to next"
+  - "AC-7: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

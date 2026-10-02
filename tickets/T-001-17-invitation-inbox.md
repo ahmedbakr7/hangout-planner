@@ -20,12 +20,12 @@ requirements:
   - F-001-19
   - N-001-15
 acceptance_criteria:
-  - "GET /v1/invitations returns this account's invitations, created_at descending, at most 100, one row per plan with plan_id, title, and organizer_display_name"
-  - "A second invite of the same account to the same plan does not add a second row"
-  - "Empty is invitations [] and truncated false, and another account's invitation is absent"
-  - "No account session returns 401 missing_session"
-  - "A failed read does not include another plan's people or places"
-  - "Handler tests use Postgres from DATABASE_URL"
+  - "AC-1: GET /v1/invitations returns this account's invitations, created_at descending, at most 100, one row per plan with plan_id, title, and organizer_display_name"
+  - "AC-2: A second invite of the same account to the same plan does not add a second row"
+  - "AC-3: Empty is invitations [] and truncated false, and another account's invitation is absent"
+  - "AC-4: No account session returns 401 missing_session"
+  - "AC-5: A failed read does not include another plan's people or places"
+  - "AC-6: Handler tests use Postgres from DATABASE_URL"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

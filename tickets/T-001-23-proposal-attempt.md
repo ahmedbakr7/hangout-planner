@@ -38,14 +38,14 @@ requirements:
   - N-001-10
   - N-001-15
 acceptance_criteria:
-  - "runProposalAttempt writes proposed for a full chain, or blocked otherwise, and on a proposal stores the cohort and the pool"
-  - "A place with only priceLevel, or a price in another currency, or an amount outside 1 through the plan budget, is dropped; amount_minor uses the integer startPrice rule"
-  - "A duration under 1 second is not stored; a full proposal has one leg between each consecutive pair with duration_seconds at least 1"
-  - "An empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls"
-  - "GET proposal returns the organizer and participant shapes from the contract: alternatives, like_count, and dislike_count are organizer-only; a cohort member gets my_signal and no alternatives or counts; a non-cohort participant gets the itinerary without alternatives, counts, or my_signal"
-  - "A participant while collecting or blocked gets 409 not_proposed; locked is 409 plan_locked; a stranger gets 404 with the envelope only"
-  - "HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish"
-  - "Tests use Postgres where the route needs it, and fakes only; they do not call places.googleapis.com or routes.googleapis.com"
+  - "AC-1: runProposalAttempt writes proposed for a full chain, or blocked otherwise, and on a proposal stores the cohort and the pool"
+  - "AC-2: A place with only priceLevel, or a price in another currency, or an amount outside 1 through the plan budget, is dropped; amount_minor uses the integer startPrice rule"
+  - "AC-3: A duration under 1 second is not stored; a full proposal has one leg between each consecutive pair with duration_seconds at least 1"
+  - "AC-4: An empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls"
+  - "AC-5: GET proposal returns the organizer and participant shapes from the contract: alternatives, like_count, and dislike_count are organizer-only; a cohort member gets my_signal and no alternatives or counts; a non-cohort participant gets the itinerary without alternatives, counts, or my_signal"
+  - "AC-6: A participant while collecting or blocked gets 409 not_proposed; locked is 409 plan_locked; a stranger gets 404 with the envelope only"
+  - "AC-7: HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish"
+  - "AC-8: Tests use Postgres where the route needs it, and fakes only; they do not call places.googleapis.com or routes.googleapis.com"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

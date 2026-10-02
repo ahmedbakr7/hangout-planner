@@ -21,12 +21,12 @@ requirements:
   - F-001-7
   - N-001-2
 acceptance_criteria:
-  - "Money amounts are integers in minor units, and amount_minor is rejected outside 1 through 100000000000"
-  - "The currency list is EGP, USD, SAR, and AED, each with exponent 2"
-  - "Ids are prefix_ plus 22 lowercase base32 characters, and the prefixes are acc_, pln_, win_, stp_, opt_, prt_, and inv_"
-  - "A join token is jt_ plus 43 unpadded base64url characters"
-  - "A distinguisher is four characters from abcdefghjkmnpqrstuvwxyz23456789"
-  - "Tests are pure: no database and no network"
+  - "AC-1: Money amounts are integers in minor units, and amount_minor is rejected outside 1 through 100000000000"
+  - "AC-2: The currency list is EGP, USD, SAR, and AED, each with exponent 2"
+  - "AC-3: Ids are prefix_ plus 22 lowercase base32 characters, and the prefixes are acc_, pln_, win_, stp_, opt_, prt_, and inv_"
+  - "AC-4: A join token is jt_ plus 43 unpadded base64url characters"
+  - "AC-5: A distinguisher is four characters from abcdefghjkmnpqrstuvwxyz23456789"
+  - "AC-6: Tests are pure: no database and no network"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

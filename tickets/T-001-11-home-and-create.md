@@ -32,15 +32,15 @@ requirements:
   - N-001-14
   - N-001-15
 acceptance_criteria:
-  - "Signed-out home shows a create action that uses bg-primary and opens the account gate and shows no plan rows; signed-in empty copy uses text-muted-foreground and is distinct from the error"
-  - "A home load failure uses text-destructive, offers retry, keeps create available, and does not show the empty-state sentence or another account's plan"
-  - "A loaded row shows the authored title, answered count, threshold, and one state; collecting, blocked, and proposed open the organizer plan; locked opens confirmed"
-  - "Create is one form in the order title, when, budget, steps, threshold; currency defaults to EGP; the timezone starts from the environment and stays editable; there is no venue search and no map"
-  - "An invalid submit creates no plan, identifies each invalid field, and keeps the entered values; a save failure keeps the entered values, uses text-destructive, and does not navigate"
-  - "A valid submit opens the new organizer plan in collecting with answered count 0"
-  - "A signed-out open of create is the account gate with next=/plans/new"
-  - "Switching language keeps unsaved create input"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: Signed-out home shows a create action that uses bg-primary and opens the account gate and shows no plan rows; signed-in empty copy uses text-muted-foreground and is distinct from the error"
+  - "AC-2: A home load failure uses text-destructive, offers retry, keeps create available, and does not show the empty-state sentence or another account's plan"
+  - "AC-3: A loaded row shows the authored title, answered count, threshold, and one state; collecting, blocked, and proposed open the organizer plan; locked opens confirmed"
+  - "AC-4: Create is one form in the order title, when, budget, steps, threshold; currency defaults to EGP; the timezone starts from the environment and stays editable; there is no venue search and no map"
+  - "AC-5: An invalid submit creates no plan, identifies each invalid field, and keeps the entered values; a save failure keeps the entered values, uses text-destructive, and does not navigate"
+  - "AC-6: A valid submit opens the new organizer plan in collecting with answered count 0"
+  - "AC-7: A signed-out open of create is the account gate with next=/plans/new"
+  - "AC-8: Switching language keeps unsaved create input"
+  - "AC-9: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

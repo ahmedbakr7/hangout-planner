@@ -17,10 +17,10 @@ skills:
 contracts: "arch/CONTRACTS.md#External Google"
 requirements: []
 acceptance_criteria:
-  - "Places calls send X-Goog-Api-Key and the contracted field masks, never a wildcard; start search and start details omit priceRange; the venue mask includes places.priceRange"
-  - "Tests parse priceRange.startPrice as amount_minor = units * 100 + nanos / 10000000 with exact integer division, and a place that only has priceLevel does not qualify"
-  - "The Routes client calls computeRouteMatrix with travelMode DRIVE, routingPreference TRAFFIC_UNAWARE, and field mask originIndex,destinationIndex,status,condition,duration"
-  - "Tests use fakes only and do not call places.googleapis.com or routes.googleapis.com"
+  - "AC-1: Places calls send X-Goog-Api-Key and the contracted field masks, never a wildcard; start search and start details omit priceRange; the venue mask includes places.priceRange"
+  - "AC-2: Tests parse priceRange.startPrice as amount_minor = units * 100 + nanos / 10000000 with exact integer division, and a place that only has priceLevel does not qualify"
+  - "AC-3: The Routes client calls computeRouteMatrix with travelMode DRIVE, routingPreference TRAFFIC_UNAWARE, and field mask originIndex,destinationIndex,status,condition,duration"
+  - "AC-4: Tests use fakes only and do not call places.googleapis.com or routes.googleapis.com"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

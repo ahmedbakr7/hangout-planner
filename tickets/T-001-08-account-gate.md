@@ -30,13 +30,13 @@ requirements:
   - N-001-3
   - N-001-15
 acceptance_criteria:
-  - "Signed out, the gate says an account is required to organize, and when next is a join path it offers a way back to join without an account"
-  - "A failed sign-in or failed registration stays on the gate, signed out, keeps entered non-secret values, creates no plan and no participant, and uses text-destructive"
-  - "After success the gate continues to create, join, home, or invitations; opening the gate while already signed in shows the display name and a way home"
-  - "next accepts only /, /plans/new, /invitations, or /join/ plus a join token; any other value is ignored and success returns home"
-  - "The language control updates hp_locale and keeps unsaved input in the surrounding form"
-  - "A missing Arabic key renders the English string in an RTL layout and the gate stays usable"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: Signed out, the gate says an account is required to organize, and when next is a join path it offers a way back to join without an account"
+  - "AC-2: A failed sign-in or failed registration stays on the gate, signed out, keeps entered non-secret values, creates no plan and no participant, and uses text-destructive"
+  - "AC-3: After success the gate continues to create, join, home, or invitations; opening the gate while already signed in shows the display name and a way home"
+  - "AC-4: next accepts only /, /plans/new, /invitations, or /join/ plus a join token; any other value is ignored and success returns home"
+  - "AC-5: The language control updates hp_locale and keeps unsaved input in the surrounding form"
+  - "AC-6: A missing Arabic key renders the English string in an RTL layout and the gate stays usable"
+  - "AC-7: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

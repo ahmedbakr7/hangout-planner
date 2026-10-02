@@ -22,14 +22,14 @@ requirements:
   - N-001-3
   - N-001-15
 acceptance_criteria:
-  - "POST /v1/accounts returns 201 with the account object and sets hp_session; 409 email_taken and 400 invalid fields create no account and set no cookie"
-  - "Email is trimmed and lowercased; password length is 8–72 characters and is not trimmed; display name is 1–40 characters after trim"
-  - "POST /v1/sessions returns 200 with the same account object and sets hp_session; unknown email and wrong password are both 401 bad_credentials with the same envelope message and set no cookie"
-  - "DELETE /v1/sessions returns 204, clears hp_session, and is idempotent when already signed out"
-  - "GET /v1/me returns 200 with the account for a session, and 401 missing_session otherwise, including a guest-only browser"
-  - "POST and DELETE without X-HP-Request: 1 return 403 csrf and write nothing"
-  - "These payloads are the only ones that include the caller email, and a 404 body is the envelope only"
-  - "Handler tests use Postgres from DATABASE_URL"
+  - "AC-1: POST /v1/accounts returns 201 with the account object and sets hp_session; 409 email_taken and 400 invalid fields create no account and set no cookie"
+  - "AC-2: Email is trimmed and lowercased; password length is 8–72 characters and is not trimmed; display name is 1–40 characters after trim"
+  - "AC-3: POST /v1/sessions returns 200 with the same account object and sets hp_session; unknown email and wrong password are both 401 bad_credentials with the same envelope message and set no cookie"
+  - "AC-4: DELETE /v1/sessions returns 204, clears hp_session, and is idempotent when already signed out"
+  - "AC-5: GET /v1/me returns 200 with the account for a session, and 401 missing_session otherwise, including a guest-only browser"
+  - "AC-6: POST and DELETE without X-HP-Request: 1 return 403 csrf and write nothing"
+  - "AC-7: These payloads are the only ones that include the caller email, and a 404 body is the envelope only"
+  - "AC-8: Handler tests use Postgres from DATABASE_URL"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
