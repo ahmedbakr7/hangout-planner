@@ -20,24 +20,18 @@ import postgres from "postgres";
 import { resetClock } from "@/server/clock";
 import { generateId } from "@/server/ids";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
-import {
-  POST as createAccount,
-  closeDatabase as closeAccounts,
-} from "@/app/api/v1/accounts/route";
-import {
-  POST as createPlan,
-  closeDatabase as closePlans,
-} from "@/app/api/v1/plans/route";
+import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { closeDatabase as closePlans } from "@/server/plans/http";
+import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { POST as createAccount } from "@/app/api/v1/accounts/route";
+import { POST as createPlan } from "@/app/api/v1/plans/route";
 import {
   GET as getPlan,
   PATCH as patchPlan,
 } from "@/app/api/v1/plans/[planId]/route";
 import { POST as lockPost } from "@/app/api/v1/plans/[planId]/lock/route";
 import { POST as invitePost } from "@/app/api/v1/plans/[planId]/invitations/route";
-import {
-  GET as inboxGet,
-  closeDatabase as closeInbox,
-} from "@/app/api/v1/invitations/route";
+import { GET as inboxGet } from "@/app/api/v1/invitations/route";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
