@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "jsdom",
+    globalSetup: ["./vitest.global-setup.ts"],
     include: ["e2e/**/*.e2e.ts"],
     fileParallelism: false,
     testTimeout: 120000,

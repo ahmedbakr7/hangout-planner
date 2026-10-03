@@ -302,11 +302,6 @@
       "page in code but not in CONTRACTS: /plans/{}/proposal (src/app/plans/[planId]/proposal/page.tsx)",
       "page in code but not in CONTRACTS: /plans/{}/respond (src/app/plans/[planId]/respond/page.tsx)"
     ],
-    "integration": [
-      "e2e/authz.e2e.ts e2e/authz.e2e.ts",
-      "e2e/core-loop.e2e.ts e2e core loop > account, create in EGP, copy path, anonymous join, complete response, proposal, swap, signal, lock, and confirmed read on the share link",
-      "e2e/core-loop.e2e.ts e2e/core-loop.e2e.ts"
-    ],
     "test-quality": [
       "src/app/shell-tokens.test.ts: test reads source text instead of exercising behaviour",
       "src/app/shell-tokens.test.ts: test reads source text instead of exercising behaviour",
