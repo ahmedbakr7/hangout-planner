@@ -481,7 +481,7 @@ Omits option labels, signals, starting points, budget editing, threshold, and in
 
 ## Transitional: old `/v1` paths
 
-Handlers are served under `/api/v1` (the paths above). Until T-001-32 moves the UI's calls, the UI still calls these old paths, which nothing serves. Remove this section when T-001-32 is done.
+Handlers are served under `/api/v1` (the paths above). Until T-001-32 and T-001-33 move the UI's calls, the UI still calls these old paths, which nothing serves. Remove this section when both tickets are done.
 
 ### POST /v1/accounts
 ### POST /v1/sessions
