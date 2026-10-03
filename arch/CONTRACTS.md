@@ -60,7 +60,7 @@ People lists (`participants`, invitation sent rows, cohort) include `display_nam
 
 Cookies are httpOnly, SameSite=Lax, Path=/, 30-day sliding expiry. `Secure` when `HP_COOKIE_SECURE=1`. The database stores SHA-256 of the cookie token, except the join token on the plan, which is stored so the organizer can keep showing the link.
 
-`GET /v1/me` and the account create/sign-in responses are the only payloads that include the caller's email.
+`GET /api/v1/me` and the account create/sign-in responses are the only payloads that include the caller's email.
 
 ## Authz
 
@@ -69,7 +69,7 @@ Evaluate in this order. The first match wins. Anyone else who asks about a plan 
 1. **Organizer** — `hp_session` account equals `plans.organizer_account_id`.
 2. **Participant** — that account has a participant row, or `hp_guest` owns one on this plan.
 3. **Invited** — that account has an invitation row.
-4. **Link reader** — `hp_link` includes this plan, or the request is to `/v1/join/{token}` with this plan's token.
+4. **Link reader** — `hp_link` includes this plan, or the request is to `/api/v1/join/{token}` with this plan's token.
 
 Organizer actions (create is "any account"): structural edit, invite, swap, retry, lock, organizer plan read. A participant who tries one gets 403 `organizer_only` when they are allowed to know the plan. A stranger gets 404.
 
@@ -77,7 +77,7 @@ The organizing account is never inserted as a participant.
 
 ## HTTP
 
-### POST /v1/accounts
+### POST /api/v1/accounts
 
 Authz: no session required.
 
@@ -87,21 +87,21 @@ Authz: no session required.
 
 201 sets `hp_session` and returns `{ "account": { "id", "email", "display_name" } }`. 409 `email_taken`. 400 on invalid fields. Failure sets no cookie and creates no account.
 
-### POST /v1/sessions
+### POST /api/v1/sessions
 
 Authz: no session required. Body `{ "email", "password" }`.
 
 200 returns the same account object and sets `hp_session`. Unknown email and wrong password are both 401 `bad_credentials`. No cookie on failure.
 
-### DELETE /v1/sessions
+### DELETE /api/v1/sessions
 
 Authz: account, or already signed out. 204 clears `hp_session`. Idempotent.
 
-### GET /v1/me
+### GET /api/v1/me
 
 Authz: account. 200 `{ "account": { "id", "email", "display_name" } }`. 401 `missing_session` otherwise, including a guest-only browser.
 
-### GET /v1/currencies
+### GET /api/v1/currencies
 
 Authz: account.
 
@@ -116,7 +116,7 @@ Authz: account.
 }
 ```
 
-### POST /v1/plans
+### POST /api/v1/plans
 
 Authz: account. Creates a plan in `collecting` with `answered_count` 0 and a new join token. The caller becomes the organizer, not a participant.
 
@@ -133,7 +133,7 @@ Authz: account. Creates a plan in `collecting` with `answered_count` 0 and a new
 
 201 returns the organizer plan (below) plus `"join_path": "/join/jt_…"`. 400 identifies each invalid field and creates no row. The create form sends `EGP` unless the organizer picked another listed currency. The timezone is whatever the client sends (the form fills it from the organizer's environment).
 
-### GET /v1/plans
+### GET /api/v1/plans
 
 Authz: account. Plans this account organizes, `updated_at` descending, at most 100.
 
@@ -148,7 +148,7 @@ Authz: account. Plans this account organizes, `updated_at` descending, at most 1
 
 Empty is `{ "plans": [], "truncated": false }`. No plan they only joined. No other account's plan.
 
-### GET /v1/plans/{planId}
+### GET /api/v1/plans/{planId}
 
 Authz: organizer. 409 `plan_locked` when locked (the confirmed route is the read). 403 `organizer_only` for a participant, invited account, or link reader.
 
@@ -192,7 +192,7 @@ Authz: organizer. 409 `plan_locked` when locked (the confirmed route is the read
 
 While `collecting`, `answered_count` is below the threshold. The count can sit above the threshold once the plan has left `collecting`.
 
-### PATCH /v1/plans/{planId}
+### PATCH /api/v1/plans/{planId}
 
 Authz: organizer. Not locked (409 `plan_locked`). Body is any subset of the create fields. Present `windows` replaces every window. Present `steps` replaces every step and option and assigns new ids. Omitted keys stay.
 
@@ -200,7 +200,7 @@ A frozen key, a budget that is not a legal change, a currency change while curre
 
 200 returns the organizer plan. When this PATCH lowers the threshold onto `answered_count` while `collecting`, or raises the budget while `blocked`, the request then runs a proposal attempt and the returned plan includes the new `state`.
 
-### GET /v1/plans/{planId}/opening
+### GET /api/v1/plans/{planId}/opening
 
 Authz: organizer, participant, or invited account.
 
@@ -226,7 +226,7 @@ Authz: organizer, participant, or invited account.
 
 `preview` is the join preview object when `next` is `join`, otherwise `null`.
 
-### GET /v1/plans/{planId}/invite
+### GET /api/v1/plans/{planId}/invite
 
 Authz: organizer. 409 `plan_locked` when locked.
 
@@ -241,7 +241,7 @@ Authz: organizer. 409 `plan_locked` when locked.
 
 `join_path` is stable for the life of the plan. Status is `invited` (no participant yet), `joined` (participant, response not complete), or `answered` (response complete). One row per account, `created_at` ascending. Sending again does not add a row.
 
-### POST /v1/plans/{planId}/invitations
+### POST /api/v1/plans/{planId}/invitations
 
 Authz: organizer. Not locked. Body `{ "email": "hana@example.com" }`.
 
@@ -249,7 +249,7 @@ Authz: organizer. Not locked. Body `{ "email": "hana@example.com" }`.
 
 404 `account_not_found` when no account has that email. 400 when the email shape is invalid. 409 `cannot_invite_self` for the organizer's own email. 409 `plan_locked` when locked. Those failures add no row.
 
-### GET /v1/invitations
+### GET /api/v1/invitations
 
 Authz: account. Invitations for this account, `created_at` descending, at most 100.
 
@@ -264,7 +264,7 @@ Authz: account. Invitations for this account, `created_at` descending, at most 1
 
 One row per plan. A second invite does not add a second row.
 
-### GET /v1/join/{token}
+### GET /api/v1/join/{token}
 
 Authz: possession of the token. Unknown token is 404. Success attaches the plan to `hp_link`.
 
@@ -288,7 +288,7 @@ Same body shape as opening. Also:
 
 Preview omits option labels, counts, threshold, statuses, starting points, and any itinerary.
 
-### POST /v1/join/{token}
+### POST /api/v1/join/{token}
 
 Authz: the token. 409 `plan_locked` when locked (no participant created). 409 `organizer_cannot_join` when the session is the organizer. 409 `plan_full` when the plan already has 100 participants.
 
@@ -306,11 +306,11 @@ Body is `{ "kind": "account" }` or `{ "kind": "anonymous", "display_name": "Nour
 
 `next` follows the participant row of the opening table. 201 sets or extends `hp_guest`.
 
-### POST /v1/plans/{planId}/join
+### POST /api/v1/plans/{planId}/join
 
 Authz: invited account that is not yet a participant, or an account that already is (200, same participant). Body `{ "kind": "account" }` only. Anonymous join is the token route. Same 409s as token join for locked, organizer, and full. 201 or 200 uses the account display name. This route does not return the join token.
 
-### GET /v1/plans/{planId}/response
+### GET /api/v1/plans/{planId}/response
 
 Authz: participant. While `proposed`, 409 `responses_closed`. While `locked`, 409 `plan_locked`. Otherwise 200:
 
@@ -332,7 +332,7 @@ Authz: participant. While `proposed`, 409 `responses_closed`. While `locked`, 40
 
 `start` is `null` or `{ "name": "Maadi, Cairo" }`. No coordinates and no place id. The payload has no answered count, threshold, other participants, or other starting points. `kind` is `busy` or `free`. A busy window has no earliest or latest.
 
-### PUT /v1/plans/{planId}/response
+### PUT /api/v1/plans/{planId}/response
 
 Authz: participant. Closed states use the same 409s as GET. The body replaces the caller's draft:
 
@@ -365,7 +365,7 @@ The draft is **complete** when every window is present and valid, a start is sto
 
 When this first completion makes `answered_count` equal the threshold, the request runs a proposal attempt after the response commits, then returns the resulting `plan_state` (`proposed` or `blocked`). A save while `blocked` does not run an attempt.
 
-### GET /v1/plans/{planId}/place-searches
+### GET /api/v1/plans/{planId}/place-searches
 
 Authz: participant, and only while `collecting` or `blocked`. Query `q` is 1–80 characters after trim. 400 when missing.
 
@@ -375,7 +375,7 @@ Authz: participant, and only while `collecting` or `blocked`. Query `q` is 1–8
 
 At most 5 results. Empty `results` is 200. No coordinates and no prices. 30 calls per participant per rolling hour, then 429. Google failure is 503 `upstream`. While `proposed`, 409 `responses_closed`. While `locked`, 409 `plan_locked`. This route is the start search. Venue search is not a public route.
 
-### GET /v1/plans/{planId}/proposal
+### GET /api/v1/plans/{planId}/proposal
 
 Authz: organizer while the plan is not locked, or a participant while `proposed`.
 
@@ -436,11 +436,11 @@ A joined participant outside the stored cohort gets the same itinerary with no `
 
 `attending_count` is how many cohort members can make the time. The attendance sentence calls that set everyone only when `attending_count` equals `cohort_size`. That sentence is chrome. Cohort lists every stored member, attending or not. `fairness_warning` true means the warning chrome, which talks about travel time and includes no amount and no currency. `duration_seconds` is an integer ≥ 1. A proposed plan has one leg between each consecutive pair. `alternatives` has 0–3 entries. Zero alternatives means the UI says there is no alternative and the current place stays.
 
-### POST /v1/plans/{planId}/proposal-attempts
+### POST /api/v1/plans/{planId}/proposal-attempts
 
 Authz: organizer, state `blocked`. Otherwise 409 `not_blocked` or `plan_locked`. Runs an attempt with whoever is complete now. 200 returns the proposal document (organizer shape). 409 `attempt_in_progress` when a run is already in flight. Each run inserts `proposal_runs`. 20 runs per plan per rolling hour; this route then returns 429 and does not change the plan. A completion or budget-raise that finds the hour already full does not call Google, finishes as `venue_data`, and still returns 200 for the write that already committed.
 
-### POST /v1/plans/{planId}/steps/{stepId}/swap
+### POST /api/v1/plans/{planId}/steps/{stepId}/swap
 
 Authz: organizer, state `proposed`. Body `{ "google_place_id": "ChIJ…" }`.
 
@@ -448,17 +448,17 @@ The id must be one of that step's stored alternatives. Otherwise 409 `not_an_alt
 
 If a touched leg cannot be routed, 409 `route_unavailable` and the previous place, legs, signals, and alternatives stay.
 
-### PUT /v1/plans/{planId}/steps/{stepId}/signal
+### PUT /api/v1/plans/{planId}/steps/{stepId}/signal
 
 Authz: a participant who is in the stored cohort, state `proposed`. Others who can know the plan get 403 `not_cohort` (including the organizer and a non-cohort participant). Body `{ "signal": "like" }` with `like`, `dislike`, or `unset`.
 
 200 `{ "signal": "unset" }`. One signal per member per step. `unset` deletes the row. The time, places, and cohort do not change. The response has no counts.
 
-### POST /v1/plans/{planId}/lock
+### POST /api/v1/plans/{planId}/lock
 
 Authz: organizer, state `proposed`. 200 returns the confirmed document and sets state `locked`. `collecting` and `blocked` are 409 `not_proposed`. Already locked is 409 `plan_locked`. There is no unlock route.
 
-### GET /v1/plans/{planId}/confirmed
+### GET /api/v1/plans/{planId}/confirmed
 
 Authz: organizer, participant, invited account, or link reader. Not locked: 409 `not_locked` for those callers, 404 for anyone else. Locked 200:
 
@@ -477,6 +477,37 @@ Authz: organizer, participant, invited account, or link reader. Not locked: 409 
 ```
 
 Omits option labels, signals, starting points, budget editing, threshold, and invite send. Writes of response, swap, signal, or structure while locked return 409 `plan_locked` and leave this outing in place.
+
+
+## Transitional: old `/v1` paths
+
+Handlers are served under `/api/v1` (the paths above). Until T-001-32 moves the UI's calls, the UI still calls these old paths, which nothing serves. Remove this section when T-001-32 is done.
+
+### POST /v1/accounts
+### POST /v1/sessions
+### DELETE /v1/sessions
+### GET /v1/me
+### GET /v1/currencies
+### POST /v1/plans
+### GET /v1/plans
+### GET /v1/plans/{planId}
+### PATCH /v1/plans/{planId}
+### GET /v1/plans/{planId}/opening
+### GET /v1/plans/{planId}/invite
+### POST /v1/plans/{planId}/invitations
+### GET /v1/invitations
+### GET /v1/join/{token}
+### POST /v1/join/{token}
+### POST /v1/plans/{planId}/join
+### GET /v1/plans/{planId}/response
+### PUT /v1/plans/{planId}/response
+### GET /v1/plans/{planId}/place-searches
+### GET /v1/plans/{planId}/proposal
+### POST /v1/plans/{planId}/proposal-attempts
+### POST /v1/plans/{planId}/steps/{stepId}/swap
+### PUT /v1/plans/{planId}/steps/{stepId}/signal
+### POST /v1/plans/{planId}/lock
+### GET /v1/plans/{planId}/confirmed
 
 ## Proposal attempt
 
@@ -603,7 +634,7 @@ Locale cookie, not a path prefix. The copied link is `/join/{token}`.
 | Proposal | `/plans/{planId}/proposal` |
 | Confirmed | `/plans/{planId}/confirmed` |
 
-The page asks opening or `GET /v1/join/{token}` and renders the matching path. A direct hit on the wrong path redirects to `next`. Strangers get the not-found state for that open, with no other plan's data.
+The page asks opening or `GET /api/v1/join/{token}` and renders the matching path. A direct hit on the wrong path redirects to `next`. Strangers get the not-found state for that open, with no other plan's data.
 
 `/account?next=` accepts only `/`, `/plans/new`, `/invitations`, or `/join/{token}`. Any other value is ignored and the gate returns home after sign-in. Signed-out create sends the person to the gate with `next=/plans/new`. The gate offers a way back to join without an account when `next` is a join path.
 
