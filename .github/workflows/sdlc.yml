@@ -28,6 +28,10 @@ jobs:
         with:
           submodules: true
           fetch-depth: 0          # the gate diffs against the base branch
+          # The kit (.sdlc) is a private repo: github.token can only read this one.
+          # SDLC_KIT_TOKEN: fine-grained token, Contents read on this repo and the kit.
+          token: ${{ secrets.SDLC_KIT_TOKEN || github.token }}
+          persist-credentials: false   # do not leave the token in .git/config for later steps
 
       - uses: actions/setup-python@v5
         with:
@@ -63,3 +67,4 @@ jobs:
         with:
           name: sdlc-run
           path: .sdlc-run/
+          include-hidden-files: true   # v4 skips dot-folders by default: the evidence was never uploaded
