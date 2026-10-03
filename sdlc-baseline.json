@@ -300,40 +300,12 @@
       "page in code but not in CONTRACTS: /plans/{}/invite (src/app/plans/[planId]/invite/page.tsx)",
       "page in code but not in CONTRACTS: /plans/{}/join (src/app/plans/[planId]/join/page.tsx)",
       "page in code but not in CONTRACTS: /plans/{}/proposal (src/app/plans/[planId]/proposal/page.tsx)",
-      "page in code but not in CONTRACTS: /plans/{}/respond (src/app/plans/[planId]/respond/page.tsx)",
-      "route in code but not in CONTRACTS: DELETE /api/v1/sessions (src/app/api/v1/sessions/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/currencies (src/app/api/v1/currencies/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/invitations (src/app/api/v1/invitations/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/join/{} (src/app/api/v1/join/[token]/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/me (src/app/api/v1/me/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans (src/app/api/v1/plans/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{} (src/app/api/v1/plans/[planId]/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/confirmed (src/app/api/v1/plans/[planId]/confirmed/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/invite (src/app/api/v1/plans/[planId]/invite/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/opening (src/app/api/v1/plans/[planId]/opening/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/place-searches (src/app/api/v1/plans/[planId]/place-searches/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/proposal (src/app/api/v1/plans/[planId]/proposal/route.ts)",
-      "route in code but not in CONTRACTS: GET /api/v1/plans/{}/response (src/app/api/v1/plans/[planId]/response/route.ts)",
-      "route in code but not in CONTRACTS: PATCH /api/v1/plans/{} (src/app/api/v1/plans/[planId]/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/accounts (src/app/api/v1/accounts/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/join/{} (src/app/api/v1/join/[token]/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans (src/app/api/v1/plans/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans/{}/invitations (src/app/api/v1/plans/[planId]/invitations/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans/{}/join (src/app/api/v1/plans/[planId]/join/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans/{}/lock (src/app/api/v1/plans/[planId]/lock/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans/{}/proposal-attempts (src/app/api/v1/plans/[planId]/proposal-attempts/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/plans/{}/steps/{}/swap (src/app/api/v1/plans/[planId]/steps/[stepId]/swap/route.ts)",
-      "route in code but not in CONTRACTS: POST /api/v1/sessions (src/app/api/v1/sessions/route.ts)",
-      "route in code but not in CONTRACTS: PUT /api/v1/plans/{}/response (src/app/api/v1/plans/[planId]/response/route.ts)",
-      "route in code but not in CONTRACTS: PUT /api/v1/plans/{}/steps/{}/signal (src/app/api/v1/plans/[planId]/steps/[stepId]/signal/route.ts)"
+      "page in code but not in CONTRACTS: /plans/{}/respond (src/app/plans/[planId]/respond/page.tsx)"
     ],
     "integration": [
       "e2e/authz.e2e.ts e2e/authz.e2e.ts",
       "e2e/core-loop.e2e.ts e2e core loop > account, create in EGP, copy path, anonymous join, complete response, proposal, swap, signal, lock, and confirmed read on the share link",
       "e2e/core-loop.e2e.ts e2e/core-loop.e2e.ts"
-    ],
-    "smoke": [
-      "the app serves 25 route(s), none at a CONTRACTS path, so no route was probed"
     ],
     "test-quality": [
       "src/app/shell-tokens.test.ts: test reads source text instead of exercising behaviour",
