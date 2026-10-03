@@ -3,6 +3,7 @@ id: T-001-27
 title: "Proposal UI"
 type: frontend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-12
@@ -35,15 +36,15 @@ requirements:
   - N-001-15
   - N-001-16
 acceptance_criteria:
-  - "While collecting this surface is not shown; while blocked the organizer sees time, budget, and venue-data sentences from the three flags, those sentences use text-destructive, and lock is absent; when time and budget are both true both sentences are visible"
-  - "A joined participant while blocked is shown the response surface; venue-data offers retry; a missing duration is blank and is not rendered as zero"
-  - "A proposed itinerary shows the time with the timezone, how many cohort members can make it, and each cohort member's display name, and the attendance line calls that set everyone only when the number equals the cohort size"
-  - "Each step shows the step name, the authored option label, the place name, and the per-person amount with the plan currency; legs show a travel duration; starting points and a map are absent"
-  - "The fairness warning uses text-warning, talks about travel time, includes no amount and no currency, and does not hide lock"
-  - "The organizer sees at most 3 alternatives on a step; zero alternatives keeps the place and says there is no alternative; swap updates that place and the counts on that step show as none; lock uses bg-primary and is present only while proposed"
-  - "A cohort member sees their own signal and does not see counts, swap, or lock; a joined person outside the cohort sees the itinerary without signal controls; chrome may name Google Places and Google Maps routing and offers no native-app install step"
-  - "A load failure uses text-destructive and retry and omits another plan's places; a locked open shows the confirmed surface"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: While collecting this surface is not shown; while blocked the organizer sees time, budget, and venue-data sentences from the three flags, those sentences use text-destructive, and lock is absent; when time and budget are both true both sentences are visible"
+  - "AC-2: A joined participant while blocked is shown the response surface; venue-data offers retry; a missing duration is blank and is not rendered as zero"
+  - "AC-3: A proposed itinerary shows the time with the timezone, how many cohort members can make it, and each cohort member's display name, and the attendance line calls that set everyone only when the number equals the cohort size"
+  - "AC-4: Each step shows the step name, the authored option label, the place name, and the per-person amount with the plan currency; legs show a travel duration; starting points and a map are absent"
+  - "AC-5: The fairness warning uses text-warning, talks about travel time, includes no amount and no currency, and does not hide lock"
+  - "AC-6: The organizer sees at most 3 alternatives on a step; zero alternatives keeps the place and says there is no alternative; swap updates that place and the counts on that step show as none; lock uses bg-primary and is present only while proposed"
+  - "AC-7: A cohort member sees their own signal and does not see counts, swap, or lock; a joined person outside the cohort sees the itinerary without signal controls; chrome may name Google Places and Google Maps routing and offers no native-app install step"
+  - "AC-8: A load failure uses text-destructive and retry and omits another plan's places; a locked open shows the confirmed surface"
+  - "AC-9: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

@@ -3,6 +3,7 @@ id: T-001-02
 title: "Schema migration"
 type: backend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-01
@@ -16,10 +17,10 @@ skills:
 contracts: "arch/CONTRACTS.md#Tables"
 requirements: []
 acceptance_criteria:
-  - "drizzle/0001_init.sql creates every table and column named in arch/CONTRACTS.md Tables, including the partial unique on participants (plan_id, account_id), the unique (plan_id, account_id) on invitations, and exactly one of account_id and guest_session_id on participants"
-  - "The migration creates no table that arch/CONTRACTS.md does not name"
-  - "schema.test.ts applies the migration on Postgres from DATABASE_URL"
-  - "There is no down migration"
+  - "AC-1: drizzle/0001_init.sql creates every table and column named in arch/CONTRACTS.md Tables, including the partial unique on participants (plan_id, account_id), the unique (plan_id, account_id) on invitations, and exactly one of account_id and guest_session_id on participants"
+  - "AC-2: The migration creates no table that arch/CONTRACTS.md does not name"
+  - "AC-3: schema.test.ts applies the migration on Postgres from DATABASE_URL"
+  - "AC-4: There is no down migration"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

@@ -1,0 +1,65 @@
+# Product CI: the same gate agents run locally, enforced on every PR.
+# Installed by `sdlc init` as .github/workflows/sdlc.yml. Mark the "gate" job required
+# in branch protection. Add the services/setup your stack needs (databases, browsers).
+name: sdlc
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hangout
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/hangout
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0          # the gate diffs against the base branch
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      # No lockfile is committed yet, so this is `npm install`, not `npm ci`.
+      - run: npm install --no-audit --no-fund
+
+      - name: Doctor (fails if any required check could pass vacuously)
+        run: .sdlc/bin/sdlc doctor
+
+      - name: Gate (ci)
+        run: .sdlc/bin/sdlc gate ci --base origin/${{ github.base_ref || 'main' }}
+
+      - name: Trace (requirements -> tickets -> proven AC)
+        run: .sdlc/bin/sdlc trace
+
+      # Every PR is a ticket PR or a lead PR. `gate pr` finds the one ticket the branch moves
+      # (its ticket, evidence or review file changed; status in_progress or later) and judges
+      # the whole branch: every changed file is in one of that ticket's write sets, status
+      # moved legally, and a done ticket has an approval that covers what is merged. A branch
+      # that moves no ticket is a lead PR: files beyond lead artifacts (specs, plans,
+      # CONTRACTS, tickets, ADRs, sdlc.toml, scope.lead_allowed) are reported, and fail
+      # only with scope.lead_code = "fail".
+      - name: PR gate (the ticket this PR moves, or lead scope)
+        if: github.event_name == 'pull_request'
+        run: .sdlc/bin/sdlc gate pr --base origin/${{ github.base_ref }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdlc-run
+          path: .sdlc-run/

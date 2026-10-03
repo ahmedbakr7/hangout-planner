@@ -3,6 +3,7 @@ id: T-001-28
 title: "Confirmed UI"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-26
@@ -29,14 +30,14 @@ requirements:
   - N-001-15
   - N-001-16
 acceptance_criteria:
-  - "Before lock this surface is absent, and opening it shows the current surface for that person and state"
-  - "The loaded outing shows state locked, the authored title, the time with the timezone, each step's place name and per-person amount with currency, the travel duration between consecutive places, and the cohort display names"
-  - "The distinguisher is shown only when cohort names collide"
-  - "The surface has no unlock, no signals, no starting points, no option labels, no swap, no response fields, no budget editing, no threshold, and no invite send"
-  - "The share link and an invitations row for a locked plan land on this surface"
-  - "Chrome may name Google Places and Google Maps routing, and there is no map image and no native-app install step"
-  - "A load failure uses text-destructive and retry and omits another plan's title and places"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: Before lock this surface is absent, and opening it shows the current surface for that person and state"
+  - "AC-2: The loaded outing shows state locked, the authored title, the time with the timezone, each step's place name and per-person amount with currency, the travel duration between consecutive places, and the cohort display names"
+  - "AC-3: The distinguisher is shown only when cohort names collide"
+  - "AC-4: The surface has no unlock, no signals, no starting points, no option labels, no swap, no response fields, no budget editing, no threshold, and no invite send"
+  - "AC-5: The share link and an invitations row for a locked plan land on this surface"
+  - "AC-6: Chrome may name Google Places and Google Maps routing, and there is no map image and no native-app install step"
+  - "AC-7: A load failure uses text-destructive and retry and omits another plan's title and places"
+  - "AC-8: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

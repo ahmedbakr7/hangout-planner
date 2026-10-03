@@ -3,6 +3,7 @@ id: T-001-10
 title: "Plans HTTP"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-06
@@ -38,14 +39,14 @@ requirements:
   - N-001-14
   - N-001-15
 acceptance_criteria:
-  - "GET /v1/currencies returns EGP, USD, SAR, and AED, each exponent 2, for an account"
-  - "POST /v1/plans creates a collecting plan with answered_count 0 and a new join token, the caller is the organizer and not a participant, and 201 returns the organizer plan plus join_path; 400 names each invalid field and writes no row"
-  - "GET /v1/plans returns only plans this account organizes, updated_at descending, at most 100, and empty is plans [] with truncated false"
-  - "GET /v1/plans/{planId} returns the organizer document with editable, counts, and participants in created_at then id order, and includes no starting points, step picks, or itinerary; a participant, invited account, or link reader gets 403 organizer_only; a stranger gets 404; locked gets 409 plan_locked"
-  - "PATCH applies a legal subset and returns the organizer plan; a frozen or illegal edit returns 409 field_frozen and writes nothing; PATCH while locked returns 409 plan_locked and writes nothing; stored title, step names, option labels, and display names come back as entered"
-  - "This ticket does not call runProposalAttempt"
-  - "Missing X-HP-Request: 1 on POST and PATCH returns 403 csrf and writes nothing; a 404 body is the envelope only"
-  - "Handler tests use Postgres from DATABASE_URL"
+  - "AC-1: GET /v1/currencies returns EGP, USD, SAR, and AED, each exponent 2, for an account"
+  - "AC-2: POST /v1/plans creates a collecting plan with answered_count 0 and a new join token, the caller is the organizer and not a participant, and 201 returns the organizer plan plus join_path; 400 names each invalid field and writes no row"
+  - "AC-3: GET /v1/plans returns only plans this account organizes, updated_at descending, at most 100, and empty is plans [] with truncated false"
+  - "AC-4: GET /v1/plans/{planId} returns the organizer document with editable, counts, and participants in created_at then id order, and includes no starting points, step picks, or itinerary; a participant, invited account, or link reader gets 403 organizer_only; a stranger gets 404; locked gets 409 plan_locked"
+  - "AC-5: PATCH applies a legal subset and returns the organizer plan; a frozen or illegal edit returns 409 field_frozen and writes nothing; PATCH while locked returns 409 plan_locked and writes nothing; stored title, step names, option labels, and display names come back as entered"
+  - "AC-6: This ticket does not call runProposalAttempt"
+  - "AC-7: Missing X-HP-Request: 1 on POST and PATCH returns 403 csrf and writes nothing; a 404 body is the envelope only"
+  - "AC-8: Handler tests use Postgres from DATABASE_URL"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

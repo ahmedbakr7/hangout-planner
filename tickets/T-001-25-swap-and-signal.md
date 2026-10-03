@@ -3,6 +3,7 @@ id: T-001-25
 title: "Swap and signal"
 type: backend
 status: done
+legacy: v0
 risk: medium
 depends_on:
   - T-001-23
@@ -28,14 +29,14 @@ requirements:
   - N-001-10
   - N-001-15
 acceptance_criteria:
-  - "Swap of one stored alternative replaces that step's place, refreshes the legs that touch that step, refreshes fairness_warning, deletes that step's signals, and replaces that step's alternatives from the remaining stored pool"
-  - "The time and the other steps' places stay, and their alternative lists stay; swap does not call Places"
-  - "A google_place_id that is not one of that step's alternatives returns 409 not_an_alternative and leaves the proposal unchanged"
-  - "When a touched leg cannot be routed, the response is 409 route_unavailable and the previous place, legs, signals, and alternatives stay"
-  - "After a successful swap, like_count and dislike_count are 0 and a cohort member's my_signal on that step is unset"
-  - "Signal accepts like, dislike, or unset for a cohort participant while proposed; unset deletes the row; the time, places, and cohort do not change; the response has no counts"
-  - "The organizer and a non-cohort participant get 403 not_cohort; a stranger gets 404 with the envelope only; missing X-HP-Request: 1 returns 403 csrf and writes nothing; a non-proposed or locked plan does not change"
-  - "Handler tests use Postgres and the fake Routes client, and they do not call routes.googleapis.com"
+  - "AC-1: Swap of one stored alternative replaces that step's place, refreshes the legs that touch that step, refreshes fairness_warning, deletes that step's signals, and replaces that step's alternatives from the remaining stored pool"
+  - "AC-2: The time and the other steps' places stay, and their alternative lists stay; swap does not call Places"
+  - "AC-3: A google_place_id that is not one of that step's alternatives returns 409 not_an_alternative and leaves the proposal unchanged"
+  - "AC-4: When a touched leg cannot be routed, the response is 409 route_unavailable and the previous place, legs, signals, and alternatives stay"
+  - "AC-5: After a successful swap, like_count and dislike_count are 0 and a cohort member's my_signal on that step is unset"
+  - "AC-6: Signal accepts like, dislike, or unset for a cohort participant while proposed; unset deletes the row; the time, places, and cohort do not change; the response has no counts"
+  - "AC-7: The organizer and a non-cohort participant get 403 not_cohort; a stranger gets 404 with the envelope only; missing X-HP-Request: 1 returns 403 csrf and writes nothing; a non-proposed or locked plan does not change"
+  - "AC-8: Handler tests use Postgres and the fake Routes client, and they do not call routes.googleapis.com"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md

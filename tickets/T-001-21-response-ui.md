@@ -3,6 +3,7 @@ id: T-001-21
 title: "Response UI"
 type: frontend
 status: done
+legacy: v0
 risk: low
 depends_on:
   - T-001-18
@@ -29,14 +30,14 @@ requirements:
   - N-001-7
   - N-001-15
 acceptance_criteria:
-  - "The surface shows the plan budget with currency, every day window, every step name, and every option label as authored, and the starting-point control is labeled approximate"
-  - "Answered count, threshold, other participants, and other starting points are absent, and no map is shown"
-  - "Confirming a search result shows that place's name; an incomplete save and a complete save both keep the fields editable while collecting or blocked"
-  - "A save failure keeps the entered values and the previous answered count and uses text-destructive; a save that misses a valid window, a start, or one label on a step stays incomplete and identifies those fields"
-  - "While proposed this open shows the proposal surface, and while locked it shows the confirmed surface"
-  - "Switching language keeps unsaved response input"
-  - "A failed open uses text-destructive for this plan and omits another plan's title, people, and places"
-  - "Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
+  - "AC-1: The surface shows the plan budget with currency, every day window, every step name, and every option label as authored, and the starting-point control is labeled approximate"
+  - "AC-2: Answered count, threshold, other participants, and other starting points are absent, and no map is shown"
+  - "AC-3: Confirming a search result shows that place's name; an incomplete save and a complete save both keep the fields editable while collecting or blocked"
+  - "AC-4: A save failure keeps the entered values and the previous answered count and uses text-destructive; a save that misses a valid window, a start, or one label on a step stays incomplete and identifies those fields"
+  - "AC-5: While proposed this open shows the proposal surface, and while locked it shows the confirmed surface"
+  - "AC-6: Switching language keeps unsaved response input"
+  - "AC-7: A failed open uses text-destructive for this plan and omits another plan's title, people, and places"
+  - "AC-8: Chrome is composed from shadcn/ui primitives, component files use design/DESIGN.md semantic classes and contain no raw hex, a primary action uses bg-primary while copy, save, swap, and retry stay secondary, and the work follows design-taste-frontend, redesign-existing-projects, and vercel-react-best-practices without new product features"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
