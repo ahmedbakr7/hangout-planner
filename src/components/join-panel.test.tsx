@@ -28,10 +28,10 @@ const TICKET_FILES = [
 
 const JOIN_TOKEN = `jt_${"A".repeat(43)}`;
 const PLAN_ID = "pln_joinaaaaaaaaaaaaaaaaaa";
-const JOIN_GET = `/v1/join/${JOIN_TOKEN}`;
-const JOIN_POST = `/v1/join/${JOIN_TOKEN}`;
-const OPENING_GET = `/v1/plans/${PLAN_ID}/opening`;
-const PLAN_JOIN_POST = `/v1/plans/${PLAN_ID}/join`;
+const JOIN_GET = `/api/v1/join/${JOIN_TOKEN}`;
+const JOIN_POST = `/api/v1/join/${JOIN_TOKEN}`;
+const OPENING_GET = `/api/v1/plans/${PLAN_ID}/opening`;
+const PLAN_JOIN_POST = `/api/v1/plans/${PLAN_ID}/join`;
 
 const missingSession = {
   error: {
@@ -154,7 +154,7 @@ function stubFetch(config: FetchConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "out") {
         return jsonResponse(401, missingSession);
       }
@@ -346,6 +346,20 @@ describe("JoinPanel", () => {
     expect(classTokens(retry)).not.toContain("bg-primary");
   });
 
+  it("T-001-32/AC-1 retry after a failed load reloads the preview and the signed-in state", async () => {
+    stubFetch({ me: "out", opening: "fail" });
+    renderJoin({ token: JOIN_TOKEN });
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(screen.queryByRole("heading", { name: "Thursday in Maadi" })).toBeNull();
+
+    const fetchMock = stubFetch({ me: "in", opening: "join" });
+    fireEvent.click(retry);
+    expect(await screen.findByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join with an account" })).toBeTruthy();
+    expect(getCall(fetchMock, JOIN_GET)?.credentials).toBe("same-origin");
+    expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
+  });
+
   it("a failed account join stays here and still is not a participant", async () => {
     const fetchMock = await renderLoaded(
       { token: JOIN_TOKEN },
@@ -428,7 +442,7 @@ describe("JoinPanel", () => {
     });
   });
 
-  it("joins without an account through the token route and opens the participant next", async () => {
+  it("T-001-32/AC-1 joins without an account through the token route and opens the participant next", async () => {
     const fetchMock = await renderLoaded(
       { token: JOIN_TOKEN },
       { me: "out", joinNext: "respond" },
@@ -452,7 +466,7 @@ describe("JoinPanel", () => {
     });
   });
 
-  it("joins with an account on the in-app plan path", async () => {
+  it("T-001-32/AC-1 joins with an account on the in-app plan path", async () => {
     const fetchMock = await renderLoaded(
       { planId: PLAN_ID },
       { me: "in", joinNext: "proposal" },

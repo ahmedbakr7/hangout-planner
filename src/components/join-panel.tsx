@@ -399,12 +399,12 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
 
   const openingPath =
     typeof token === "string" && token.length > 0
-      ? `/v1/join/${token}`
-      : `/v1/plans/${planId}/opening`;
+      ? `/api/v1/join/${token}`
+      : `/api/v1/plans/${planId}/opening`;
   const joinPath =
     typeof token === "string" && token.length > 0
-      ? `/v1/join/${token}`
-      : `/v1/plans/${planId}/join`;
+      ? `/api/v1/join/${token}`
+      : `/api/v1/plans/${planId}/join`;
   const accountHref = `/account?next=${accountNextPath(token)}`;
 
   async function loadOpening(): Promise<void> {
@@ -415,7 +415,7 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
     try {
       const [openingResponse, meResponse] = await Promise.all([
         fetch(openingPath, { credentials: "same-origin" }),
-        fetch("/v1/me", { credentials: "same-origin" }),
+        fetch("/api/v1/me", { credentials: "same-origin" }),
       ]);
       setSession(meResponse.ok ? "signed_in" : "signed_out");
       if (openingResponse.status === 404) {
@@ -468,7 +468,7 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
       try {
         const [openingResponse, meResponse] = await Promise.all([
           fetch(openingPath, { credentials: "same-origin" }),
-          fetch("/v1/me", { credentials: "same-origin" }),
+          fetch("/api/v1/me", { credentials: "same-origin" }),
         ]);
         if (cancelled) {
           return;

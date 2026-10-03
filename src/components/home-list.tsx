@@ -140,7 +140,7 @@ function HomeListBody(): ReactNode {
     setLoad("loading");
     setPlans([]);
     try {
-      const response = await fetch("/v1/plans", { credentials: "same-origin" });
+      const response = await fetch("/api/v1/plans", { credentials: "same-origin" });
       if (!response.ok) {
         setLoad("error");
         setPlans([]);
@@ -166,7 +166,7 @@ function HomeListBody(): ReactNode {
 
     async function loadMe(): Promise<void> {
       try {
-        const response = await fetch("/v1/me", { credentials: "same-origin" });
+        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
         if (cancelled) {
           return;
         }

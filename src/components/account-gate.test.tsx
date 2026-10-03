@@ -82,19 +82,19 @@ function stubFetch(config: FetchConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "in") {
         return jsonResponse(200, nourAccount);
       }
       return jsonResponse(401, missingSession);
     }
-    if (url === "/v1/sessions" && method === "POST") {
+    if (url === "/api/v1/sessions" && method === "POST") {
       if (config.sessions === "fail") {
         return jsonResponse(401, badCredentials);
       }
       return jsonResponse(200, nourAccount);
     }
-    if (url === "/v1/accounts" && method === "POST") {
+    if (url === "/api/v1/accounts" && method === "POST") {
       if (config.accounts === "fail") {
         return jsonResponse(409, emailTaken);
       }
@@ -206,7 +206,7 @@ describe("AccountGate", () => {
     stubFetch({ me: "out" });
   });
 
-  it("says an account is required to organize when signed out", async () => {
+  it("T-001-32/AC-2 says an account is required to organize when signed out", async () => {
     await renderSignedOut();
     expect(screen.getByRole("heading", { name: "Account" })).toBeTruthy();
     expect(
@@ -255,11 +255,11 @@ describe("AccountGate", () => {
     expect(router.push).not.toHaveBeenCalled();
 
     const urls = fetchUrls(fetchMock);
-    expect(urls.some((url) => url.includes("/v1/plans"))).toBe(false);
-    expect(urls.some((url) => url.includes("/v1/join"))).toBe(false);
-    expect(urls.filter((url) => url === "/v1/sessions")).toEqual(["/v1/sessions"]);
+    expect(urls.some((url) => url.includes("/api/v1/plans"))).toBe(false);
+    expect(urls.some((url) => url.includes("/api/v1/join"))).toBe(false);
+    expect(urls.filter((url) => url === "/api/v1/sessions")).toEqual(["/api/v1/sessions"]);
 
-    const posted = postCall(fetchMock, "/v1/sessions");
+    const posted = postCall(fetchMock, "/api/v1/sessions");
     expect(posted?.credentials).toBe("same-origin");
     expect(posted?.headers).toMatchObject({
       "Content-Type": "application/json",
@@ -301,10 +301,10 @@ describe("AccountGate", () => {
     expect(router.push).not.toHaveBeenCalled();
 
     const urls = fetchUrls(fetchMock);
-    expect(urls.some((url) => url.includes("/v1/plans"))).toBe(false);
+    expect(urls.some((url) => url.includes("/api/v1/plans"))).toBe(false);
     expect(urls.some((url) => url.includes("/join"))).toBe(false);
 
-    const posted = postCall(fetchMock, "/v1/accounts");
+    const posted = postCall(fetchMock, "/api/v1/accounts");
     expect(posted?.credentials).toBe("same-origin");
     expect(posted?.headers).toMatchObject({
       "X-HP-Request": "1",
@@ -316,8 +316,8 @@ describe("AccountGate", () => {
     });
   });
 
-  it("continues to create after a successful sign-in", async () => {
-    stubFetch({ me: "out", sessions: "ok" });
+  it("T-001-32/AC-1 continues to create after a successful sign-in", async () => {
+    const fetchMock = stubFetch({ me: "out", sessions: "ok" });
     renderGate("/plans/new");
     await screen.findByText("An account is required to organize a plan.");
 
@@ -332,9 +332,10 @@ describe("AccountGate", () => {
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith("/plans/new");
     });
+    expect(fetchUrls(fetchMock)).toEqual(["/api/v1/me", "/api/v1/sessions"]);
   });
 
-  it("continues to join, home, or invitations after success", async () => {
+  it("T-001-32/AC-1 continues to join, home, or invitations after success", async () => {
     stubFetch({ me: "out", sessions: "ok" });
     renderGate(JOIN_PATH);
     await screen.findByText("An account is required to organize a plan.");
@@ -402,7 +403,7 @@ describe("AccountGate", () => {
     });
   });
 
-  it("shows the display name and a way home when already signed in", async () => {
+  it("T-001-32/AC-2 shows the display name and a way home when already signed in", async () => {
     stubFetch({ me: "in" });
     renderGate("/plans/new");
     expect(await screen.findByText("Signed in as Nour")).toBeTruthy();
