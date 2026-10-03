@@ -327,11 +327,6 @@
       "route in code but not in CONTRACTS: PUT /api/v1/plans/{}/response (src/app/api/v1/plans/[planId]/response/route.ts)",
       "route in code but not in CONTRACTS: PUT /api/v1/plans/{}/steps/{}/signal (src/app/api/v1/plans/[planId]/steps/[stepId]/signal/route.ts)"
     ],
-    "integration": [
-      "e2e/authz.e2e.ts e2e/authz.e2e.ts",
-      "e2e/core-loop.e2e.ts e2e core loop > account, create in EGP, copy path, anonymous join, complete response, proposal, swap, signal, lock, and confirmed read on the share link",
-      "e2e/core-loop.e2e.ts e2e/core-loop.e2e.ts"
-    ],
     "smoke": [
       "the app serves 25 route(s), none at a CONTRACTS path, so no route was probed"
     ],
