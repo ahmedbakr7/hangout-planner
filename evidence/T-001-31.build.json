@@ -2,10 +2,10 @@
   "kit_evidence": 1,
   "play": "build",
   "ticket": "T-001-31",
-  "commit": "2de04acf6ca15fa9b16a6dfa4dc611ca82523755",
-  "dirty": true,
-  "base": "ba8580b",
-  "started": "2026-10-03T17:06:49+00:00",
+  "commit": "61b053b19b4b0fd94f3b0ca8e70a8fdfb01e20e6",
+  "dirty": false,
+  "base": "origin/main",
+  "started": "2026-10-03T19:05:48+00:00",
   "result": "pass",
   "checks": [
     {
@@ -28,7 +28,7 @@
         "known: ERROR tickets/T-001-22-proposal-scoring.md: requirements: is empty (cite F-/N- ids from the spec)",
         "known: ERROR tickets/T-001-29-e2e.md: requirements: is empty (cite F-/N- ids from the spec)"
       ],
-      "ms": 9,
+      "ms": 11,
       "log": "",
       "known": [
         "ERROR arch/plan-001-core-plan-loop.md: frontmatter status must be one of ('draft', 'accepted', 'superseded', 'rejected'), got None",
@@ -50,9 +50,9 @@
     {
       "name": "scope",
       "status": "pass",
-      "summary": "7 changed file(s), all in scope",
+      "summary": "13 changed file(s), all in scope",
       "details": [],
-      "ms": 34,
+      "ms": 56,
       "log": "",
       "known": []
     },
@@ -61,7 +61,7 @@
       "status": "pass",
       "summary": "no accepted ADR edited, no AC weakened, baseline not grown",
       "details": [],
-      "ms": 11,
+      "ms": 17,
       "log": "",
       "known": []
     },
@@ -136,7 +136,7 @@
         "known: client calls /v1/plans/{}/response at src/components/response-form.tsx; CONTRACTS declares it, but no built route serves it",
         "known: client calls /v1/plans/{}/response at src/components/response-form.tsx; CONTRACTS declares it, but no built route serves it"
       ],
-      "ms": 39,
+      "ms": 43,
       "log": "",
       "known": [
         "route in code but not in CONTRACTS: DELETE /api/v1/sessions (src/app/api/v1/sessions/route.ts)",
@@ -211,14 +211,14 @@
       "status": "pass",
       "summary": "`npm run --silent lint` ok",
       "details": [],
-      "ms": 2443,
+      "ms": 3300,
       "log": ".sdlc-run/logs/lint.log",
       "known": []
     },
     {
       "name": "typecheck",
       "status": "pass",
-      "summary": "BASELINED: 9 known failure(s) from sdlc-baseline.json, none new (`npx --no-install tsc --noEmit -p tsconfig.json` exited 1)",
+      "summary": "BASELINED: 9 known failure(s) from sdlc-baseline.json, none new (`npx --no-install tsc --noEmit -p tsconfig.json` exited 2)",
       "details": [
         "known: src/app/shell-tokens.test.ts: TS1501",
         "known: src/components/join-panel.test.tsx: TS2783",
@@ -230,7 +230,7 @@
         "known: src/server/plans/views.test.ts: TS2345",
         "known: src/server/proposal/attempt.test.ts: TS2358"
       ],
-      "ms": 2848,
+      "ms": 3341,
       "log": ".sdlc-run/logs/typecheck.log",
       "known": [
         "src/app/shell-tokens.test.ts: TS1501",
@@ -249,7 +249,7 @@
       "status": "pass",
       "summary": "`npx --no-install vitest run --reporter=default --reporter=junit --outputFile.junit=.sdlc-run/junit-unit.xml` ok (360 tests)",
       "details": [],
-      "ms": 32284,
+      "ms": 30901,
       "log": ".sdlc-run/logs/unit.log",
       "known": []
     },
@@ -270,16 +270,16 @@
       "status": "pass",
       "summary": "every AC has a test that fails without the ticket's code (4 file(s) reverted)",
       "details": [],
-      "ms": 29341,
+      "ms": 29491,
       "log": ".sdlc-run/logs/ac-red.log",
       "known": []
     },
     {
       "name": "test-quality",
       "status": "pass",
-      "summary": "1 test file(s) clean",
+      "summary": "4 test file(s) clean",
       "details": [],
-      "ms": 1,
+      "ms": 6,
       "log": "",
       "known": []
     },
@@ -288,7 +288,7 @@
       "status": "pass",
       "summary": "`npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore --ignore \"**/*.test.*,**/*.spec.*\" src` ok",
       "details": [],
-      "ms": 2829,
+      "ms": 2825,
       "log": ".sdlc-run/logs/duplication.log",
       "known": []
     },
@@ -297,7 +297,7 @@
       "status": "pass",
       "summary": "`npx --no-install next build` ok",
       "details": [],
-      "ms": 35369,
+      "ms": 38009,
       "log": ".sdlc-run/logs/build.log",
       "known": []
     },
@@ -308,7 +308,7 @@
       "details": [
         "known: the app serves 25 route(s), none at a CONTRACTS path, so no route was probed"
       ],
-      "ms": 1507,
+      "ms": 1558,
       "log": ".sdlc-run/logs/smoke-server.log",
       "known": [
         "the app serves 25 route(s), none at a CONTRACTS path, so no route was probed"
