@@ -53,6 +53,11 @@ describe("applySchemaOnce", () => {
   it("T-001-31/AC-2 leaves an existing schema unchanged", async () => {
     const before = await tablesInSchema();
     expect(before).toEqual(migrationTables);
+    // A row that must survive: re-applying, truncating or recreating the tables would lose it.
+    await admin.unsafe(
+      `INSERT INTO "${schema}".accounts (id, email, password_hash, display_name)
+       VALUES ('acc_keep', 'keep@example.com', 'x', 'Keep')`,
+    );
     const sql = client();
     try {
       await expect(applySchemaOnce(sql)).resolves.toBe(false);
@@ -60,5 +65,7 @@ describe("applySchemaOnce", () => {
       await sql.end();
     }
     expect(await tablesInSchema()).toEqual(before);
+    const rows = await admin.unsafe(`SELECT id FROM "${schema}".accounts`);
+    expect(rows.map((r) => r.id)).toEqual(["acc_keep"]);
   });
 });
