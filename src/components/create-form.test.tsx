@@ -435,6 +435,11 @@ describe("CreateForm", () => {
     });
     expect(createdPlan.state).toBe("collecting");
     expect(createdPlan.answered_count).toBe(0);
+    // The defaults equal the stubbed list, so only the request itself proves the path.
+    const requested = fetchMock.mock.calls.map(
+      ([url, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(url)}`,
+    );
+    expect(requested).toContain("GET /api/v1/currencies");
   });
 
   it("a signed-out open of create is the account gate with next=/plans/new", async () => {

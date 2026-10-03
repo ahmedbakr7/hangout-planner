@@ -346,6 +346,20 @@ describe("JoinPanel", () => {
     expect(classTokens(retry)).not.toContain("bg-primary");
   });
 
+  it("T-001-32/AC-1 retry after a failed load reloads the preview and the signed-in state", async () => {
+    stubFetch({ me: "out", opening: "fail" });
+    renderJoin({ token: JOIN_TOKEN });
+    const retry = await screen.findByRole("button", { name: "Retry" });
+    expect(screen.queryByRole("heading", { name: "Thursday in Maadi" })).toBeNull();
+
+    const fetchMock = stubFetch({ me: "in", opening: "join" });
+    fireEvent.click(retry);
+    expect(await screen.findByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Join with an account" })).toBeTruthy();
+    expect(getCall(fetchMock, JOIN_GET)?.credentials).toBe("same-origin");
+    expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
+  });
+
   it("a failed account join stays here and still is not a participant", async () => {
     const fetchMock = await renderLoaded(
       { token: JOIN_TOKEN },
@@ -452,7 +466,7 @@ describe("JoinPanel", () => {
     });
   });
 
-  it("joins with an account on the in-app plan path", async () => {
+  it("T-001-32/AC-1 joins with an account on the in-app plan path", async () => {
     const fetchMock = await renderLoaded(
       { planId: PLAN_ID },
       { me: "in", joinNext: "proposal" },

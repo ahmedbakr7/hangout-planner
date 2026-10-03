@@ -472,7 +472,7 @@ describe("InvitePanel", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
   });
 
-  it("the sent list shows each invited account once, with display name and status invited, joined, or answered; an empty list uses text-muted-foreground", async () => {
+  it("T-001-32/AC-1 the sent list shows each invited account once, with display name and status invited, joined, or answered; an empty list uses text-muted-foreground", async () => {
     stubInviteFetch({ invite: "empty" });
     renderInvite();
     const empty = await screen.findByText("No in-app invitations yet.");
@@ -565,6 +565,18 @@ describe("InvitePanel", () => {
     });
   });
 
+  it("T-001-32/AC-1 sending an invite adds the invited account to the sent list", async () => {
+    await renderLoadedInvite({ invite: "empty", send: "ok" });
+    expect(sentItems()).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("Invitee email"), {
+      target: { value: "hana@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
+    expect(await screen.findByText("Hana")).toBeTruthy();
+    expect(sentItems()).toHaveLength(1);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("sending again to an already invited account keeps one row", async () => {
     await renderLoadedInvite({ invite: "ok", send: "reuse" });
     fireEvent.change(screen.getByLabelText("Invitee email"), {
@@ -607,7 +619,7 @@ describe("InvitePanel", () => {
     );
   });
 
-  it("a load failure uses text-destructive and retry and omits another plan's link, title, or people", async () => {
+  it("T-001-32/AC-1 a load failure uses text-destructive and retry and omits another plan's link, title, or people", async () => {
     let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -717,7 +729,7 @@ describe("InvitationsList", () => {
     );
   });
 
-  it("a load failure uses text-destructive and retry and omits another plan's link, title, or people", async () => {
+  it("T-001-32/AC-1 a load failure uses text-destructive and retry and omits another plan's link, title, or people", async () => {
     let inboxCalls = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);

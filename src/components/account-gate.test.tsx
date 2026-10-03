@@ -317,7 +317,7 @@ describe("AccountGate", () => {
   });
 
   it("T-001-32/AC-1 continues to create after a successful sign-in", async () => {
-    stubFetch({ me: "out", sessions: "ok" });
+    const fetchMock = stubFetch({ me: "out", sessions: "ok" });
     renderGate("/plans/new");
     await screen.findByText("An account is required to organize a plan.");
 
@@ -332,9 +332,10 @@ describe("AccountGate", () => {
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith("/plans/new");
     });
+    expect(fetchUrls(fetchMock)).toEqual(["/api/v1/me", "/api/v1/sessions"]);
   });
 
-  it("continues to join, home, or invitations after success", async () => {
+  it("T-001-32/AC-1 continues to join, home, or invitations after success", async () => {
     stubFetch({ me: "out", sessions: "ok" });
     renderGate(JOIN_PATH);
     await screen.findByText("An account is required to organize a plan.");
