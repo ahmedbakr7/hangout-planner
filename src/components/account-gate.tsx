@@ -175,7 +175,7 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
 
     async function loadMe(): Promise<void> {
       try {
-        const response = await fetch("/v1/me", { credentials: "same-origin" });
+        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
         if (cancelled) {
           return;
         }
@@ -240,7 +240,7 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
 
     const fallback =
       mode === "signIn" ? t("signInError") : t("registerError");
-    const path = mode === "signIn" ? "/v1/sessions" : "/v1/accounts";
+    const path = mode === "signIn" ? "/api/v1/sessions" : "/api/v1/accounts";
     const body =
       mode === "signIn"
         ? { email, password }

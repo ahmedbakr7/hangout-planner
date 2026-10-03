@@ -86,7 +86,7 @@ function stubFetch(config: FetchConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "fail") {
         return jsonResponse(500, { error: { code: "upstream", fields: [] } });
       }
@@ -95,7 +95,7 @@ function stubFetch(config: FetchConfig = {}) {
       }
       return jsonResponse(401, missingSession);
     }
-    if (url === "/v1/plans" && method === "GET") {
+    if (url === "/api/v1/plans" && method === "GET") {
       if (config.plans === "fail") {
         return jsonResponse(500, {
           error: { code: "upstream", fields: [] },
@@ -185,8 +185,8 @@ describe("HomeList", () => {
     expect(screen.queryByRole("link", { name: "Invitations" })).toBeNull();
 
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls).toContain("/v1/me");
-    expect(urls.some((url) => url === "/v1/plans")).toBe(false);
+    expect(urls).toContain("/api/v1/me");
+    expect(urls.some((url) => url === "/api/v1/plans")).toBe(false);
   });
 
   it("signed-in empty copy uses text-muted-foreground and is distinct from the error", async () => {
@@ -215,10 +215,10 @@ describe("HomeList", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
-      if (url === "/v1/me" && method === "GET") {
+      if (url === "/api/v1/me" && method === "GET") {
         return jsonResponse(200, nourAccount);
       }
-      if (url === "/v1/plans" && method === "GET") {
+      if (url === "/api/v1/plans" && method === "GET") {
         plansCalls += 1;
         if (plansCalls === 1) {
           return jsonResponse(500, {
@@ -255,13 +255,13 @@ describe("HomeList", () => {
     expect(screen.queryByText("This account has no plans yet.")).toBeNull();
 
     const planGets = fetchMock.mock.calls.filter(
-      (call) => String(call[0]) === "/v1/plans",
+      (call) => String(call[0]) === "/api/v1/plans",
     );
     expect(planGets.length).toBe(2);
     expect(planGets[0]?.[1]?.credentials).toBe("same-origin");
   });
 
-  it("a loaded row shows title, answered count, threshold, and one state with the matching open", async () => {
+  it("T-001-32/AC-1 a loaded row shows title, answered count, threshold, and one state with the matching open", async () => {
     stubFetch({ me: "in", plans: "list" });
     renderHome();
 

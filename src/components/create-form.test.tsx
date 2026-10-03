@@ -95,16 +95,16 @@ function stubFetch(config: FetchConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "out") {
         return jsonResponse(401, missingSession);
       }
       return jsonResponse(200, nourAccount);
     }
-    if (url === "/v1/currencies" && method === "GET") {
+    if (url === "/api/v1/currencies" && method === "GET") {
       return jsonResponse(200, currenciesBody);
     }
-    if (url === "/v1/sessions" && method === "POST") {
+    if (url === "/api/v1/sessions" && method === "POST") {
       if (config.sessions === "fail") {
         return jsonResponse(401, {
           error: {
@@ -117,7 +117,7 @@ function stubFetch(config: FetchConfig = {}) {
       }
       return jsonResponse(200, nourAccount);
     }
-    if (url === "/v1/plans" && method === "POST") {
+    if (url === "/api/v1/plans" && method === "POST") {
       if (config.plansPost === "fail") {
         return jsonResponse(500, {
           error: { code: "upstream", message: "save failed", fields: [] },
@@ -368,7 +368,7 @@ describe("CreateForm", () => {
       "0",
     );
 
-    expect(postCall(fetchMock, "/v1/plans")).toBeUndefined();
+    expect(postCall(fetchMock, "/api/v1/plans")).toBeUndefined();
     expect(router.push).not.toHaveBeenCalled();
   });
 
@@ -397,7 +397,7 @@ describe("CreateForm", () => {
     );
     expect(router.push).not.toHaveBeenCalled();
 
-    const posted = postCall(fetchMock, "/v1/plans");
+    const posted = postCall(fetchMock, "/api/v1/plans");
     expect(posted?.credentials).toBe("same-origin");
     expect(posted?.headers).toMatchObject({
       "Content-Type": "application/json",
@@ -405,7 +405,7 @@ describe("CreateForm", () => {
     });
   });
 
-  it("a valid submit opens the new organizer plan in collecting with answered count 0", async () => {
+  it("T-001-32/AC-1 a valid submit opens the new organizer plan in collecting with answered count 0", async () => {
     const fetchMock = await renderSignedInForm({ plansPost: "ok" });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Create" }));
@@ -414,7 +414,7 @@ describe("CreateForm", () => {
       expect(router.push).toHaveBeenCalledWith(`/plans/${createdPlan.id}`);
     });
 
-    const posted = postCall(fetchMock, "/v1/plans");
+    const posted = postCall(fetchMock, "/api/v1/plans");
     expect(posted?.credentials).toBe("same-origin");
     expect(posted?.headers).toMatchObject({
       "X-HP-Request": "1",

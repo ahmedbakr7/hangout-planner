@@ -28,10 +28,10 @@ const TICKET_FILES = [
 
 const JOIN_TOKEN = `jt_${"A".repeat(43)}`;
 const PLAN_ID = "pln_joinaaaaaaaaaaaaaaaaaa";
-const JOIN_GET = `/v1/join/${JOIN_TOKEN}`;
-const JOIN_POST = `/v1/join/${JOIN_TOKEN}`;
-const OPENING_GET = `/v1/plans/${PLAN_ID}/opening`;
-const PLAN_JOIN_POST = `/v1/plans/${PLAN_ID}/join`;
+const JOIN_GET = `/api/v1/join/${JOIN_TOKEN}`;
+const JOIN_POST = `/api/v1/join/${JOIN_TOKEN}`;
+const OPENING_GET = `/api/v1/plans/${PLAN_ID}/opening`;
+const PLAN_JOIN_POST = `/api/v1/plans/${PLAN_ID}/join`;
 
 const missingSession = {
   error: {
@@ -154,7 +154,7 @@ function stubFetch(config: FetchConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "out") {
         return jsonResponse(401, missingSession);
       }
@@ -428,7 +428,7 @@ describe("JoinPanel", () => {
     });
   });
 
-  it("joins without an account through the token route and opens the participant next", async () => {
+  it("T-001-32/AC-1 joins without an account through the token route and opens the participant next", async () => {
     const fetchMock = await renderLoaded(
       { token: JOIN_TOKEN },
       { me: "out", joinNext: "respond" },

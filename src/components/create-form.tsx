@@ -310,7 +310,7 @@ function CreateFormFields(): ReactNode {
 
     async function loadCurrencies(): Promise<void> {
       try {
-        const response = await fetch("/v1/currencies", {
+        const response = await fetch("/api/v1/currencies", {
           credentials: "same-origin",
         });
         if (!response.ok || cancelled) {
@@ -543,7 +543,7 @@ function CreateFormFields(): ReactNode {
     }
 
     try {
-      const response = await fetch("/v1/plans", {
+      const response = await fetch("/api/v1/plans", {
         method: "POST",
         credentials: "same-origin",
         headers: {
@@ -945,7 +945,7 @@ function CreateFormRoot(): ReactNode {
 
     async function loadMe(): Promise<void> {
       try {
-        const response = await fetch("/v1/me", { credentials: "same-origin" });
+        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
         if (cancelled) {
           return;
         }

@@ -436,7 +436,7 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
     setCopyError(null);
     setFieldErrors([]);
     try {
-      const response = await fetch(`/v1/plans/${planId}/invite`, {
+      const response = await fetch(`/api/v1/plans/${planId}/invite`, {
         credentials: "same-origin",
       });
       const body = await readJson(response);
@@ -475,7 +475,7 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
       setCopyError(null);
       setFieldErrors([]);
       try {
-        const response = await fetch(`/v1/plans/${planId}/invite`, {
+        const response = await fetch(`/api/v1/plans/${planId}/invite`, {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -545,7 +545,7 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
     setFormError(null);
     setFieldErrors([]);
     try {
-      const response = await fetch(`/v1/plans/${planId}/invitations`, {
+      const response = await fetch(`/api/v1/plans/${planId}/invitations`, {
         method: "POST",
         credentials: "same-origin",
         headers: {
@@ -748,7 +748,7 @@ function InvitationsListBody(): ReactNode {
     setInvitations([]);
     setOpenError(null);
     try {
-      const response = await fetch("/v1/invitations", {
+      const response = await fetch("/api/v1/invitations", {
         credentials: "same-origin",
       });
       if (!response.ok) {
@@ -779,7 +779,7 @@ function InvitationsListBody(): ReactNode {
       setInvitations([]);
       setOpenError(null);
       try {
-        const response = await fetch("/v1/invitations", {
+        const response = await fetch("/api/v1/invitations", {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -823,7 +823,7 @@ function InvitationsListBody(): ReactNode {
       return;
     }
     try {
-      const response = await fetch(`/v1/plans/${row.planId}/opening`, {
+      const response = await fetch(`/api/v1/plans/${row.planId}/opening`, {
         credentials: "same-origin",
       });
       if (!response.ok) {
@@ -935,7 +935,7 @@ function InvitationsListRoot(): ReactNode {
 
     async function loadMe(): Promise<void> {
       try {
-        const response = await fetch("/v1/me", { credentials: "same-origin" });
+        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
         if (cancelled) {
           return;
         }

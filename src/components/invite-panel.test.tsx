@@ -28,9 +28,9 @@ const TICKET_FILES = [
 
 const PLAN_ID = "pln_inviteaaaaaaaaaaaaaaaa";
 const JOIN_PATH = `/join/jt_${"B".repeat(43)}`;
-const INVITE_GET = `/v1/plans/${PLAN_ID}/invite`;
-const INVITE_POST = `/v1/plans/${PLAN_ID}/invitations`;
-const OPENING_GET = `/v1/plans/${PLAN_ID}/opening`;
+const INVITE_GET = `/api/v1/plans/${PLAN_ID}/invite`;
+const INVITE_POST = `/api/v1/plans/${PLAN_ID}/invitations`;
+const OPENING_GET = `/api/v1/plans/${PLAN_ID}/opening`;
 const OTHER_PLAN_ID = "pln_otheraccountaaaaaaaaa";
 
 const missingSession = {
@@ -259,13 +259,13 @@ function stubInboxFetch(config: InboxConfig = {}) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       if (config.me === "out") {
         return jsonResponse(401, missingSession);
       }
       return jsonResponse(200, nourAccount);
     }
-    if (url === "/v1/invitations" && method === "GET") {
+    if (url === "/api/v1/invitations" && method === "GET") {
       if (config.inbox === "fail") {
         return jsonResponse(500, {
           error: { code: "upstream", message: "fail", fields: [] },
@@ -652,11 +652,11 @@ describe("InvitationsList", () => {
     expect(screen.queryByText("No invitations yet.")).toBeNull();
     expect(screen.queryByText("Thursday in Maadi")).toBeNull();
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls).toContain("/v1/me");
-    expect(urls.some((url) => url === "/v1/invitations")).toBe(false);
+    expect(urls).toContain("/api/v1/me");
+    expect(urls.some((url) => url === "/api/v1/invitations")).toBe(false);
   });
 
-  it("shows one row per plan with the authored title and the organizer display name, and opening a row follows that plan's opening next", async () => {
+  it("T-001-32/AC-1 shows one row per plan with the authored title and the organizer display name, and opening a row follows that plan's opening next", async () => {
     const fetchMock = stubInboxFetch({
       me: "in",
       inbox: "list",
@@ -722,10 +722,10 @@ describe("InvitationsList", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
-      if (url === "/v1/me" && method === "GET") {
+      if (url === "/api/v1/me" && method === "GET") {
         return jsonResponse(200, nourAccount);
       }
-      if (url === "/v1/invitations" && method === "GET") {
+      if (url === "/api/v1/invitations" && method === "GET") {
         inboxCalls += 1;
         if (inboxCalls === 1) {
           return jsonResponse(500, {
@@ -765,7 +765,7 @@ describe("InvitationsList", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
     const inboxGets = fetchMock.mock.calls.filter(
-      (call) => String(call[0]) === "/v1/invitations",
+      (call) => String(call[0]) === "/api/v1/invitations",
     );
     expect(inboxGets.length).toBe(2);
     expect(inboxGets[0]?.[1]?.credentials).toBe("same-origin");
