@@ -2,7 +2,7 @@
 id: T-001-31
 title: "Apply the test database schema once, before any test file"
 type: chore
-status: ready
+status: in_progress
 risk: low
 depends_on: []
 files:
