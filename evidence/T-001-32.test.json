@@ -2,10 +2,10 @@
   "kit_evidence": 1,
   "play": "test",
   "ticket": "T-001-32",
-  "commit": "63fc6c8aadd19d8eaaa050d41d49301bb81174f4",
+  "commit": "fd6bb61c9d88a62a91efa9def27ab50f37c95409",
   "dirty": false,
   "base": "origin/main",
-  "started": "2026-10-03T21:35:39+00:00",
+  "started": "2026-10-03T22:31:48+00:00",
   "result": "pass",
   "checks": [
     {
@@ -50,9 +50,9 @@
     {
       "name": "scope",
       "status": "pass",
-      "summary": "3 changed file(s), all in scope",
+      "summary": "0 changed file(s), all in scope",
       "details": [],
-      "ms": 12,
+      "ms": 9,
       "log": "",
       "known": []
     },
@@ -61,7 +61,7 @@
       "status": "pass",
       "summary": "no accepted ADR edited, no AC weakened, baseline not grown",
       "details": [],
-      "ms": 4,
+      "ms": 1,
       "log": "",
       "known": []
     },
@@ -96,7 +96,7 @@
         "known: client calls /v1/plans/{}/response at src/components/response-form.tsx; CONTRACTS declares it, but no built route serves it",
         "known: client calls /v1/plans/{}/response at src/components/response-form.tsx; CONTRACTS declares it, but no built route serves it"
       ],
-      "ms": 40,
+      "ms": 35,
       "log": "",
       "known": [
         "page in code but not in CONTRACTS: / (src/app/page.tsx)",
@@ -131,7 +131,7 @@
       "status": "pass",
       "summary": "`npm run --silent lint` ok",
       "details": [],
-      "ms": 2389,
+      "ms": 2294,
       "log": ".sdlc-run/logs/lint.log",
       "known": []
     },
@@ -150,7 +150,7 @@
         "known: src/server/plans/views.test.ts: TS2345",
         "known: src/server/proposal/attempt.test.ts: TS2358"
       ],
-      "ms": 2847,
+      "ms": 2744,
       "log": ".sdlc-run/logs/typecheck.log",
       "known": [
         "src/app/shell-tokens.test.ts: TS1501",
@@ -167,9 +167,9 @@
     {
       "name": "unit",
       "status": "pass",
-      "summary": "`npx --no-install vitest run --reporter=default --reporter=junit --outputFile.junit=.sdlc-run/junit-unit.xml` ok (360 tests)",
+      "summary": "`npx --no-install vitest run --reporter=default --reporter=junit --outputFile.junit=.sdlc-run/junit-unit.xml` ok (362 tests)",
       "details": [],
-      "ms": 29672,
+      "ms": 29153,
       "log": ".sdlc-run/logs/unit.log",
       "known": []
     },
@@ -178,7 +178,7 @@
       "status": "pass",
       "summary": "`npx --no-install vitest run --config vitest.e2e.config.mts --reporter=default --reporter=junit --outputFile.junit=.sdlc-run/junit-integration.xml` ok (13 tests)",
       "details": [],
-      "ms": 9009,
+      "ms": 8660,
       "log": ".sdlc-run/logs/integration.log",
       "known": []
     },
@@ -206,9 +206,9 @@
     {
       "name": "test-quality",
       "status": "pass",
-      "summary": "2 test file(s) clean",
+      "summary": "0 test file(s) clean",
       "details": [],
-      "ms": 2,
+      "ms": 0,
       "log": "",
       "known": []
     },
@@ -217,7 +217,7 @@
       "status": "pass",
       "summary": "`npx --no-install next build` ok",
       "details": [],
-      "ms": 38723,
+      "ms": 28654,
       "log": ".sdlc-run/logs/build.log",
       "known": []
     },
@@ -226,7 +226,7 @@
       "status": "pass",
       "summary": "app booted; 25 route/page probe(s) answered",
       "details": [],
-      "ms": 1653,
+      "ms": 1616,
       "log": ".sdlc-run/logs/smoke-server.log",
       "known": []
     },
@@ -245,11 +245,15 @@
       "status": "passed",
       "tests": [
         "[unit] src/components/account-gate.test.tsx AccountGate > T-001-32/AC-1 continues to create after a successful sign-in",
+        "[unit] src/components/account-gate.test.tsx AccountGate > T-001-32/AC-1 continues to join, home, or invitations after success",
         "[unit] src/components/create-form.test.tsx CreateForm > T-001-32/AC-1 a valid submit opens the new organizer plan in collecting with answered count 0",
         "[unit] src/components/home-list.test.tsx HomeList > T-001-32/AC-1 a loaded row shows title, answered count, threshold, and one state with the matching open",
+        "[unit] src/components/invite-panel.test.tsx InvitePanel > T-001-32/AC-1 the sent list shows each invited account once, with display name and status invited, joined, or answered; an empty list uses text-muted-foreground",
+        "[unit] src/components/invite-panel.test.tsx InvitePanel > T-001-32/AC-1 sending an invite adds the invited account to the sent list",
+        "[unit] src/components/invite-panel.test.tsx InvitePanel > T-001-32/AC-1 a load failure uses text-destructive and retry and omits another plan's link, title, or people",
         "[unit] src/components/invite-panel.test.tsx InvitationsList > T-001-32/AC-1 shows one row per plan with the authored title and the organizer display name, and opening a row follows that plan's opening next",
-        "[unit] src/components/join-panel.test.tsx JoinPanel > T-001-32/AC-1 joins without an account through the token route and opens the participant next",
-        "[integration] e2e/ui-api-paths.e2e.ts UI requests against the real route handlers > T-001-32/AC-1 home and invitations request only served /api/v1 paths"
+        "[unit] src/components/invite-panel.test.tsx InvitationsList > T-001-32/AC-1 a load failure uses text-destructive and retry and omits another plan's link, title, or people",
+        "[unit] src/components/join-panel.test.tsx JoinPanel > T-001-32/AC-1 retry after a failed load reloads the preview and the signed-in state"
       ]
     },
     "T-001-32/AC-2": {
