@@ -113,10 +113,10 @@ function stubCreateFetch() {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === "/v1/me" && method === "GET") {
+    if (url === "/api/v1/me" && method === "GET") {
       return jsonResponse(200, nourAccount);
     }
-    if (url === "/v1/currencies" && method === "GET") {
+    if (url === "/api/v1/currencies" && method === "GET") {
       return jsonResponse(200, currenciesBody);
     }
     throw new Error(`unexpected fetch ${method} ${url}`);
@@ -214,7 +214,7 @@ describe("e2e rtl", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input) === "/v1/me") {
+        if (String(input) === "/api/v1/me") {
           return jsonResponse(401, {
             error: {
               code: "unauthenticated",
