@@ -4,8 +4,6 @@ Date: 2026-10-04. Main: `9672626`, kit pin `9e105b3`.
 
 **Status: on hold.** Work moves to the ai-sdlc kit first: lighter lanes for mechanical changes, soft write sets, ticket amendments, and approvals tied to the PR. Pick this list up after the kit releases that work and Hangout pins it. Run mechanical items (1 and the path-only parts of 2) through the kit's mechanical lane once it exists, not through the full ticket flow.
 
-Tracker adapters (Linear, GitHub Issues) are deferred: tickets stay in `tickets/`.
-
 ## Where things stand
 
 - `sdlc gate ci` passes on a fresh database.
@@ -55,5 +53,5 @@ Tracker adapters (Linear, GitHub Issues) are deferred: tickets stay in `tickets/
   3. Review in a separate session.
   4. Merge main into the branch.
   5. Run `sdlc gate pr`.
-  6. Merge once CI is green and the CodeRabbit review (the review itself, not only its summary) has no blocking findings.
+  6. Merge once CI is green and review has no blocking findings.
 - Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails.
