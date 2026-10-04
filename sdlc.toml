@@ -34,6 +34,14 @@ real_stack = ["integration"]
 # integration_globs = []     # what the test play may write
 # forbid = [ { regex = "", message = "" } ]
 
+[approval]
+# ADR-0001 records mode: approvals are PR reviews/comments bound to the reviewed commit, evidence
+# stays in CI, and ticket status derives from merged Sdlc-Ticket trailers.
+mode = "forge"
+# One account opens, reviews and leads here, so roles are taken on trust (write access is still
+# required) and every result says "trust-based". Drop this once reviewers have their own identities.
+trust_unsigned = true
+
 [scope]
 # always_allowed = []        # globs any play may touch (lockfiles, snapshots)
 # lead_allowed = []          # globs a PR that moves no ticket may change besides lead artifacts
