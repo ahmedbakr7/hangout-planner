@@ -726,7 +726,7 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
     setRejectedFrozen(new Set());
     setFormError(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}`, {
+      const response = await fetch(`/api/v1/plans/${planId}`, {
         credentials: "same-origin",
       });
       const body = await readJson(response);
@@ -771,7 +771,7 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
       setRejectedFrozen(new Set());
       setFormError(null);
       try {
-        const response = await fetch(`/v1/plans/${planId}`, {
+        const response = await fetch(`/api/v1/plans/${planId}`, {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -1149,7 +1149,7 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
     }
 
     try {
-      const response = await fetch(`/v1/plans/${planId}`, {
+      const response = await fetch(`/api/v1/plans/${planId}`, {
         method: "PATCH",
         credentials: "same-origin",
         headers: {

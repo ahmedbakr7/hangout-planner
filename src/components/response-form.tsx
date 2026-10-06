@@ -609,7 +609,7 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
     setFieldErrors([]);
     setSaveNotice(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}/response`, {
+      const response = await fetch(`/api/v1/plans/${planId}/response`, {
         credentials: "same-origin",
       });
       const body = await readJson(response);
@@ -676,7 +676,7 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
       setFieldErrors([]);
       setSaveNotice(null);
       try {
-        const response = await fetch(`/v1/plans/${planId}/response`, {
+        const response = await fetch(`/api/v1/plans/${planId}/response`, {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -853,7 +853,7 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
     setSearching(true);
     try {
       const response = await fetch(
-        `/v1/plans/${planId}/place-searches?q=${encodeURIComponent(q)}`,
+        `/api/v1/plans/${planId}/place-searches?q=${encodeURIComponent(q)}`,
         { credentials: "same-origin" },
       );
       const body = await readJson(response);
@@ -952,7 +952,7 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
     }
 
     try {
-      const response = await fetch(`/v1/plans/${planId}/response`, {
+      const response = await fetch(`/api/v1/plans/${planId}/response`, {
         method: "PUT",
         credentials: "same-origin",
         headers: {

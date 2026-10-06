@@ -28,11 +28,11 @@ const TICKET_FILES = [
 const PLAN_ID = "pln_proposalaaaaaaaaaaaa";
 const DINNER_ID = "stp_aaaaaaaaaaaaaaaaaaaaaa";
 const COFFEE_ID = "stp_cccccccccccccccccccccc";
-const PROPOSAL_GET = `/v1/plans/${PLAN_ID}/proposal`;
-const ATTEMPTS_POST = `/v1/plans/${PLAN_ID}/proposal-attempts`;
-const LOCK_POST = `/v1/plans/${PLAN_ID}/lock`;
-const DINNER_SWAP = `/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/swap`;
-const DINNER_SIGNAL = `/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/signal`;
+const PROPOSAL_GET = `/api/v1/plans/${PLAN_ID}/proposal`;
+const ATTEMPTS_POST = `/api/v1/plans/${PLAN_ID}/proposal-attempts`;
+const LOCK_POST = `/api/v1/plans/${PLAN_ID}/lock`;
+const DINNER_SWAP = `/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/swap`;
+const DINNER_SIGNAL = `/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/signal`;
 
 const leakedExtras = {
   title: "Someone else's private plan",
@@ -782,5 +782,101 @@ describe("ProposalView", () => {
     expect(posted?.[1]?.method).toBe("POST");
     expect(posted?.[1]?.credentials).toBe("same-origin");
     expect(posted?.[1]?.headers).toMatchObject({ "X-HP-Request": "1" });
+  });
+
+  it("T-001-33/AC-1 load, retry, attempt, swap, signal and lock request only CONTRACTS paths under /api/v1/", async () => {
+    const requests: string[] = [];
+    function recordThrough(config: FetchConfig, failFirstGet = false) {
+      const answer = stubFetch(config);
+      let gets = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const method = (init?.method ?? "GET").toUpperCase();
+          requests.push(`${method} ${String(input)}`);
+          if (String(input) === PROPOSAL_GET && method === "GET") {
+            gets += 1;
+            if (failFirstGet && gets === 1) {
+              return jsonResponse(500, leakedFail);
+            }
+          }
+          if (!String(input).startsWith("/api/v1/")) {
+            return jsonResponse(404, {
+              error: { code: "not_found", message: "not found", fields: [] },
+            });
+          }
+          return answer(input, init);
+        }),
+      );
+    }
+
+    recordThrough({ get: proposedBody() }, true);
+    renderView();
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `GET ${PROPOSAL_GET}`]);
+
+    cleanup();
+    requests.length = 0;
+    recordThrough({
+      get: blockedBody({ time: false, budget: false, venue_data: true }),
+      attempts: proposedBody(),
+    });
+    renderView();
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `POST ${ATTEMPTS_POST}`]);
+
+    cleanup();
+    requests.length = 0;
+    recordThrough({ get: proposedBody(), lock: "ok" });
+    renderView();
+    fireEvent.click(await screen.findByRole("button", { name: "Use this place" }));
+    await waitFor(() => {
+      expect(requests).toContain(`POST ${DINNER_SWAP}`);
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Lock this outing" }));
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
+    });
+    expect(requests).toEqual([
+      `GET ${PROPOSAL_GET}`,
+      `POST ${DINNER_SWAP}`,
+      `POST ${LOCK_POST}`,
+    ]);
+
+    cleanup();
+    requests.length = 0;
+    recordThrough({
+      get: proposedBody(
+        {},
+        {
+          steps: [
+            {
+              step_id: DINNER_ID,
+              name: "Dinner",
+              option_label: "Koshary",
+              place: { name: "Abu Tarek", amount_minor: 12000, currency: "EGP" },
+              my_signal: "unset",
+            },
+          ],
+        },
+      ),
+      signal: { signal: "like" },
+    });
+    renderView();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Like" }))[0] as HTMLElement);
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("button", { name: "Like" })[0]?.getAttribute("aria-pressed"),
+      ).toBe("true");
+    });
+    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `PUT ${DINNER_SIGNAL}`]);
+
+    expect(PROPOSAL_GET).toBe(`/api/v1/plans/${PLAN_ID}/proposal`);
+    expect(ATTEMPTS_POST).toBe(`/api/v1/plans/${PLAN_ID}/proposal-attempts`);
+    expect(DINNER_SWAP).toBe(`/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/swap`);
+    expect(DINNER_SIGNAL).toBe(`/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/signal`);
+    expect(LOCK_POST).toBe(`/api/v1/plans/${PLAN_ID}/lock`);
   });
 });
