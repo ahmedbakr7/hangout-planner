@@ -185,7 +185,7 @@ function stubPlanFetch(
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
-    if (url === `/v1/plans/${planId}` && method === "GET") {
+    if (url === `/api/v1/plans/${planId}` && method === "GET") {
       if (config.get === "fail") {
         return jsonResponse(config.getStatus ?? 500, {
           error: { code: "upstream", message: "fail", fields: [] },
@@ -214,7 +214,7 @@ function stubPlanFetch(
       }
       return jsonResponse(200, config.get ?? basePlan(planId));
     }
-    if (url === `/v1/plans/${planId}` && method === "PATCH") {
+    if (url === `/api/v1/plans/${planId}` && method === "PATCH") {
       if (config.patch === "frozen") {
         return jsonResponse(409, {
           error: {
@@ -591,7 +591,7 @@ describe("OrganizerPlan", () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
-      if (url === `/v1/plans/${collectingId}` && method === "GET") {
+      if (url === `/api/v1/plans/${collectingId}` && method === "GET") {
         gets += 1;
         if (gets === 1) {
           return jsonResponse(500, {
@@ -627,9 +627,64 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByText("Secret Person")).toBeNull();
 
     const planGets = fetchMock.mock.calls.filter(
-      (call) => String(call[0]) === `/v1/plans/${collectingId}`,
+      (call) => String(call[0]) === `/api/v1/plans/${collectingId}`,
     );
     expect(planGets.length).toBeGreaterThanOrEqual(2);
     expect(planGets[0]?.[1]?.credentials).toBe("same-origin");
+  });
+
+  it("T-001-33/AC-1 load, retry and save request only CONTRACTS paths under /api/v1/", async () => {
+    let gets = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === `/api/v1/plans/${collectingId}` && method === "GET") {
+        gets += 1;
+        if (gets === 1) {
+          return jsonResponse(500, {
+            error: { code: "upstream", message: "fail", fields: [] },
+          });
+        }
+        return jsonResponse(200, basePlan(collectingId));
+      }
+      if (url === `/api/v1/plans/${collectingId}` && method === "PATCH") {
+        return jsonResponse(
+          200,
+          basePlan(collectingId, {
+            budget: { amount_minor: 10000, currency: "EGP" },
+          }),
+        );
+      }
+      return jsonResponse(404, {
+        error: { code: "not_found", message: "not found", fields: [] },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPlan(collectingId);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Per-person amount"), {
+      target: { value: "100.00" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(
+        (screen.getByLabelText("Per-person amount") as HTMLInputElement).value,
+      ).toBe("100.00");
+    });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    const requests = fetchMock.mock.calls.map(
+      ([input, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(input)}`,
+    );
+    expect(requests).toEqual([
+      `GET /api/v1/plans/${collectingId}`,
+      `GET /api/v1/plans/${collectingId}`,
+      `PATCH /api/v1/plans/${collectingId}`,
+    ]);
+    expect(requests.some((line) => / \/v1\//.test(line))).toBe(false);
   });
 });

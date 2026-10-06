@@ -662,7 +662,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
     setDoc(null);
     setFormError(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}/proposal`, {
+      const response = await fetch(`/api/v1/plans/${planId}/proposal`, {
         credentials: "same-origin",
       });
       const body = await readJson(response);
@@ -681,7 +681,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
       setDoc(null);
       setFormError(null);
       try {
-        const response = await fetch(`/v1/plans/${planId}/proposal`, {
+        const response = await fetch(`/api/v1/plans/${planId}/proposal`, {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -710,7 +710,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
     setBusy(true);
     setFormError(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}/proposal-attempts`, {
+      const response = await fetch(`/api/v1/plans/${planId}/proposal-attempts`, {
         method: "POST",
         credentials: "same-origin",
         headers: WRITE_CSRF,
@@ -733,7 +733,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
     setFormError(null);
     try {
       const response = await fetch(
-        `/v1/plans/${planId}/steps/${stepId}/swap`,
+        `/api/v1/plans/${planId}/steps/${stepId}/swap`,
         {
           method: "POST",
           credentials: "same-origin",
@@ -759,7 +759,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
     setFormError(null);
     try {
       const response = await fetch(
-        `/v1/plans/${planId}/steps/${stepId}/signal`,
+        `/api/v1/plans/${planId}/steps/${stepId}/signal`,
         {
           method: "PUT",
           credentials: "same-origin",
@@ -803,7 +803,7 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
     setBusy(true);
     setFormError(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}/lock`, {
+      const response = await fetch(`/api/v1/plans/${planId}/lock`, {
         method: "POST",
         credentials: "same-origin",
         headers: WRITE_CSRF,

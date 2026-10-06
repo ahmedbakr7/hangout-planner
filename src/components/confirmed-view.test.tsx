@@ -28,8 +28,8 @@ const TICKET_FILES = [
 const PLAN_ID = "pln_confirmedaaaaaaaaaaaa";
 const DINNER_ID = "stp_aaaaaaaaaaaaaaaaaaaaaa";
 const COFFEE_ID = "stp_cccccccccccccccccccccc";
-const CONFIRMED_GET = `/v1/plans/${PLAN_ID}/confirmed`;
-const OPENING_GET = `/v1/plans/${PLAN_ID}/opening`;
+const CONFIRMED_GET = `/api/v1/plans/${PLAN_ID}/confirmed`;
+const OPENING_GET = `/api/v1/plans/${PLAN_ID}/opening`;
 
 const leakedExtras = {
   option_labels: ["Koshary"],
@@ -486,5 +486,66 @@ describe("ConfirmedView", () => {
     expect(screen.queryByRole("button", { name: "Copy" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Use this place" })).toBeNull();
+  });
+
+  it("T-001-33/AC-1 load, retry and the not-locked redirect request only CONTRACTS paths under /api/v1/", async () => {
+    const requests: string[] = [];
+    function recordThrough(confirmed: Array<"fail" | "not_locked" | "locked">) {
+      const answers = confirmed.map((get) =>
+        stubFetch({ get: get === "locked" ? lockedBody() : get, opening: "organizer" }),
+      );
+      let gets = 0;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const method = (init?.method ?? "GET").toUpperCase();
+          requests.push(`${method} ${String(input)}`);
+          if (!String(input).startsWith("/api/v1/")) {
+            return jsonResponse(404, {
+              error: { code: "not_found", message: "not found", fields: [] },
+            });
+          }
+          const index = String(input) === CONFIRMED_GET ? gets++ : gets - 1;
+          const answer = answers[Math.min(index, answers.length - 1)];
+          if (!answer) {
+            throw new Error("no answer configured");
+          }
+          return answer(input, init);
+        }),
+      );
+    }
+
+    recordThrough(["fail", "locked"]);
+    renderView();
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+    expect(requests).toEqual([`GET ${CONFIRMED_GET}`, `GET ${CONFIRMED_GET}`]);
+
+    cleanup();
+    requests.length = 0;
+    recordThrough(["not_locked"]);
+    renderView();
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
+    });
+    expect(requests).toEqual([`GET ${CONFIRMED_GET}`, `GET ${OPENING_GET}`]);
+
+    cleanup();
+    router.replace.mockReset();
+    requests.length = 0;
+    recordThrough(["fail", "not_locked"]);
+    renderView();
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
+    });
+    expect(requests).toEqual([
+      `GET ${CONFIRMED_GET}`,
+      `GET ${CONFIRMED_GET}`,
+      `GET ${OPENING_GET}`,
+    ]);
+
+    expect(CONFIRMED_GET).toBe(`/api/v1/plans/${PLAN_ID}/confirmed`);
+    expect(OPENING_GET).toBe(`/api/v1/plans/${PLAN_ID}/opening`);
   });
 });

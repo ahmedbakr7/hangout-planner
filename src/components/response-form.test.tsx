@@ -26,9 +26,9 @@ const TICKET_FILES = [
 ];
 
 const PLAN_ID = "pln_respondaaaaaaaaaaaaaa";
-const RESPONSE_GET = `/v1/plans/${PLAN_ID}/response`;
-const RESPONSE_PUT = `/v1/plans/${PLAN_ID}/response`;
-const SEARCH_PREFIX = `/v1/plans/${PLAN_ID}/place-searches`;
+const RESPONSE_GET = `/api/v1/plans/${PLAN_ID}/response`;
+const RESPONSE_PUT = `/api/v1/plans/${PLAN_ID}/response`;
+const SEARCH_PREFIX = `/api/v1/plans/${PLAN_ID}/place-searches`;
 
 const windowOne = {
   id: "win_aaaaaaaaaaaaaaaaaaaaaa",
@@ -680,5 +680,80 @@ describe("ResponseForm", () => {
     expect(await screen.findByLabelText(/approximate/i)).toBeTruthy();
     expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
+  });
+
+  it("T-001-33/AC-1 load, retry, place search and save request only CONTRACTS paths under /api/v1/", async () => {
+    const searched = stubFetch({ get: "collecting", search: "ok", put: "ok-incomplete" });
+    let gets = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === `/api/v1/plans/${PLAN_ID}/response` && method === "GET") {
+        gets += 1;
+        if (gets === 1) {
+          return jsonResponse(500, leakedFail);
+        }
+      }
+      if (url.startsWith("/api/v1/")) {
+        return searched(input, init);
+      }
+      return jsonResponse(404, {
+        error: { code: "not_found", message: "not found", fields: [] },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await screen.findByLabelText(/approximate/i);
+    fireEvent.change(screen.getByLabelText(/approximate/i), {
+      target: { value: "Maadi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm this place" }));
+    fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("This response is not complete yet.")).toBeTruthy();
+
+    const requests = fetchMock.mock.calls.map(
+      ([input, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(input)}`,
+    );
+    expect(requests).toEqual([
+      `GET /api/v1/plans/${PLAN_ID}/response`,
+      `GET /api/v1/plans/${PLAN_ID}/response`,
+      `GET /api/v1/plans/${PLAN_ID}/place-searches?q=Maadi`,
+      `PUT /api/v1/plans/${PLAN_ID}/response`,
+    ]);
+    expect(requests.some((line) => / \/v1\//.test(line))).toBe(false);
+  });
+
+  it("T-001-33/AC-2 a complete answer saves with PUT /api/v1/plans/{planId}/response and shows the saved state on 200", async () => {
+    const fetchMock = await renderLoaded({ search: "ok", put: "ok-complete" });
+    fireEvent.click(within(firstWindow()).getByLabelText("Free"));
+    fireEvent.change(within(firstWindow()).getByLabelText("Earliest"), {
+      target: { value: "18:30" },
+    });
+    fireEvent.change(within(firstWindow()).getByLabelText("Latest"), {
+      target: { value: "21:00" },
+    });
+    const second = screen.getByText("2026-10-03 17:00-22:00").closest("fieldset");
+    if (!second) {
+      throw new Error("missing second window");
+    }
+    fireEvent.click(within(second).getByLabelText("Busy"));
+    fireEvent.change(screen.getByLabelText(/approximate/i), {
+      target: { value: "Maadi" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Confirm this place" }));
+    fireEvent.click(within(dinnerStep()).getByLabelText("Koshary"));
+    fireEvent.click(within(coffeeStep()).getByLabelText("Ahwa"));
+    expect(screen.queryByText("Answers saved.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByText("Answers saved.")).toBeTruthy();
+    const saves = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
+    expect(saves).toHaveLength(1);
+    expect(String(saves[0]?.[0])).toBe(`/api/v1/plans/${PLAN_ID}/response`);
   });
 });

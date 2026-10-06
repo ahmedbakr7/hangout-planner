@@ -261,13 +261,6 @@
       "ERROR tickets/T-001-29-e2e.md: requirements: is empty (cite F-/N- ids from the spec)": 1
     },
     "contracts": {
-      "client calls /v1/plans/{} at src/components/organizer-plan.tsx; CONTRACTS declares it, but no built route serves it": 3,
-      "client calls /v1/plans/{}/confirmed at src/components/confirmed-view.tsx; CONTRACTS declares it, but no built route serves it": 2,
-      "client calls /v1/plans/{}/lock at src/components/proposal-view.tsx; CONTRACTS declares it, but no built route serves it": 1,
-      "client calls /v1/plans/{}/opening at src/components/confirmed-view.tsx; CONTRACTS declares it, but no built route serves it": 2,
-      "client calls /v1/plans/{}/proposal at src/components/proposal-view.tsx; CONTRACTS declares it, but no built route serves it": 2,
-      "client calls /v1/plans/{}/proposal-attempts at src/components/proposal-view.tsx; CONTRACTS declares it, but no built route serves it": 1,
-      "client calls /v1/plans/{}/response at src/components/response-form.tsx; CONTRACTS declares it, but no built route serves it": 3,
       "page in code but not in CONTRACTS: / (src/app/page.tsx)": 1,
       "page in code but not in CONTRACTS: /account (src/app/account/page.tsx)": 1,
       "page in code but not in CONTRACTS: /invitations (src/app/invitations/page.tsx)": 1,

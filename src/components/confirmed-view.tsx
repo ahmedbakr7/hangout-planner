@@ -391,7 +391,7 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
 
   async function redirectNotLocked(): Promise<boolean> {
     try {
-      const response = await fetch(`/v1/plans/${planId}/opening`, {
+      const response = await fetch(`/api/v1/plans/${planId}/opening`, {
         credentials: "same-origin",
       });
       if (response.status === 404) {
@@ -418,7 +418,7 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
     setLoad("loading");
     setDoc(null);
     try {
-      const response = await fetch(`/v1/plans/${planId}/confirmed`, {
+      const response = await fetch(`/api/v1/plans/${planId}/confirmed`, {
         credentials: "same-origin",
       });
       const body = await readJson(response);
@@ -451,7 +451,7 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
       setLoad("loading");
       setDoc(null);
       try {
-        const response = await fetch(`/v1/plans/${planId}/confirmed`, {
+        const response = await fetch(`/api/v1/plans/${planId}/confirmed`, {
           credentials: "same-origin",
         });
         if (cancelled) {
@@ -469,7 +469,7 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
         }
         if (outcome.kind === "not_locked") {
           try {
-            const openingResponse = await fetch(`/v1/plans/${planId}/opening`, {
+            const openingResponse = await fetch(`/api/v1/plans/${planId}/opening`, {
               credentials: "same-origin",
             });
             if (cancelled) {
