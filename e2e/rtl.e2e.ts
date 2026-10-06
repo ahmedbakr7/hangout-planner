@@ -126,7 +126,7 @@ function stubCreateFetch() {
 }
 
 function stubConfirmedFetch() {
-  const confirmedPath = `/v1/plans/${PLAN_ID}/confirmed`;
+  const confirmedPath = `/api/v1/plans/${PLAN_ID}/confirmed`;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();

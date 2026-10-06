@@ -4,8 +4,6 @@
  * serve it from (src/app/<path>/route.ts, [param] directories as dynamic segments) and run
  * against the real database. A request to a path no route serves fails the test.
  */
-import { existsSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { cleanup, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -19,6 +17,7 @@ import { InvitationsList } from "@/components/invite-panel";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { routeFor } from "./route-server";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
@@ -30,29 +29,7 @@ if (!databaseUrl) {
 }
 const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} });
 
-const APP_DIR = resolve(process.cwd(), "src/app");
-
 type Handler = (request: Request, context: { params: Promise<Record<string, string>> }) => Promise<Response>;
-
-/** The route module and params Next.js would serve `pathname` from, or null when none does. */
-function routeFor(pathname: string): { file: string; params: Record<string, string> } | null {
-  let dir = APP_DIR;
-  const params: Record<string, string> = {};
-  for (const segment of pathname.split("/").filter(Boolean)) {
-    if (existsSync(join(dir, segment))) {
-      dir = join(dir, segment);
-      continue;
-    }
-    const dynamic = readdirSync(dir).find((name) => /^\[[^.\]]+\]$/.test(name));
-    if (!dynamic) {
-      return null;
-    }
-    params[dynamic.slice(1, -1)] = decodeURIComponent(segment);
-    dir = join(dir, dynamic);
-  }
-  const file = join(dir, "route.ts");
-  return existsSync(file) ? { file, params } : null;
-}
 
 const requested: string[] = [];
 const unserved: string[] = [];
