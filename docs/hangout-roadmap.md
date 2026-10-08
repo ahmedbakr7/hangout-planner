@@ -1,43 +1,46 @@
-# Hangout roadmap (on hold)
+# Hangout roadmap
 
-Date: 2026-10-04. Main: `9672626`, kit pin `9e105b3`.
+Date: 2026-10-08. Main: `f5fd406`, kit pin `2c7beec` (v1.5.0).
 
-**Status: on hold.** Work moves to the ai-sdlc kit first: lighter lanes for mechanical changes, soft write sets, ticket amendments, and approvals tied to the PR. Pick this list up after the kit releases that work and Hangout pins it. Run mechanical items (1 and the path-only parts of 2) through the kit's mechanical lane once it exists, not through the full ticket flow.
+**Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). Hangout pins v1.5.0. T-001-33 ran end to end under it (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
 ## Where things stand
 
 - `sdlc gate ci` passes on a fresh database.
-- The baseline (`sdlc-baseline.json`) holds main's known failures. It may only shrink.
+- The baseline (`sdlc-baseline.json`, version 2) holds main's known failures as counts per key. It may only shrink.
 
-| Baseline entry | Count |
-|---|---|
-| `artifacts` | 14 |
-| `contracts` | 25 |
-| `typecheck` | 9 |
-| `test-quality` | 26 |
-| `ac-coverage` | 241 |
-| `trace` | 241 |
+| Baseline entry | Keys | Count |
+|---|---|---|
+| `artifacts` | 14 | 14 |
+| `contracts` | 11 | 11 |
+| `typecheck` | 7 | 9 |
+| `test-quality` | 11 | 26 |
+| `ac-coverage` | 241 | 241 |
+| `trace` | 241 | 241 |
 
-- The `/api/v1` move is half done. Option A applies: handlers stay in `src/app/api/v1`, while CONTRACTS and the UI move to `/api/v1`.
-  - T-001-32 is done (#62): account gate, create form, home list, invite panel, join panel.
-  - T-001-33 is `ready` and not started.
-- Pilot findings and history: `docs/sdlc-pilot-report.md`.
+- The `/api/v1` move is done. T-001-32 (#62) and T-001-33 (#73, #74) moved every UI call. #75 deleted the "Transitional: old `/v1` paths" section of `arch/CONTRACTS.md` and repointed 16 shipped tickets' `contracts:` references from `/v1/...` to `/api/v1/...`.
+- The 11 `contracts` entries left are pages in code that CONTRACTS does not declare (`/`, `/account`, `/invitations`, `/join/{}`, `/plans/new`, `/plans/{}` and 5 plan subpages).
+- Approvals are trust-based (`[approval] trust_unsigned = true`, one GitHub identity). `sdlc/approval` turns green on a `role: review` record from a session that did not build the ticket, or on a `role: lead` record.
+- T-001-33 is `done`. #73 was squash-merged, which buried its `Sdlc-Ticket` trailer, so main read it as `ready`. #74 merged the original commits (`a11821e`, `34f518a`) with a merge commit and no content change; derived status now reads `done`. The recovery is in the pilot report.
+- Repo settings allow merge commits only. Squash and rebase merging are disabled.
 
 ## Plan, in order
 
 | # | Item | Kind | Notes |
 |---|---|---|---|
-| 1 | Finish `/api/v1`: T-001-33 (organizer plan, response form, proposal view, confirmed view) plus the confirmed-view stub in `e2e/rtl.e2e.ts`, then delete the "Transitional: old `/v1` paths" section of `arch/CONTRACTS.md` | Ticket + lead | One PR if the kit allows; `sdlc baseline --prune` drops the remaining `contracts` entries |
-| 2 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket | Each test registers its own account and resets the cookie jar; wait for the loaded empty states; cover create form and join panel too |
-| 3 | Fix the 9 test type errors | New ticket | `typecheck` baseline → 0 |
-| 4 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | About 11 files and ~191 assertions; `test-quality` baseline |
+| 1 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket | Each test registers its own account and resets cookies; wait for loaded empty states; cover create form and join panel. Use `e2e/route-server.ts` (from #73), which already keeps a cookie jar per actor |
+| 2 | Fix the 9 test type errors | New ticket | `typecheck` baseline → 0 |
+| 3 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | 11 files, 26 hits; `test-quality` baseline |
+| 4 | Declare the 11 pages in CONTRACTS | Lead | `contracts` baseline → 0 |
 | 5 | Add Playwright e2e against `next start`; then remove the temporary `tests.real_stack = ["integration"]` override in `sdlc.toml` | New ticket + lead | Needs Playwright in CI |
 | 6 | Tag shipped tests `T-001-xx/AC-n` | New tickets | Shrinks `ac-coverage` and `trace` (241 each) |
 | 7 | Fix the 14 lead-artifact lint errors | Lead | plan-001 v1 sections and `status`; 7 tickets with no requirement; T-001-01 AC-5 untestable; T-001-01 cites all of CONTRACTS |
 | 8 | Decide, then ticket: attempt-lock wait (CONTRACTS says it waits up to 20 s, T-001-24 AC-4 returns 409 at once) | ADR, then ticket | The contract was weakened when the ticket was written |
 | 9 | Decide, then ticket: rate-limit state (in-process `Map` in `src/server/response/place-search.ts:9`) | ADR, then ticket | No contract or ADR says where it lives |
-| 10 | Remove duplicates: `planRoleFor` copies and the `db()` singletons in `plans/http.ts`, `auth/http.ts`, `proposal/attempt.ts`; the opening + me fetch pair in `join-panel.tsx` | New ticket | Then lower the jscpd threshold (10%) |
-| 11 | Commit a lockfile; add ESLint so `lint` means something | Lead | `lint` is currently `tsc` without tests |
+| 10 | Remove duplicates: `planRoleFor` copies and the `db()` singletons in `plans/http.ts`, `auth/http.ts`, `proposal/attempt.ts`; the opening + me fetch pair in `join-panel.tsx`; the initial-load and retry-load pairs in the four plan views | New ticket | Then lower the jscpd threshold (10%) |
+| 11 | Commit a lockfile; add ESLint so `lint` means something | Lead | `npm install` writes an untracked `package-lock.json` that every gate accepts silently |
+| 12 | Update the `/v1` paths in the AC text of T-001-06, 10, 15, 17 and 24 to `/api/v1` | Lead | From the #75 CodeRabbit review; #75 moved only the `contracts:` lines. The ACs are kit-guarded, so this needs the lead |
+| 13 | Tighten `e2e/plan-views-api-paths.e2e.ts` `fakeGoogle` (match the place-details URL, throw on any other) and check `isDirectory()` in `e2e/route-server.ts` | New ticket | From the #74 CodeRabbit review |
 
 ## Decisions the lead owes
 
@@ -47,11 +50,12 @@ Date: 2026-10-04. Main: `9672626`, kit pin `9e105b3`.
 ## Running it
 
 - Local Postgres for gates: start Postgres 16 on port 5433. Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
-- Ticket flow, until the kit's new lanes land:
-  1. Build.
-  2. Test play (real-handler proof).
-  3. Review in a separate session.
-  4. Merge main into the branch.
-  5. Run `sdlc gate pr`.
-  6. Merge once CI is green and review has no blocking findings.
-- Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails.
+- No `[agents.*]` is configured, so `sdlc run` is unavailable and each play runs by hand. Until the kit fixes findings 1 to 3:
+  1. Build, commit, then run `sdlc gate build <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
+  2. Test play: `sdlc gate test <id> --since <build commit>`. In forge mode the default boundary is an `Sdlc-Play: build` trailer, which `sdlc commit` does not write.
+  3. Keep `Sdlc-Ticket` in the same trailer block as `Co-Authored-By` (`sdlc commit` adds it as a separate paragraph, which hides the others).
+  4. Open the PR. CI runs `gate ci` and `gate pr`.
+  5. Review in a separate session; it posts the `sdlc: approval` record on the PR.
+  6. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
+- Never commit a `sdlc baseline --prune` result without reading it. If a check errors in that run (for example `ac-coverage`: "no test command wrote JUnit"), prune drops all of that check's entries.
+- Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails (`ac-red` does this for the build's files).

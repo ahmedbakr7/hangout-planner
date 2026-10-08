@@ -98,3 +98,60 @@ Extra real defects found: the broken e2e suite (PR #53), the fresh-database migr
 7. Fix the 14 lead-artifact lint errors (plan sections, requirement links, AC-5).
 8. Contract/ADR decisions first, then tickets: the 20 s lock wait, rate-limit storage, the `planRoleFor`/`db()` duplicates.
 9. Commit a lockfile; add ESLint so `lint` means something.
+
+## v1.5.0: one ticket end to end (T-001-33, #73, #74, #75)
+
+Date: 2026-10-06. Kit pin `2c7beec` (v1.5.0). `[approval] mode = "forge"`, `trust_unsigned = true`, one GitHub identity, no `[agents.*]`, so every play ran by hand.
+
+| Step | Commit | Result |
+|---|---|---|
+| Build | `a11821e` | 17 UI calls in 4 components moved to `/api/v1`. Tagged tests went red first, then green. `baseline --prune` dropped 7 `contracts` keys (14 occurrences). `gate build` PASS on a clean tree, `ac-red` included |
+| Test | `34f518a` | `e2e/plan-views-api-paths.e2e.ts` runs the 4 real components against the real handlers and Postgres through a whole plan. The router moved to `e2e/route-server.ts`. `gate test --since a11821e` PASS |
+| Review | `34f518a` | A separate session posted `role: review`, `verdict: approve`. `sdlc/approval` turned green without a lead record |
+| CI | `34f518a` | `gate ci` and `gate pr` PASS |
+| Merge | `c3741ea` | Squash merge by the lead. T-001-33 kept reading `ready` (see Recovery) |
+| Re-merge | `6a77572` (#74) | The original commits merged with a merge commit and no content change. T-001-33 reads `done` |
+| Lead follow-up | `f5fd406` (#75) | Deleted the transitional `/v1` section of CONTRACTS and repointed 16 shipped tickets' `contracts:` references |
+
+### What the kit got right
+
+- `sdlc/approval` refused the PR until a session that did not build it approved, then passed on its own. Every result said "trust-based".
+- `ac-red` reverted the 4 components and confirmed the AC tests fail.
+- Baseline v2 shrank by count and could not grow. `gate pr` re-proved every check on the PR head.
+- `sdlc prompt` gave each play everything it needed: ticket, write set, changed files, evidence.
+- Soft areas: the scope check was clear about what each play may touch.
+
+### Kit findings (for the kit repo)
+
+| # | Finding | Effect on this run |
+|---|---|---|
+| 1 | In forge mode, `gate test` starts the test play's scope at an `Sdlc-Play: build` trailer only. `sdlc commit` never writes one, and the `--since` help says the default is "the proven build commit" | `scope` charged the test play with the build's 8 files; worked around with `--since` |
+| 2 | `sdlc commit` adds `Sdlc-Ticket` as its own paragraph, so git stops reading the trailers above it (`Co-Authored-By`) | Amended the commit by hand |
+| 3 | A gate run on a dirty tree records the base commit as proven. The build play says "gate, then the runner commits", which leads here without a runner | Re-ran `gate build` after committing |
+| 4 | The review prompt names two commits: "Set `commit: a11821e` (the latest proven commit)" and "the HEAD you reviewed" | Ambiguous review frontmatter |
+| 5 | The test prompt includes the build play skill when the ticket lists `skills: [build]` | Conflicting instructions in the test play |
+| 6 | Play skills still say "set it `in_progress`" and "do not change ticket status", although status is derived; `baseline --prune` says "pruned 14 entries" for 7 keys / 14 occurrences | Misleading text |
+| 7 | `package-lock.json` is always allowed, so an untracked lockfile from `npm install` passes scope silently | Would have put a lead decision (item 12) into a ticket PR |
+| 8 | `skills/frontend-patterns` is still the empty template; its "one API client" rule names a client Hangout does not have | No guidance for UI tickets |
+| 9 | `tests.real_stack = ["integration"]` is still the stand-in for Playwright | The real-stack proof is in-process, not HTTP |
+| 10 | An approval posted after the PR opens turns `sdlc/approval` green but leaves the earlier failed `approval` job runs on the head | GitHub showed #73 as "unstable" |
+| 11 | Derived status reads `Sdlc-Ticket` with git's trailer parser. A GitHub squash merge appends `---------` and its own `Co-authored-by` as the last paragraph, so the trailer is lost | T-001-33 read `ready` on main and `sdlc next` returned it, until #74 |
+| 12 | No gate noticed the buried trailer. `gate ci` on main passed, and status stayed `ready` with no warning that a merged PR for the ticket existed | Found by reading `sdlc status`, not by the kit |
+| 13 | The commits carried no `Sdlc-Agent` or `Sdlc-Play: build` trailers, so the approval's reviewer-independence check had nothing to compare the reviewer against. It trusted the reviewer's own `reviewer:` field | Independence held only by convention |
+| 14 | `sdlc review publish` needs a forge token. Cloud sessions have none, so the review record was posted by hand through the GitHub tools | The kit's publish path was unusable in a cloud session |
+| 15 | `sdlc baseline --prune` dropped all 241 `ac-coverage` entries because that check errored in the run ("no test command wrote JUnit"), not because they passed | Caught by reading the diff before committing; committed as is, it would have emptied the `ac-coverage` baseline |
+| 16 | Reverting a ticket PR re-adds the baseline entries it pruned, so the revert fails `immutable` ("may only shrink"), which cannot be waived | The planned revert-then-re-merge recovery was impossible |
+
+Findings 1, 2, 3 and 11 block a by-hand flow in forge mode. Fixes for 11 to 14 are being made in the kit separately; the roadmap's "Running it" section lists the workarounds until the kit fixes them.
+
+### Recovery from the squash merge
+
+The lead's first plan was to revert `c3741ea` and re-merge the original commits. It failed at the first step: the revert re-adds the 14 `contracts` baseline occurrences #73 pruned, and `gate pr` fails `immutable` (finding 16). Reverting everything except the baseline would have left 14 unbaselined failures on main.
+
+What worked, with no revert and no status-repair commit:
+
+1. GitHub had auto-deleted the branch of #73. It was recreated at its original head `34f518a` (same sha, no force-push).
+2. #74 opened from that branch. Its diff against the merge base `207ec21` equals #73 byte for byte, and its tree equals `c3741ea`'s, so merging it changes no content.
+3. A separate review session posted a `role: review` record on `34f518a`. `sdlc/approval` passed, `gate` CI passed, CodeRabbit rated it low risk. It merged with a merge commit (`6a77572`).
+4. `a11821e` and `34f518a` are now reachable from main with their trailers, so `sdlc status T-001-33` prints `done` and `sdlc next` no longer returns it.
+5. #75 (lead) then retired the transitional CONTRACTS section. The repo now allows merge commits only.
