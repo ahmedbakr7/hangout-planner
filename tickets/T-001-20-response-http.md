@@ -18,7 +18,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md#PUT /v1/plans/{planId}/response"
+contracts: "arch/CONTRACTS.md#PUT /api/v1/plans/{planId}/response"
 requirements:
   - F-001-3
   - F-001-9

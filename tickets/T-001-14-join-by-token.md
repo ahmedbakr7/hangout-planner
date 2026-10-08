@@ -16,7 +16,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md#GET /v1/join/{token}"
+contracts: "arch/CONTRACTS.md#GET /api/v1/join/{token}"
 requirements:
   - F-001-9
   - F-001-10

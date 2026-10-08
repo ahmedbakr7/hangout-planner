@@ -479,36 +479,6 @@ Authz: organizer, participant, invited account, or link reader. Not locked: 409 
 Omits option labels, signals, starting points, budget editing, threshold, and invite send. Writes of response, swap, signal, or structure while locked return 409 `plan_locked` and leave this outing in place.
 
 
-## Transitional: old `/v1` paths
-
-Handlers are served under `/api/v1` (the paths above). Until T-001-32 and T-001-33 move the UI's calls, the UI still calls these old paths, which nothing serves. Remove this section when both tickets are done.
-
-### POST /v1/accounts
-### POST /v1/sessions
-### DELETE /v1/sessions
-### GET /v1/me
-### GET /v1/currencies
-### POST /v1/plans
-### GET /v1/plans
-### GET /v1/plans/{planId}
-### PATCH /v1/plans/{planId}
-### GET /v1/plans/{planId}/opening
-### GET /v1/plans/{planId}/invite
-### POST /v1/plans/{planId}/invitations
-### GET /v1/invitations
-### GET /v1/join/{token}
-### POST /v1/join/{token}
-### POST /v1/plans/{planId}/join
-### GET /v1/plans/{planId}/response
-### PUT /v1/plans/{planId}/response
-### GET /v1/plans/{planId}/place-searches
-### GET /v1/plans/{planId}/proposal
-### POST /v1/plans/{planId}/proposal-attempts
-### POST /v1/plans/{planId}/steps/{stepId}/swap
-### PUT /v1/plans/{planId}/steps/{stepId}/signal
-### POST /v1/plans/{planId}/lock
-### GET /v1/plans/{planId}/confirmed
-
 ## Proposal attempt
 
 Runs only from:
