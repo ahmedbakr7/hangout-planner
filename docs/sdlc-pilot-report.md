@@ -141,6 +141,7 @@ Date: 2026-10-06. Kit pin `2c7beec` (v1.5.0). `[approval] mode = "forge"`, `trus
 | 14 | `sdlc review publish` needs a forge token. Cloud sessions have none, so the review record was posted by hand through the GitHub tools | The kit's publish path was unusable in a cloud session |
 | 15 | `sdlc baseline --prune` dropped all 241 `ac-coverage` entries because that check errored in the run ("no test command wrote JUnit"), not because they passed | Caught by reading the diff before committing; committed as is, it would have emptied the `ac-coverage` baseline |
 | 16 | Reverting a ticket PR re-adds the baseline entries it pruned, so the revert fails `immutable` ("may only shrink"), which cannot be waived | The planned revert-then-re-merge recovery was impossible |
+| 17 | A PR with no ticket needs only a `role: lead` record: `gate pr` skips `review-file` ("lead PR: no ticket to review") and `approval` asks for `["lead"]` alone. The review play takes a ticket id, so it has nothing to run on. With trust-based approvals, the agent that wrote a lead PR can also post its lead record, and the independence check (`review`/`lead` vs build agents) has no build agent to compare against | #75 (CONTRACTS section deleted, 16 tickets' `contracts:` repointed) and #76 merged with no second agent reading the diff; only CodeRabbit. A review session was run on #75 after the merge (below) |
 
 Findings 1, 2, 3 and 11 block a by-hand flow in forge mode. Fixes for 11 to 14 are being made in the kit separately; the roadmap's "Running it" section lists the workarounds until the kit fixes them.
 
@@ -155,3 +156,16 @@ What worked, with no revert and no status-repair commit:
 3. A separate review session posted a `role: review` record on `34f518a`. `sdlc/approval` passed, `gate` CI passed, CodeRabbit rated it low risk. It merged with a merge commit (`6a77572`).
 4. `a11821e` and `34f518a` are now reachable from main with their trailers, so `sdlc status T-001-33` prints `done` and `sdlc next` no longer returns it.
 5. #75 (lead) then retired the transitional CONTRACTS section. The repo now allows merge commits only.
+
+### Review of #75 after the merge (finding 17)
+
+#75 and #76 merged with only a lead record. A separate agent then reviewed #75 (`git diff f5fd406^1 f5fd406`) adversarially, read-only. Verdict: approve.
+
+- All 16 repointed `contracts:` lines match a `###` route in `arch/CONTRACTS.md` by method and path. No ticket points at the deleted section.
+- No hidden edits: 17 files, +16/−46. CONTRACTS lost exactly the 30-line block; each ticket changed only its `contracts:` line.
+- `sdlc gate pr --base f5fd406^1` on `f5fd406` passed. `sdlc lint` output is the same before and after.
+- Nothing serves or calls a bare `/v1` route.
+- The stale-AC list for roadmap item 12 (T-001-06, 10, 15, 17, 24) is complete.
+- Stale `/v1` text the PR did not create, now roadmap items 14 and 15: the pattern skills and ADR-0001/0002 still say the API lives at `/v1`. `src/i18n/fallback.test.ts:90` stubs `/v1/me`, so its 401 path is never exercised. The join route logs `/v1/join`.
+
+The review caught nothing in #75 itself, but it found a test that passes without testing its path, which neither the lead record nor CodeRabbit flagged.
