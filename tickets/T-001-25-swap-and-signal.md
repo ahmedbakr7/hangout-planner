@@ -15,7 +15,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md#POST /v1/plans/{planId}/steps/{stepId}/swap"
+contracts: "arch/CONTRACTS.md#POST /api/v1/plans/{planId}/steps/{stepId}/swap"
 requirements:
   - F-001-9
   - F-001-28

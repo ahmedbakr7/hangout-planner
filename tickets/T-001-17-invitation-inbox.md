@@ -13,7 +13,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md#GET /v1/invitations"
+contracts: "arch/CONTRACTS.md#GET /api/v1/invitations"
 requirements:
   - F-001-9
   - F-001-17

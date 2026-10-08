@@ -19,7 +19,7 @@ skills:
   - design-taste-frontend
   - redesign-existing-projects
   - vercel-react-best-practices
-contracts: "arch/CONTRACTS.md#GET /v1/plans/{planId}/response"
+contracts: "arch/CONTRACTS.md#GET /api/v1/plans/{planId}/response"
 requirements:
   - F-001-4
   - F-001-20

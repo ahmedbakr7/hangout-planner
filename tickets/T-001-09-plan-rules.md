@@ -17,7 +17,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md#GET /v1/plans/{planId}"
+contracts: "arch/CONTRACTS.md#GET /api/v1/plans/{planId}"
 requirements:
   - F-001-15
   - N-001-13
