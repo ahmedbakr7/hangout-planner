@@ -24,5 +24,5 @@ A triggering request does not wait. After the hourly run cap passes (a full hour
 ## Consequences
 
 - CONTRACTS matches T-001-24 AC-4 and the shipped code. No code change.
-- Two near-simultaneous triggers: one runs, the other gets 409 and refetches; the plan shows the run's result once it finishes.
+- Required client behavior: when two triggers race, one runs; the other gets 409 `attempt_in_progress`, and its client must refetch the plan so it shows the run's result once the run finishes. The current gap is below.
 - Today `response-form.tsx` and `organizer-plan.tsx` show a generic save error on this 409 instead of refetching. That is out of contract and is a ticket (roadmap item 16).
