@@ -16,10 +16,11 @@ CONTRACTS limits place search to 30 calls per participant per rolling hour. The 
 
 ## Decision
 
-Count place searches in a `place_searches` table (`id`, `participant_id`, `searched_at`), declared in `arch/CONTRACTS.md` § Tables. A call is allowed when fewer than 30 rows for that participant are newer than one hour; the check and the insert happen in one transaction. No in-process counter and no external store (Redis or similar).
+Count place searches in a `place_searches` table (`id`, `participant_id`, `searched_at`), declared in `arch/CONTRACTS.md` § Tables. A call is allowed when fewer than 30 rows for that participant are newer than one hour. The count and the insert run in one transaction that first takes a per-participant transaction lock (`pg_advisory_xact_lock` on the participant id), so two concurrent calls cannot both see 29 rows. The same transaction deletes that participant's rows older than one hour. No in-process counter and no external store (Redis or similar).
 
 ## Consequences
 
 - The limit holds across instances and restarts, using the database the app already has.
 - One extra query and insert per search; acceptable at 30 calls per participant per hour.
-- A ticket replaces the `Map` with the table and adds the migration. Pruning old rows is out of scope until a delete rule is contracted.
+- Storage stays bounded: at most 30 rows per participant at any time.
+- A ticket replaces the `Map` with the table and adds the migration. CONTRACTS § Tables allows this one delete.

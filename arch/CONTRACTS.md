@@ -489,7 +489,7 @@ Runs only from:
 
 The cohort is the set of participants whose response is complete when the run starts. While `proposed`, that set is frozen on the proposal row. A retry while `blocked` takes whoever is complete at the retry. An empty cohort stores no proposal: state `blocked`, `time: true`, `budget: false`, `venue_data: false`, and no Google calls.
 
-The run locks the plan row with `attempt_lock`. The triggering request does not wait for the lock: if a lock younger than 20s is held, the response is 409 `attempt_in_progress` at once (ADR-0004). The triggering write is already committed, so the client refetches the plan. A lock older than 20s may be taken over. `HP_PROPOSAL_ENABLED=0` skips Google and finishes as `venue_data`.
+The run locks the plan row with `attempt_lock`. The hourly run cap is checked first (see proposal-attempts). Then the triggering request does not wait for the lock: if a lock younger than 20s is held, the response is 409 `attempt_in_progress` at once (ADR-0004). For a `PUT` response or `PATCH` plan trigger, the triggering write is already committed, so the client refetches the plan; a `POST` proposal-attempts conflict changes nothing. A lock 20s old or older may be taken over. `HP_PROPOSAL_ENABLED=0` skips Google and finishes as `venue_data`.
 
 ### Time
 
@@ -566,10 +566,10 @@ None. Do not add a bus, a websocket, or a domain event for this slice.
 | `proposal_legs` | proposal_id, from_step_id, to_step_id, duration_seconds |
 | `proposal_candidates` | proposal_id, step_id, google_place_id, place_name, amount_minor, latitude, longitude |
 | `proposal_alternatives` | proposal_id, step_id, position, google_place_id |
-| `place_searches` | id, participant_id, searched_at. One row per counted call |
+| `place_searches` | id, participant_id, searched_at. One row per counted call. Rows older than one hour are deleted (ADR-0005) |
 | `step_signals` | proposal_id, step_id, participant_id, signal. Signal is `like` or `dislike`. Absent row is unset |
 
-`answered_count` equals the number of responses with `complete` true. `first_completed_at` is set once, when that participant first becomes complete. State `proposed` or `locked` implies one `proposals` row. State `locked` is that stored outing. No delete route and no delete of these rows in this slice.
+`answered_count` equals the number of responses with `complete` true. `first_completed_at` is set once, when that participant first becomes complete. State `proposed` or `locked` implies one `proposals` row. State `locked` is that stored outing. No delete route and no delete of these rows in this slice, except `place_searches` rows older than one hour.
 
 ## External Google
 

@@ -15,11 +15,11 @@ status: accepted
 
 CONTRACTS said a triggering request waits up to 20 s for `attempt_lock`, then returns 409 `attempt_in_progress`. T-001-24 AC-4 and its code return 409 at once when a lock younger than 20 s is held. The two disagreed.
 
-The app runs as serverless functions. A request that waits 20 s holds a function instance and a database connection, and gets close to the platform's request timeout. The client already handles 409 `attempt_in_progress` by refetching the plan, because the triggering write has committed.
+The app runs as serverless functions. A request that waits 20 s holds a function instance and a database connection, and gets close to the platform's request timeout. For a `PUT` response or `PATCH` plan trigger, the client already handles 409 `attempt_in_progress` by refetching the plan, because the triggering write has committed. A `POST` proposal-attempts conflict changes nothing.
 
 ## Decision
 
-A triggering request does not wait. If `attempt_lock` is held and younger than 20 s, it returns 409 `attempt_in_progress` at once. A lock older than 20 s may be taken over. The 20 s value is the stale-lock threshold only.
+A triggering request does not wait. After the hourly run cap passes (a full hour returns 429 on the attempts route, or finishes as `venue_data` on a triggering write), if `attempt_lock` is held and younger than 20 s, it returns 409 `attempt_in_progress` at once. A lock 20 s old or older may be taken over (`ATTEMPT_LOCK_MS`, age < 20 000 ms is held). The 20 s value is the stale-lock threshold only.
 
 ## Consequences
 

@@ -2,7 +2,7 @@
 
 Date: 2026-10-09. Main: `27bf4d5`, kit pin `cd8a8fc` (v1.5.2).
 
-**Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). Hangout pins v1.5.0. T-001-33 ran end to end under it (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
+**Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
 ## Where things stand
 
