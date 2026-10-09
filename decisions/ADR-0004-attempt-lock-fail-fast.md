@@ -15,7 +15,7 @@ status: accepted
 
 CONTRACTS said a triggering request waits up to 20 s for `attempt_lock`, then returns 409 `attempt_in_progress`. T-001-24 AC-4 and its code return 409 at once when a lock younger than 20 s is held. The two disagreed.
 
-The app runs as serverless functions. A request that waits 20 s holds a function instance and a database connection, and gets close to the platform's request timeout. For a `PUT` response or `PATCH` plan trigger, the client already handles 409 `attempt_in_progress` by refetching the plan, because the triggering write has committed. A `POST` proposal-attempts conflict changes nothing.
+The app runs as serverless functions. A request that waits 20 s holds a function instance and a database connection, and gets close to the platform's request timeout. For a `PUT` response or `PATCH` plan trigger, the triggering write has committed, so CONTRACTS has the client refetch the plan on 409 `attempt_in_progress`. A `POST` proposal-attempts conflict changes nothing.
 
 ## Decision
 
@@ -25,3 +25,4 @@ A triggering request does not wait. After the hourly run cap passes (a full hour
 
 - CONTRACTS matches T-001-24 AC-4 and the shipped code. No code change.
 - Two near-simultaneous triggers: one runs, the other gets 409 and refetches; the plan shows the run's result once it finishes.
+- Today `response-form.tsx` and `organizer-plan.tsx` show a generic save error on this 409 instead of refetching. That is out of contract and is a ticket (roadmap item 16).
