@@ -373,7 +373,7 @@ Authz: participant, and only while `collecting` or `blocked`. Query `q` is 1–8
 { "results": [{ "google_place_id": "ChIJ…", "name": "Maadi, Cairo" }] }
 ```
 
-At most 5 results. Empty `results` is 200. No coordinates and no prices. 30 calls per participant per rolling hour, then 429. Google failure is 503 `upstream`. While `proposed`, 409 `responses_closed`. While `locked`, 409 `plan_locked`. This route is the start search. Venue search is not a public route.
+At most 5 results. Empty `results` is 200. No coordinates and no prices. 30 calls per participant per rolling hour, counted in `place_searches` (ADR-0005), then 429. Google failure is 503 `upstream`. While `proposed`, 409 `responses_closed`. While `locked`, 409 `plan_locked`. This route is the start search. Venue search is not a public route.
 
 ### GET /api/v1/plans/{planId}/proposal
 
@@ -489,7 +489,7 @@ Runs only from:
 
 The cohort is the set of participants whose response is complete when the run starts. While `proposed`, that set is frozen on the proposal row. A retry while `blocked` takes whoever is complete at the retry. An empty cohort stores no proposal: state `blocked`, `time: true`, `budget: false`, `venue_data: false`, and no Google calls.
 
-The run locks the plan row with `attempt_lock`. The triggering request waits up to 20s to take that lock, then runs. If the lock is still held, the response is 409 `attempt_in_progress`. The triggering write is already committed, so the client refetches the plan. A lock older than 20s may be taken over. `HP_PROPOSAL_ENABLED=0` skips Google and finishes as `venue_data`.
+The run locks the plan row with `attempt_lock`. The triggering request does not wait for the lock: if a lock younger than 20s is held, the response is 409 `attempt_in_progress` at once (ADR-0004). The triggering write is already committed, so the client refetches the plan. A lock older than 20s may be taken over. `HP_PROPOSAL_ENABLED=0` skips Google and finishes as `venue_data`.
 
 ### Time
 
@@ -566,6 +566,7 @@ None. Do not add a bus, a websocket, or a domain event for this slice.
 | `proposal_legs` | proposal_id, from_step_id, to_step_id, duration_seconds |
 | `proposal_candidates` | proposal_id, step_id, google_place_id, place_name, amount_minor, latitude, longitude |
 | `proposal_alternatives` | proposal_id, step_id, position, google_place_id |
+| `place_searches` | id, participant_id, searched_at. One row per counted call |
 | `step_signals` | proposal_id, step_id, participant_id, signal. Signal is `like` or `dislike`. Absent row is unset |
 
 `answered_count` equals the number of responses with `complete` true. `first_completed_at` is set once, when that participant first becomes complete. State `proposed` or `locked` implies one `proposals` row. State `locked` is that stored outing. No delete route and no delete of these rows in this slice.
