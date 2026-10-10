@@ -28,7 +28,7 @@ Date: 2026-10-09. Main: `27bf4d5`, kit pin `cd8a8fc` (v1.5.2).
 
 | # | Item | Kind | Notes |
 |---|---|---|---|
-| 1 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket | Each test registers its own account and resets cookies; wait for loaded empty states; cover create form and join panel. Use `e2e/route-server.ts` (from #73), which already keeps a cookie jar per actor |
+| 1 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket; blocked by pilot finding 19 (a test-only ticket cannot pass `gate build`) | Each test registers its own account and resets cookies; wait for loaded empty states; cover create form and join panel. Use `e2e/route-server.ts` (from #73), which already keeps a cookie jar per actor |
 | 2 | Fix the 9 test type errors | New ticket | `typecheck` baseline → 0 |
 | 3 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | 11 files, 26 hits; `test-quality` baseline |
 | 4 | Declare the 11 pages in CONTRACTS | Lead | `contracts` baseline → 0 |
@@ -43,7 +43,7 @@ Date: 2026-10-09. Main: `27bf4d5`, kit pin `cd8a8fc` (v1.5.2).
 | 13 | Tighten `e2e/plan-views-api-paths.e2e.ts` `fakeGoogle` (match the place-details URL, throw on any other) and check `isDirectory()` in `e2e/route-server.ts` | New ticket | From the #74 CodeRabbit review |
 | 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build. Done in this lead PR (ADR-0003) |
 | 15 | `src/i18n/fallback.test.ts:90` stubs `/v1/me`, but AccountGate calls `/api/v1/me`, so the 401 path is never exercised; `src/app/api/v1/join/[token]/route.ts:128` logs the path as `/v1/join`; doc comments in `src/server/plans/views.ts:240,260` | New ticket | From the post-merge review of #75. Can join item 1's ticket. Optional: route-test request URLs to `/api/v1` |
-| 16 | On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, `src/components/response-form.tsx` and `src/components/organizer-plan.tsx` show a generic save error; CONTRACTS § Proposal attempt says the client refetches the plan (the write committed) | New ticket | From the CodeRabbit review of #79 (ADR-0004) |
+| 16 | Ticket T-001-34. On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, `src/components/response-form.tsx` and `src/components/organizer-plan.tsx` show a generic save error; CONTRACTS § Proposal attempt says the client refetches the plan (the write committed) | New ticket | From the CodeRabbit review of #79 (ADR-0004) |
 
 ## Decisions the lead owes
 
