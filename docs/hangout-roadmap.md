@@ -1,8 +1,8 @@
 # Hangout roadmap
 
-Date: 2026-10-08. Main: `f5fd406`, kit pin `2c7beec` (v1.5.0).
+Date: 2026-10-09. Main: `27bf4d5`, kit pin `cd8a8fc` (v1.5.2).
 
-**Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). Hangout pins v1.5.0. T-001-33 ran end to end under it (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
+**Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
 ## Where things stand
 
@@ -35,27 +35,27 @@ Date: 2026-10-08. Main: `f5fd406`, kit pin `2c7beec` (v1.5.0).
 | 5 | Add Playwright e2e against `next start`; then remove the temporary `tests.real_stack = ["integration"]` override in `sdlc.toml` | New ticket + lead | Needs Playwright in CI |
 | 6 | Tag shipped tests `T-001-xx/AC-n` | New tickets | Shrinks `ac-coverage` and `trace` (241 each) |
 | 7 | Fix the 14 lead-artifact lint errors | Lead | plan-001 v1 sections and `status`; 7 tickets with no requirement; T-001-01 AC-5 untestable; T-001-01 cites all of CONTRACTS |
-| 8 | Decide, then ticket: attempt-lock wait (CONTRACTS says it waits up to 20 s, T-001-24 AC-4 returns 409 at once) | ADR, then ticket | The contract was weakened when the ticket was written |
-| 9 | Decide, then ticket: rate-limit state (in-process `Map` in `src/server/response/place-search.ts:9`) | ADR, then ticket | No contract or ADR says where it lives |
+| 8 | Done: ADR-0004 keeps fail-fast (409 `attempt_in_progress` at once); CONTRACTS § Proposal attempt now matches T-001-24 AC-4 | Lead | No code change |
+| 9 | Ticket: move the place-search limit from the in-process `Map` (`src/server/response/place-search.ts:9`) to the `place_searches` table, with its migration | New ticket | Decided in ADR-0005; the table is declared in CONTRACTS § Tables |
 | 10 | Remove duplicates: `planRoleFor` copies and the `db()` singletons in `plans/http.ts`, `auth/http.ts`, `proposal/attempt.ts`; the opening + me fetch pair in `join-panel.tsx`; the initial-load and retry-load pairs in the four plan views | New ticket | Then lower the jscpd threshold (10%) |
-| 11 | Commit a lockfile; add ESLint so `lint` means something | Lead | `npm install` writes an untracked `package-lock.json` that every gate accepts silently |
-| 12 | Update the `/v1` paths in the AC text of T-001-06, 10, 15, 17 and 24 to `/api/v1` | Lead | From the #75 CodeRabbit review; #75 moved only the `contracts:` lines. The ACs are kit-guarded, so this needs the lead |
+| 11 | Commit a lockfile; add ESLint so `lint` means something | New ticket | `npm install` writes an untracked `package-lock.json` that every gate accepts silently |
+| 12 | Blocked: update the `/v1` paths in the AC text of T-001-06, 10, 15, 17 and 24 to `/api/v1` | Lead | From the #75 CodeRabbit review; #75 moved only the `contracts:` lines. The ACs are kit-guarded, so this needs the lead. Not possible: `gate pr` `immutable` fails any AC reword, even a path rename, unless the spec changes or a `strengthen` amendment is added (pilot finding 18). ADR-0003 governs the path; the AC text stays as is |
 | 13 | Tighten `e2e/plan-views-api-paths.e2e.ts` `fakeGoogle` (match the place-details URL, throw on any other) and check `isDirectory()` in `e2e/route-server.ts` | New ticket | From the #74 CodeRabbit review |
-| 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build |
+| 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build. Done in this lead PR (ADR-0003) |
 | 15 | `src/i18n/fallback.test.ts:90` stubs `/v1/me`, but AccountGate calls `/api/v1/me`, so the 401 path is never exercised; `src/app/api/v1/join/[token]/route.ts:128` logs the path as `/v1/join`; doc comments in `src/server/plans/views.ts:240,260` | New ticket | From the post-merge review of #75. Can join item 1's ticket. Optional: route-test request URLs to `/api/v1` |
+| 16 | On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, `src/components/response-form.tsx` and `src/components/organizer-plan.tsx` show a generic save error; CONTRACTS § Proposal attempt says the client refetches the plan (the write committed) | New ticket | From the CodeRabbit review of #79 (ADR-0004) |
 
 ## Decisions the lead owes
 
-- Item 8: should the attempt lock wait up to 20 s (CONTRACTS) or fail fast (T-001-24)?
-- Item 9: where rate-limit state lives (database, or in-process with a documented limit).
+- None open. Items 8 and 9 are decided in ADR-0004 and ADR-0005.
 
 ## Running it
 
 - Local Postgres for gates: start Postgres 16 on port 5433. Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
-- No `[agents.*]` is configured, so `sdlc run` is unavailable and each play runs by hand. Until the kit fixes findings 1 to 3:
-  1. Build, commit, then run `sdlc gate build <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
-  2. Test play: `sdlc gate test <id> --since <build commit>`. In forge mode the default boundary is an `Sdlc-Play: build` trailer, which `sdlc commit` does not write.
-  3. Keep `Sdlc-Ticket` in the same trailer block as `Co-Authored-By` (`sdlc commit` adds it as a separate paragraph, which hides the others).
+- No `[agents.*]` is configured, so `sdlc run` is unavailable and each play runs by hand. Since kit v1.5.1, `sdlc approval` fails a ticket PR with any commit that lacks an `Sdlc-Agent` trailer:
+  1. Build, commit with `sdlc commit <id> --agent <name> --play build -m "..."`, then run `sdlc gate build <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
+  2. Test play: commit with `--play test` and a different `--agent`, then `sdlc gate test <id>`. `sdlc commit` now writes the `Sdlc-Play: build` trailer the test boundary looks for.
+  3. `sdlc commit` writes `Sdlc-Agent`, `Sdlc-Play` and `Sdlc-Ticket` as the last paragraph. Do not put `Co-Authored-By` in `-m`: it would sit in an earlier paragraph that git's trailer parser ignores (finding 2).
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. Review in a separate session; it posts the `sdlc: approval` record on the PR.
   6. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
