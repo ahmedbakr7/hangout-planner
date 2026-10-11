@@ -18,3 +18,8 @@ Path map for this repo:
 If a play skill and a product file disagree, `.sdlc/AGENTS.md` still wins, then this product's `CONTRACTS.md` and ADRs.
 
 Do not edit `.sdlc/` in this session. Open a kit-repo change instead.
+
+## Product rules for every play
+
+- **ADRs bind.** Before building, open every file the ticket lists under `source_adr`. A change that conflicts with one stops and says so; it does not work around it.
+- **Don't guess structure.** If the ticket, `arch/CONTRACTS.md` and the ticket's patterns skill (`skills/frontend-patterns`, `skills/backend-patterns`) don't settle where a file goes, which library to use or how a pattern is done, copy the closest existing example in this repo and name it in the commit message. If there is no example, stop and report the gap instead of inventing a convention.

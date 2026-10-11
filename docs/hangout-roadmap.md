@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-11. Main: `4fccb99`, kit pin `c8b3ca7` (v3.0.3).
+Date: 2026-10-11. Main: `2def0a1`, kit pin `c8b3ca7` (v3.0.3).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -52,13 +52,14 @@ Date: 2026-10-11. Main: `4fccb99`, kit pin `c8b3ca7` (v3.0.3).
 ## Running it
 
 - Local Postgres for gates: start Postgres 16 on port 5433. Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
-- No `[agents.*]` is configured, so `sdlc run` is unavailable and each play runs by hand. Since kit v1.5.1, `sdlc approval` fails a ticket PR with any commit that lacks an `Sdlc-Agent` trailer:
-  1. Build, commit with `sdlc commit <id> --agent <name> --play build -m "..."`, then run `sdlc gate build <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
-  2. Test play: commit with `--play test` and a different `--agent`, then `sdlc gate test <id>`. `sdlc commit` now writes the `Sdlc-Play: build` trailer the test boundary looks for.
-  3. `sdlc commit` adds `Sdlc-Agent`, `Sdlc-Play` and `Sdlc-Ticket` to the message's own trailer block (`git commit --trailer`, git 2.32 or later), so a `Co-Authored-By` in `-m` stays a trailer (finding 2, fixed in kit v1.5.5).
+- The runner drives every ticket play. Three agents are configured in `sdlc.toml`, all headless `claude -p`: `builder`, `tester` and `reviewer`. Each run is a fresh process with no prior context. Permissions are file tools, the kit CLI, the test commands, and read-only git; the builder and tester also get the type-check commands. The reviewer has no Edit tool, but keeps Write for its review record. There are no MCP servers and no git writes. Pick models with `SDLC_BUILD_MODEL`, `SDLC_TEST_MODEL` and `SDLC_REVIEW_MODEL`, and give the reviewer a different model from the builder. Per ticket:
+  1. `sdlc run build <id> --agent builder`. The runner branches `build/<id>`, runs the agent, gates each attempt (up to `[gate] max_attempts`), feeds failures back, and commits with the `Sdlc-*` trailers.
+  2. `sdlc run test <id> --agent tester`, on the same branch.
+  3. `sdlc run review <id> --agent reviewer`. The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
   4. Open the PR. CI runs `gate ci` and `gate pr`.
-  5. Review in a separate session; it posts the `sdlc: approval` record on the PR.
-  6. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
-- Lead PRs (no ticket): a fresh session reviews the head and posts a `role: review` record. The `role: lead` record comes from the lead, or from a session the lead names for that PR and commit. `sdlc/approval` is judged by the kit pinned on the base branch.
+  5. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
+  - Check a set-up without running an agent: `sdlc run build <id> --agent builder --dry-run` prints the branch and the exact command.
+  - By hand, if the runner can't be used: commit with `sdlc commit <id> --agent <name> --play <play> -m "..."` and run `sdlc gate <play> <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
+- Lead PRs (no ticket): a fresh process reviews the head with the fixed prompt in `docs/sdlc-lead-review-prompt.md`, and the author posts its `role: review` record unchanged with the run log. The `role: lead` record comes only from the lead. `sdlc/approval` is judged by the kit pinned on the base branch.
 - Never commit a `sdlc baseline --prune` result without reading it. If a check errors in that run (for example `ac-coverage`: "no test command wrote JUnit"), prune drops all of that check's entries.
 - Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails (`ac-red` does this for the build's files).
