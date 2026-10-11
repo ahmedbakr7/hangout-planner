@@ -131,7 +131,7 @@ Date: 2026-10-06. Kit pin `2c7beec` (v1.5.0). `[approval] mode = "forge"`, `trus
 | 4 | The review prompt names two commits: "Set `commit: a11821e` (the latest proven commit)" and "the HEAD you reviewed" | Ambiguous review frontmatter |
 | 5 | The test prompt includes the build play skill when the ticket lists `skills: [build]` | Conflicting instructions in the test play |
 | 6 | Play skills still say "set it `in_progress`" and "do not change ticket status", although status is derived; `baseline --prune` says "pruned 14 entries" for 7 keys / 14 occurrences | Misleading text |
-| 7 | `package-lock.json` is always allowed, so an untracked lockfile from `npm install` passes scope silently | Would have put a lead decision (item 12) into a ticket PR |
+| 7 | `package-lock.json` is always allowed (`scope.always_allowed` in the nextjs profile), so a lockfile passes every scope check, lead PRs under `lead_code = "fail"` included. Kit #31 first triaged this as "works as designed"; the kit session reproduced it on Hangout's main and corrected that | Would have put a lead decision (item 12) into a ticket PR |
 | 8 | `skills/frontend-patterns` is still the empty template; its "one API client" rule names a client Hangout does not have | No guidance for UI tickets |
 | 9 | `tests.real_stack = ["integration"]` is still the stand-in for Playwright | The real-stack proof is in-process, not HTTP |
 | 10 | An approval posted after the PR opens turns `sdlc/approval` green but leaves the earlier failed `approval` job runs on the head | GitHub showed #73 as "unstable" |
@@ -143,8 +143,12 @@ Date: 2026-10-06. Kit pin `2c7beec` (v1.5.0). `[approval] mode = "forge"`, `trus
 | 16 | Reverting a ticket PR re-adds the baseline entries it pruned, so the revert fails `immutable` ("may only shrink"), which cannot be waived | The planned revert-then-re-merge recovery was impossible |
 | 17 | A PR with no ticket needs only a `role: lead` record: `gate pr` skips `review-file` ("lead PR: no ticket to review") and `approval` asks for `["lead"]` alone. The review play takes a ticket id, so it has nothing to run on. With trust-based approvals, the agent that wrote a lead PR can also post its lead record, and the independence check (`review`/`lead` vs build agents) has no build agent to compare against | #75 (CONTRACTS section deleted, 16 tickets' `contracts:` repointed) and #76 merged with no second agent reading the diff; only CodeRabbit. A review session was run on #75 after the merge (below) |
 | 18 | `gate pr`'s `immutable` check fails any reworded AC, including a pure rename (`/v1/accounts` → `/api/v1/accounts`), unless the spec's requirements change or the ticket adds a `strengthen` amendment. A lead PR cannot correct stale AC text, and the check cannot be waived | Roadmap item 12 is blocked; ADR-0003 records the path instead |
+| 19 | A `type: test` ticket could not pass `gate build`: the build ran `unit` alone and refused the integration files the ticket exists to write | Roadmap item 1 (fix `e2e/ui-api-paths.e2e.ts`) could not be ticketed |
+| 20 | `sdlc run test` committed every file the agent left (`git add -A`). Hangout neither commits nor ignores `package-lock.json`, so on a fresh clone `npm install` put the lockfile into the test play's commit, which fails `scope` once v3.0.0 judges committed lockfiles by the write set. A build still commits it as an out-of-area file | Found by reading kit v3.0.1 against Hangout; no run failed |
 
 Findings 1, 2, 3 and 11 block a by-hand flow in forge mode. Fixes for 11 to 14 are being made in the kit separately; the roadmap's "Running it" section lists the workarounds until the kit fixes them.
+
+Kit releases that fix findings from this run: 1 in v1.5.1; 2 to 6 in v1.5.5; 19 in v2.0.0; 7 and 17 in v3.0.0 (a committed lockfile or snapshot change is judged by the write set; a PR with no ticket needs a `role: review` record as well as the lead's); 20 in v3.0.2 for the test and review plays only. Hangout pins v3.0.2 from the lead PR that adds this paragraph.
 
 ### Recovery from the squash merge
 
