@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-11. Main: `5f6fe91`, kit pin `90faa79` (v3.0.2).
+Date: 2026-10-11. Main: `4fccb99`, kit pin `c8b3ca7` (v3.0.3).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -59,6 +59,6 @@ Date: 2026-10-11. Main: `5f6fe91`, kit pin `90faa79` (v3.0.2).
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. Review in a separate session; it posts the `sdlc: approval` record on the PR.
   6. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
-- Lead PRs (no ticket): a fresh session reviews the head and posts a `role: review` record and a `role: lead` record. `sdlc/approval` is judged by the kit pinned on the base branch.
+- Lead PRs (no ticket): a fresh session reviews the head and posts a `role: review` record. The `role: lead` record comes from the lead, or from a session the lead names for that PR and commit. `sdlc/approval` is judged by the kit pinned on the base branch.
 - Never commit a `sdlc baseline --prune` result without reading it. If a check errors in that run (for example `ac-coverage`: "no test command wrote JUnit"), prune drops all of that check's entries.
 - Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails (`ac-red` does this for the build's files).
