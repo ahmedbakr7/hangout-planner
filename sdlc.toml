@@ -57,6 +57,23 @@ max_attempts = 3
 # Agents `sdlc run` can drive. The kit ships none: you decide what each agent may do.
 # command placeholders: {instruction} (one line: read the prompt file and follow it),
 # {prompt_file} (repo-relative path). See .sdlc/adapters/AGENTS-RUNNER.md.
-# [agents.myagent]
-# command = "my-agent-cli {instruction}"
-# timeout = 3600
+#
+# All three are headless Claude Code (`claude -p`), each a fresh process with no prior context.
+# Permissions (lead decision, option A): file tools plus the kit CLI, the product's test and
+# type-check commands, and read-only git. No MCP servers (--strict-mcp-config with none given),
+# no network tools, no git writes: the runner makes every commit. A tool outside the list is
+# denied, not prompted. The reviewer cannot edit code; it writes only its review record.
+# Models: set SDLC_BUILD_MODEL / SDLC_TEST_MODEL / SDLC_REVIEW_MODEL to pick each agent's model;
+# unset means the CLI default. Give the reviewer a different model from the builder.
+# Every play needs DATABASE_URL (see "Running it" in docs/hangout-roadmap.md).
+[agents.builder]
+command = "claude -p {instruction} ${SDLC_BUILD_MODEL:+--model \"$SDLC_BUILD_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
+timeout = 3600
+
+[agents.tester]
+command = "claude -p {instruction} ${SDLC_TEST_MODEL:+--model \"$SDLC_TEST_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
+timeout = 3600
+
+[agents.reviewer]
+command = "claude -p {instruction} ${SDLC_REVIEW_MODEL:+--model \"$SDLC_REVIEW_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npx --no-install vitest:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
+timeout = 1800
