@@ -19,7 +19,7 @@ requirements:
 acceptance_criteria:
   - "AC-1: when PUT /api/v1/plans/{planId}/response returns 409 attempt_in_progress, the response form shows no save error and requests GET /api/v1/plans/{planId}/response again, then shows the refetched response"
   - "AC-2: when PATCH /api/v1/plans/{planId} returns 409 attempt_in_progress, the organizer plan shows no save error and requests GET /api/v1/plans/{planId} again, then shows the refetched plan"
-  - "AC-3: any other 409 reason on those two writes keeps today's behavior: plan_locked and the closed-plan reasons still redirect, and the rest still show the save error"
+  - "AC-3: any other 409 reason on those two writes keeps today's behavior: in the response form, plan_locked and the closed-plan reasons still redirect; in the organizer plan, plan_locked still redirects; every other reason still shows the save error"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
