@@ -28,7 +28,7 @@ requirements:
 acceptance_criteria:
   - "AC-1: GET /api/v1/currencies returns the same status and body as before: 200 with the currency list for a signed-in account, and the missing-session response with no valid hp_session"
   - "AC-2: the /plans/new page, called with a signed-in account's cookie, renders CreateForm with initial data that holds the currency list, and CreateForm given that data shows the create form with those currencies in the currency field and makes no GET /api/v1/me or GET /api/v1/currencies request on its first render other than the one slide request"
-  - "AC-3: CreateForm given initial data sends exactly one GET /api/v1/me after mount (ADR-0009), and given null sends none"
+  - "AC-3: CreateForm given initial data sends exactly one GET /api/v1/me after mount (ADR-0009); given null, its useSessionSlide call sends no request, and the only GET /api/v1/me is the one the account gate makes for itself on mount, as today"
   - "AC-4: for no cookie or an invalid hp_session, the page renders CreateForm with no initial data, which shows the account gate with next /plans/new, as signed-out create does today"
   - "AC-5: CreateForm given initial data whose currency list does not parse shows the create form with the default currency list, as a failed currency load does today"
   - "AC-6: when the page's load throws, the route renders src/app/plans/new/error.tsx, which shows Create.title, errors.code.upstream in a role=\"alert\" element and a common.retry button that calls the retry function Next passes, and calls console.error(error) once"

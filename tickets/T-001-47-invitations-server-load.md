@@ -26,7 +26,7 @@ requirements:
 acceptance_criteria:
   - "AC-1: GET /api/v1/invitations returns the same status and body as before: 200 with the signed-in account's invitation rows and truncated, and the missing-session response with no valid hp_session"
   - "AC-2: the /invitations page, called with a signed-in account's cookie, renders InvitationsList with initial data that holds that account's invitations, and InvitationsList given that data shows each row's plan title and organizer display name and makes no GET /api/v1/invitations request on its first render"
-  - "AC-3: InvitationsList given initial data sends exactly one GET /api/v1/me after mount (ADR-0009), and given null sends none"
+  - "AC-3: InvitationsList given initial data sends exactly one GET /api/v1/me after mount (ADR-0009); given null, its useSessionSlide call sends no request, and the only GET /api/v1/me is the one the account gate makes for itself on mount, as today"
   - "AC-4: for no cookie or an invalid hp_session, the page renders InvitationsList with no initial data, which shows the account gate with next /invitations, as signed-out does today"
   - "AC-5: InvitationsList given initial data that does not parse shows the inbox error state (invitations.loadError) with the invitations.retry button"
   - "AC-6: when the page's load throws, the route renders src/app/invitations/error.tsx, which shows invitations.title, invitations.loadError in a role=\"alert\" element and an invitations.retry button that calls the retry function Next passes, and calls console.error(error) once"
