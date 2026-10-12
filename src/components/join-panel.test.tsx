@@ -589,6 +589,15 @@ describe("JoinPanel initial data", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("T-001-44/AC-5 a token with initialSignedIn true still sends one me request, none from the hook", async () => {
+    const fetchMock = stubFetch({ me: "in", opening: "join" });
+    renderInitial({ token: JOIN_TOKEN, initialSignedIn: true });
+    await screen.findByRole("heading", { name: "Thursday in Maadi" });
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url === JOIN_GET)).toHaveLength(1);
+    expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
+  });
+
   it("T-001-44/AC-5 a token with no initial opening sends exactly one me request, from the first load", async () => {
     const fetchMock = await renderLoaded({ token: JOIN_TOKEN });
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
