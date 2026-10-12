@@ -19,6 +19,21 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
+const { slideCalls } = vi.hoisted(() => ({
+  slideCalls: [] as boolean[],
+}));
+
+vi.mock("@/components/use-session-slide", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/use-session-slide")>();
+  return {
+    useSessionSlide: (signedIn: boolean) => {
+      slideCalls.push(signedIn);
+      actual.useSessionSlide(signedIn);
+    },
+  };
+});
+
 const TICKET_FILES = [
   "src/app/join/[token]/page.tsx",
   "src/app/plans/[planId]/join/page.tsx",
@@ -250,6 +265,7 @@ afterEach(() => {
   router.push.mockReset();
   router.replace.mockReset();
   router.refresh.mockReset();
+  slideCalls.length = 0;
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
@@ -596,6 +612,8 @@ describe("JoinPanel initial data", () => {
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(urls.filter((url) => url === JOIN_GET)).toHaveLength(1);
     expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
+    expect(slideCalls.length).toBeGreaterThan(0);
+    expect(slideCalls.every((signedIn) => signedIn === false)).toBe(true);
   });
 
   it("T-001-44/AC-5 a token with no initial opening sends exactly one me request, from the first load", async () => {
