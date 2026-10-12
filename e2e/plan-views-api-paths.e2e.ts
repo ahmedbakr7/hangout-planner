@@ -276,7 +276,8 @@ describe("plan views against the real route handlers", () => {
     const { planId, organizer, guest } = await seedPlan();
 
     server.useCookies(organizer);
-    show(React.createElement(ConfirmedView, { planId }));
+    show(React.createElement(ConfirmedView, { planId, initialDoc: null }));
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${planId}`);
     });
@@ -332,7 +333,8 @@ describe("plan views against the real route handlers", () => {
     });
     cleanup();
 
-    show(React.createElement(ConfirmedView, { planId }));
+    const initialDoc: unknown = await (await server.serve(`/api/v1/plans/${planId}/confirmed`)).json();
+    show(React.createElement(ConfirmedView, { planId, initialDoc }));
     expect(await screen.findByText("Koshary El Tahrir")).toBeTruthy();
     expect(screen.getByText("Thursday night in Maadi")).toBeTruthy();
 
