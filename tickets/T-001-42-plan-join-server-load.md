@@ -37,11 +37,12 @@ source_plan: arch/plan-001-core-plan-loop.md
 source_adr:
   - decisions/ADR-0001-stack.md
   - decisions/ADR-0007-pages-load-on-the-server.md
+  - decisions/ADR-0008-join-token-page-loads-on-the-client.md
 ---
 
 Convert `/plans/{planId}/join` to ADR-0007 server loading. Copy T-001-38: `loadConfirmedPage`, the confirmed page, its view, its `error.tsx`, and its mapping from `next` to path.
 
-`/join/{token}` is not part of this ticket. Its `GET` writes a link session and sets the `hp_link` cookie. A server component cannot set cookies, and ADR-0007 rules out Server Actions. That page needs a lead decision first. `JoinPanel` serves both pages, so the token path must keep working as it does today.
+`/join/{token}` is not part of this ticket. Its `GET` writes a link session and sets the `hp_link` cookie. A server component cannot set cookies, and ADR-0007 rules out Server Actions. It keeps client loading (ADR-0008). `JoinPanel` serves both pages, so the token path must keep working as it does today.
 
 - **`src/server/join/page-data.ts`:**
   - Move `asOpeningCaller` and `loadJoinPreview` out of the opening route, unchanged.
