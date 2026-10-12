@@ -4,7 +4,7 @@ title: "Plan join page loads the join preview on the server"
 type: fullstack
 status: ready
 risk: medium
-depends_on: [T-001-37]
+depends_on: [T-001-35, T-001-37]
 files:
   - "src/server/join/page-data.ts"
   - "src/server/join/page-data.test.ts"
