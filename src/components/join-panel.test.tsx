@@ -502,3 +502,61 @@ describe("JoinPanel", () => {
     );
   });
 });
+
+describe("JoinPanel initial data", () => {
+  const initialOpening = { plan_id: PLAN_ID, next: "join", preview };
+
+  function renderInitial(props: {
+    initialOpening?: unknown;
+    initialSignedIn?: boolean;
+    token?: string;
+    planId?: string;
+  }) {
+    return render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <JoinPanel {...props} />
+      </NextIntlClientProvider>,
+    );
+  }
+
+  it("T-001-42/AC-2 shows the preview and the account join action from initial data with no fetch", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening, initialSignedIn: true });
+    expect(screen.getByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    expect(screen.getByText("Organized by Omar")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Join with an account" }),
+    ).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-42/AC-2 offers the sign-in link when the initial state is signed out", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening, initialSignedIn: false });
+    expect(
+      screen.getByRole("link", { name: "Join with an account" }),
+    ).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-42/AC-4 shows the unknown-link state and no plan data for a null initial opening", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening: null });
+    expect(screen.getByRole("alert").textContent).toBe(en.join.unknownLink);
+    expect(screen.queryByText("Thursday in Maadi")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-42/AC-2 starts in the error state for an initial value the panel cannot read", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening: { nonsense: true } });
+    expect(screen.getByRole("alert").textContent).toBe(en.join.joinFailed);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-42/AC-6 a token with no initial opening still fetches the join and me endpoints", async () => {
+    const fetchMock = await renderLoaded({ token: JOIN_TOKEN });
+    expect(getCall(fetchMock, JOIN_GET)?.credentials).toBe("same-origin");
+    expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
+  });
+});
