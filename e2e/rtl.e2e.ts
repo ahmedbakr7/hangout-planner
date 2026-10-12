@@ -177,7 +177,7 @@ describe("e2e rtl", () => {
       createElement(NextIntlClientProvider, {
         locale: "en",
         messages: en,
-        children: createElement(ConfirmedView, { planId: PLAN_ID }),
+        children: createElement(ConfirmedView, { planId: PLAN_ID, initialDoc: lockedBody }),
       }),
     );
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
@@ -189,7 +189,8 @@ describe("e2e rtl", () => {
     expect(document.cookie).toMatch(/(?:^|; )hp_locale=ar(?:;|$)/);
     expect(document.documentElement.dir).toBe("rtl");
     expect(document.documentElement.lang).toBe("ar");
-    expect(await screen.findByRole("heading", { name: "الخطة المؤكدة" })).toBeTruthy();
+    expect(await screen.findByText("مؤكدة")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
     expect(screen.getByText("Abu Tarek")).toBeTruthy();
   });
 

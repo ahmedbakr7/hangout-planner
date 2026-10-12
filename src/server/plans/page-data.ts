@@ -3,6 +3,11 @@ import {
   loadPlanRow,
   storedState,
 } from "@/server/plans/http";
+import { openingNext, type OpeningNext } from "@/server/join/open";
+import {
+  loadConfirmedDocument,
+  type ConfirmedJson,
+} from "@/server/plans/confirmed";
 import type { OrganizerPlanView } from "@/server/plans/views";
 import { planRoleForCookies, type CookieReader } from "@/server/plans/role";
 
@@ -33,4 +38,34 @@ export async function loadOrganizerPlanPage(
   }
 
   return { kind: "ok", view: await assembleOrganizerPlan(plan) };
+}
+
+export type ConfirmedPage =
+  | { kind: "ok"; doc: ConfirmedJson }
+  | { kind: "not_found" }
+  | { kind: "not_locked"; next: OpeningNext | "join" };
+
+export async function loadConfirmedPage(
+  planId: string,
+  readCookie: CookieReader,
+): Promise<ConfirmedPage> {
+  const plan = await loadPlanRow(planId);
+  if (!plan) {
+    return { kind: "not_found" };
+  }
+
+  const role = await planRoleForCookies(readCookie, plan);
+  if (role === null) {
+    return { kind: "not_found" };
+  }
+
+  if (storedState(plan.state) !== "locked") {
+    const next =
+      role === "organizer" || role === "participant" || role === "invited"
+        ? openingNext(role, storedState(plan.state))
+        : "join";
+    return { kind: "not_locked", next };
+  }
+
+  return { kind: "ok", doc: await loadConfirmedDocument(plan) };
 }
