@@ -33,8 +33,6 @@ import {
   upstreamPlacesError,
   validateWindowsAndPicks,
   type PickDraft,
-  type PlanStepRule,
-  type PlanWindowRule,
   type WindowDraft,
 } from "@/server/response/save";
 import {
@@ -50,7 +48,6 @@ import {
   loadPlanRow,
   notFoundResponse,
   planLockedResponse,
-  storedCurrency,
   type PlanRow,
 } from "@/server/plans/http";
 import {
@@ -59,6 +56,11 @@ import {
   runTriggeredAttempt,
 } from "@/server/proposal/trigger";
 import { planRoleFor } from "@/server/plans/role";
+import {
+  loadPlanShape,
+  loadResponsePage,
+  type PlanShape,
+} from "@/server/response/page-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,22 +74,6 @@ type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 type ParticipantRow = {
   id: string;
-};
-
-type PlanShape = {
-  windows: PlanWindowRule[];
-  windowViews: {
-    id: string;
-    local_date: string;
-    start_local: string;
-    end_local: string;
-  }[];
-  steps: PlanStepRule[];
-  stepViews: {
-    id: string;
-    name: string;
-    options: { id: string; label: string }[];
-  }[];
 };
 
 type StoredResponse = {
@@ -113,56 +99,6 @@ function isWriteRejected(err: unknown): err is WriteRejected {
   }
   const reject = (err as { writeReject?: unknown }).writeReject;
   return typeof reject === "object" && reject !== null;
-}
-
-async function loadPlanShape(planId: string): Promise<PlanShape> {
-  const windowRows = await db()
-    .select()
-    .from(planWindows)
-    .where(eq(planWindows.planId, planId))
-    .orderBy(asc(planWindows.position));
-  const stepRows = await db()
-    .select()
-    .from(planSteps)
-    .where(eq(planSteps.planId, planId))
-    .orderBy(asc(planSteps.position));
-  const stepIds = stepRows.map((step) => step.id);
-  const optionRows =
-    stepIds.length === 0
-      ? []
-      : await db()
-          .select()
-          .from(planOptions)
-          .where(inArray(planOptions.stepId, stepIds))
-          .orderBy(asc(planOptions.stepId), asc(planOptions.position));
-  const optionsByStep = new Map<string, { id: string; label: string }[]>();
-  for (const option of optionRows) {
-    const list = optionsByStep.get(option.stepId) ?? [];
-    list.push({ id: option.id, label: option.label });
-    optionsByStep.set(option.stepId, list);
-  }
-  return {
-    windows: windowRows.map((window) => ({
-      id: window.id,
-      startLocal: window.startLocal,
-      endLocal: window.endLocal,
-    })),
-    windowViews: windowRows.map((window) => ({
-      id: window.id,
-      local_date: window.localDate,
-      start_local: window.startLocal,
-      end_local: window.endLocal,
-    })),
-    steps: stepRows.map((step) => ({
-      id: step.id,
-      optionIds: (optionsByStep.get(step.id) ?? []).map((option) => option.id),
-    })),
-    stepViews: stepRows.map((step) => ({
-      id: step.id,
-      name: step.name,
-      options: optionsByStep.get(step.id) ?? [],
-    })),
-  };
 }
 
 async function loadPlanShapeTx(
@@ -238,34 +174,6 @@ async function rejectNonParticipant(
     return { denied: notFoundResponse() };
   }
   return { participant };
-}
-
-function responseWindowView(row: {
-  windowId: string;
-  kind: string;
-  earliestLocal: string | null;
-  latestLocal: string | null;
-}):
-  | { window_id: string; kind: "busy" }
-  | {
-      window_id: string;
-      kind: "free";
-      earliest_local: string;
-      latest_local: string;
-    } {
-  if (
-    row.kind === "free" &&
-    typeof row.earliestLocal === "string" &&
-    typeof row.latestLocal === "string"
-  ) {
-    return {
-      window_id: row.windowId,
-      kind: "free",
-      earliest_local: row.earliestLocal,
-      latest_local: row.latestLocal,
-    };
-  }
-  return { window_id: row.windowId, kind: "busy" };
 }
 
 async function resolveStartPlace(placeId: string): Promise<StartPlace | null> {
@@ -457,82 +365,19 @@ export async function GET(
   context: ResponseRouteContext,
 ): Promise<NextResponse> {
   const { planId } = await context.params;
-  const plan = await loadPlanRow(planId);
-  if (!plan) {
-    return logged(request, notFoundResponse());
+  const page = await loadResponsePage(planId, (name) =>
+    readCookie(request, name),
+  );
+  if (page.kind === "ok") {
+    return logged(request, NextResponse.json(page.view));
   }
-  const access = await rejectNonParticipant(request, plan);
-  if ("denied" in access) {
-    return logged(request, access.denied);
+  if (page.kind === "proposed") {
+    return logged(request, errorResponse(responsesClosedError()));
   }
-  const closed = closedResponse(asPlanState(plan.state));
-  if (closed) {
-    return logged(request, closed);
+  if (page.kind === "locked") {
+    return logged(request, planLockedResponse());
   }
-
-  const shape = await loadPlanShape(plan.id);
-  const storedRows = await db()
-    .select()
-    .from(responses)
-    .where(eq(responses.participantId, access.participant.id))
-    .limit(1);
-  const stored = storedRows[0];
-  const windowOrder = new Map(
-    shape.windowViews.map((window, index) => [window.id, index]),
-  );
-  const stepOrder = new Map(
-    shape.stepViews.map((step, index) => [step.id, index]),
-  );
-  const windowRows = stored
-    ? await db()
-        .select()
-        .from(responseWindows)
-        .where(eq(responseWindows.participantId, access.participant.id))
-    : [];
-  const pickRows = stored
-    ? await db()
-        .select()
-        .from(responsePicks)
-        .where(eq(responsePicks.participantId, access.participant.id))
-    : [];
-  windowRows.sort(
-    (left, right) =>
-      (windowOrder.get(left.windowId) ?? 0) -
-      (windowOrder.get(right.windowId) ?? 0),
-  );
-  pickRows.sort(
-    (left, right) =>
-      (stepOrder.get(left.stepId) ?? 0) - (stepOrder.get(right.stepId) ?? 0),
-  );
-
-  const start =
-    stored && typeof stored.startName === "string" && stored.startName.length > 0
-      ? { name: stored.startName }
-      : null;
-
-  return logged(
-    request,
-    NextResponse.json({
-      title: plan.title,
-      plan_state: asPlanState(plan.state),
-      budget: {
-        amount_minor: plan.budgetAmountMinor,
-        currency: storedCurrency(plan.currency),
-      },
-      timezone: plan.timezone,
-      windows: shape.windowViews,
-      steps: shape.stepViews,
-      response: {
-        complete: stored?.complete === true,
-        windows: windowRows.map(responseWindowView),
-        start,
-        picks: pickRows.map((pick) => ({
-          step_id: pick.stepId,
-          option_id: pick.optionId,
-        })),
-      },
-    }),
-  );
+  return logged(request, notFoundResponse());
 }
 
 export async function PUT(

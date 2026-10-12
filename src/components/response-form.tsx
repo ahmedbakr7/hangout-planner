@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import React, {
-  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -79,6 +78,7 @@ type ResponsePlan = {
 
 export type ResponseFormProps = {
   planId: string;
+  initialResponse: unknown;
 };
 
 function parseError(body: unknown): ParsedError {
@@ -524,7 +524,28 @@ function FieldBlock({
   );
 }
 
-function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
+function firstResponse(initialResponse: unknown): {
+  parsed: NonNullable<ReturnType<typeof parseResponseDocument>> | null;
+  openError: ParsedError | null;
+} {
+  if (initialResponse === null) {
+    return { parsed: null, openError: { code: "not_found", fields: [] } };
+  }
+  const parsed = parseResponseDocument(initialResponse);
+  if (
+    !parsed ||
+    (parsed.plan.planState !== "collecting" &&
+      parsed.plan.planState !== "blocked")
+  ) {
+    return { parsed: null, openError: { fields: [] } };
+  }
+  return { parsed, openError: null };
+}
+
+function ResponseFormBody({
+  planId,
+  initialResponse,
+}: ResponseFormProps): ReactNode {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("respond");
@@ -533,20 +554,33 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
   const tCode = useTranslations("errors.code");
   const tFields = useTranslations("errors.fields");
 
-  const [load, setLoad] = useState<LoadState>("loading");
-  const [plan, setPlan] = useState<ResponsePlan | null>(null);
-  const [answers, setAnswers] = useState<Record<string, WindowAnswer>>({});
-  const [picks, setPicks] = useState<Record<string, string>>({});
-  const [startName, setStartName] = useState<string | null>(null);
+  const [first] = useState(() => firstResponse(initialResponse));
+  const [load, setLoad] = useState<LoadState>(
+    first.parsed ? "loaded" : "error",
+  );
+  const [plan, setPlan] = useState<ResponsePlan | null>(
+    first.parsed?.plan ?? null,
+  );
+  const [answers, setAnswers] = useState<Record<string, WindowAnswer>>(
+    first.parsed?.answers ?? {},
+  );
+  const [picks, setPicks] = useState<Record<string, string>>(
+    first.parsed?.picks ?? {},
+  );
+  const [startName, setStartName] = useState<string | null>(
+    first.parsed?.startName ?? null,
+  );
   const [startPlaceId, setStartPlaceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PlaceHit[]>([]);
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
-  const [openError, setOpenError] = useState<ParsedError | null>(null);
+  const [openError, setOpenError] = useState<ParsedError | null>(
+    first.openError,
+  );
   const [searchError, setSearchError] = useState<string | null>(null);
   const [saveNotice, setSaveNotice] = useState<"incomplete" | "complete" | null>(
-    null,
+    first.parsed?.plan.complete ? "complete" : null,
   );
   const [submitting, setSubmitting] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -659,95 +693,6 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
       setOpenError({ fields: [] });
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setPlan(null);
-      setAnswers({});
-      setPicks({});
-      setStartName(null);
-      setStartPlaceId(null);
-      setSearchResults([]);
-      setFormError(null);
-      setOpenError(null);
-      setSearchError(null);
-      setFieldErrors([]);
-      setSaveNotice(null);
-      try {
-        const response = await fetch(`/api/v1/plans/${planId}/response`, {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        if (response.status === 409) {
-          const href = closedHref(planId, parseError(body).reason);
-          if (href) {
-            setPlan(null);
-            setLoad("redirecting");
-            router.replace(href);
-            return;
-          }
-          setPlan(null);
-          setLoad("error");
-          setOpenError(parseError(body));
-          return;
-        }
-        if (!response.ok) {
-          setPlan(null);
-          setLoad("error");
-          setOpenError(parseError(body));
-          return;
-        }
-        const parsed = parseResponseDocument(body);
-        if (!parsed) {
-          setPlan(null);
-          setLoad("error");
-          setOpenError({ fields: [] });
-          return;
-        }
-        if (parsed.plan.planState === "proposed") {
-          setPlan(null);
-          setLoad("redirecting");
-          router.replace(`/plans/${planId}/proposal`);
-          return;
-        }
-        if (parsed.plan.planState === "locked") {
-          setPlan(null);
-          setLoad("redirecting");
-          router.replace(`/plans/${planId}/confirmed`);
-          return;
-        }
-        setPlan(parsed.plan);
-        setAnswers(parsed.answers);
-        setPicks(parsed.picks);
-        setStartName(parsed.startName);
-        setStartPlaceId(null);
-        setSearchQuery("");
-        setSearchResults([]);
-        setSaveNotice(parsed.plan.complete ? "complete" : null);
-        setLoad("loaded");
-      } catch {
-        if (!cancelled) {
-          setPlan(null);
-          setLoad("error");
-          setOpenError({ fields: [] });
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, [planId, router]);
 
   function updateAnswer(windowId: string, patch: Partial<WindowAnswer>): void {
     setAnswers((current) => {
@@ -1305,10 +1250,13 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
   );
 }
 
-export function ResponseForm({ planId }: ResponseFormProps): ReactNode {
+export function ResponseForm({
+  planId,
+  initialResponse,
+}: ResponseFormProps): ReactNode {
   return (
     <LanguageControl>
-      <ResponseFormBody planId={planId} />
+      <ResponseFormBody planId={planId} initialResponse={initialResponse} />
     </LanguageControl>
   );
 }
