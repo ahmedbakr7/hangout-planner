@@ -1,8 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useState, type ReactNode } from "react";
 import { LanguageControl } from "@/components/language-control";
+import { useSessionSlide } from "@/components/use-session-slide";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -130,11 +131,16 @@ function HomeShell({ children }: { children: ReactNode }): ReactNode {
   );
 }
 
-function HomeListBody(): ReactNode {
+function HomeListBody({ initialPlans }: { initialPlans: unknown }): ReactNode {
   const t = useTranslations("Home");
-  const [session, setSession] = useState<SessionState>("checking");
-  const [load, setLoad] = useState<LoadState>("idle");
-  const [plans, setPlans] = useState<HomePlan[]>([]);
+  const [seed] = useState(() =>
+    initialPlans === null ? null : parsePlans(initialPlans),
+  );
+  const session: SessionState = initialPlans === null ? "signed_out" : "signed_in";
+  const [load, setLoad] = useState<LoadState>(
+    initialPlans === null ? "idle" : seed === null ? "error" : "loaded",
+  );
+  const [plans, setPlans] = useState<HomePlan[]>(seed ?? []);
 
   async function loadPlans(): Promise<void> {
     setLoad("loading");
@@ -161,49 +167,7 @@ function HomeListBody(): ReactNode {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMe(): Promise<void> {
-      try {
-        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
-        if (cancelled) {
-          return;
-        }
-        if (!response.ok) {
-          setSession("signed_out");
-          setLoad("idle");
-          setPlans([]);
-          return;
-        }
-        setSession("signed_in");
-        await loadPlans();
-      } catch {
-        if (!cancelled) {
-          setSession("signed_out");
-          setLoad("idle");
-          setPlans([]);
-        }
-      }
-    }
-
-    void loadMe();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (session === "checking") {
-    return (
-      <HomeShell>
-        <CardHeader>
-          <h1 className="title text-foreground text-start text-pretty">
-            {t("title")}
-          </h1>
-        </CardHeader>
-      </HomeShell>
-    );
-  }
+  useSessionSlide(initialPlans !== null);
 
   const createHref =
     session === "signed_out" ? "/account?next=/plans/new" : "/plans/new";
@@ -286,10 +250,14 @@ function HomeListBody(): ReactNode {
   );
 }
 
-export function HomeList(): ReactNode {
+export function HomeList({
+  initialPlans,
+}: {
+  initialPlans: unknown;
+}): ReactNode {
   return (
     <LanguageControl>
-      <HomeListBody />
+      <HomeListBody initialPlans={initialPlans} />
     </LanguageControl>
   );
 }

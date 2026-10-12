@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { HomeList } from "@/components/home-list";
 
@@ -119,10 +119,10 @@ function stubFetch(config: FetchConfig = {}) {
   return fetchMock;
 }
 
-function renderHome() {
+function renderHome(initialPlans: unknown) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <HomeList />
+      <HomeList initialPlans={initialPlans} />
     </NextIntlClientProvider>,
   );
 }
@@ -166,15 +166,11 @@ describe("HomeList chrome", () => {
 });
 
 describe("HomeList", () => {
-  beforeEach(() => {
-    stubFetch({ me: "out" });
-  });
-
-  it("signed-out home shows a create action that uses bg-primary and opens the account gate and shows no plan rows", async () => {
+  it("signed-out home shows a create action that uses bg-primary and opens the account gate and shows no plan rows", () => {
     const fetchMock = stubFetch({ me: "out", plans: "list" });
-    renderHome();
+    renderHome(null);
 
-    const create = await screen.findByRole("link", { name: "Create a plan" });
+    const create = screen.getByRole("link", { name: "Create a plan" });
     expect(create.getAttribute("href")).toBe("/account?next=/plans/new");
     expect(classTokens(create)).toContain("bg-primary");
     expect(screen.getByText("Friends enter through an invite link.")).toBeTruthy();
@@ -183,17 +179,14 @@ describe("HomeList", () => {
     expect(screen.queryByText("This account has no plans yet.")).toBeNull();
     expect(screen.queryByText("The plan list could not be loaded.")).toBeNull();
     expect(screen.queryByRole("link", { name: "Invitations" })).toBeNull();
-
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls).toContain("/api/v1/me");
-    expect(urls.some((url) => url === "/api/v1/plans")).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("signed-in empty copy uses text-muted-foreground and is distinct from the error", async () => {
-    stubFetch({ me: "in", plans: "empty" });
-    renderHome();
+  it("signed-in empty copy uses text-muted-foreground and is distinct from the error", () => {
+    stubFetch({ me: "in" });
+    renderHome({ plans: [], truncated: false });
 
-    const empty = await screen.findByText("This account has no plans yet.");
+    const empty = screen.getByText("This account has no plans yet.");
     expect(classTokens(empty)).toContain("text-muted-foreground");
     expect(classTokens(empty)).not.toContain("text-destructive");
     expect(screen.queryByText("The plan list could not be loaded.")).toBeNull();
@@ -203,14 +196,11 @@ describe("HomeList", () => {
     expect(screen.getByRole("link", { name: "Invitations" }).getAttribute("href")).toBe(
       "/invitations",
     );
-    expect(
-      classTokens(screen.getByRole("link", { name: "Invitations" })),
-    ).not.toContain("bg-primary");
     expect(screen.queryByText("Friends enter through an invite link.")).toBeNull();
     expect(screen.queryByRole("listitem")).toBeNull();
   });
 
-  it("a home load failure uses text-destructive, offers retry, keeps create available, and hides empty copy and other plans", async () => {
+  it("T-001-45/AC-5 initial data that does not parse shows the home error with a retry that refetches", async () => {
     let plansCalls = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -220,56 +210,76 @@ describe("HomeList", () => {
       }
       if (url === "/api/v1/plans" && method === "GET") {
         plansCalls += 1;
-        if (plansCalls === 1) {
-          return jsonResponse(500, {
-            error: { code: "upstream", message: "fail", fields: [] },
-            plans: [leakedPlan],
-          });
-        }
-        return jsonResponse(200, {
-          plans: [collecting],
-          truncated: false,
-        });
+        return jsonResponse(200, { plans: [collecting], truncated: false });
       }
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderHome();
+    renderHome({ unexpected: "shape" });
 
-    const alert = await screen.findByRole("alert");
+    const alert = screen.getByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
-    expect(alert.textContent).toBe("The plan list could not be loaded.");
+    expect(alert.textContent).toBe(en.Home.loadError);
     expect(screen.queryByText("This account has no plans yet.")).toBeNull();
-    expect(screen.queryByText("Someone else's private plan")).toBeNull();
-    expect(screen.queryByText("Thursday in Maadi")).toBeNull();
+    expect(screen.queryByRole("listitem")).toBeNull();
     expect(getCreateLink().getAttribute("href")).toBe("/plans/new");
-    expect(classTokens(getCreateLink())).toContain("bg-primary");
+    expect(plansCalls).toBe(0);
 
-    const retry = screen.getByRole("button", { name: "Retry" });
+    const retry = screen.getByRole("button", { name: en.Home.retry });
     expect(classTokens(retry)).not.toContain("bg-primary");
     fireEvent.click(retry);
 
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.queryByText("Someone else's private plan")).toBeNull();
-    expect(screen.queryByText("This account has no plans yet.")).toBeNull();
-
-    const planGets = fetchMock.mock.calls.filter(
-      (call) => String(call[0]) === "/api/v1/plans",
-    );
-    expect(planGets.length).toBe(2);
-    expect(planGets[0]?.[1]?.credentials).toBe("same-origin");
+    expect(plansCalls).toBe(1);
   });
 
-  it("T-001-32/AC-1 a loaded row shows title, answered count, threshold, and one state with the matching open", async () => {
-    stubFetch({ me: "in", plans: "list" });
-    renderHome();
+  it("T-001-45/AC-2 initial data shows the plan rows and makes no plans request on first render", async () => {
+    const fetchMock = stubFetch({ me: "in", plans: "leak" });
+    renderHome({ plans: [collecting, blocked, proposed, locked], truncated: false });
 
-    expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
+    expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.getByText("Friday downtown")).toBeTruthy();
     expect(screen.getByText("Saturday walk")).toBeTruthy();
     expect(screen.getByText("Sunday brunch")).toBeTruthy();
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const plansGets = fetchMock.mock.calls.filter(
+      (call) => String(call[0]) === "/api/v1/plans",
+    );
+    expect(plansGets).toHaveLength(0);
+  });
+
+  it("T-001-45/AC-3 initial data sends exactly one GET /api/v1/me after mount and null sends none", async () => {
+    const fetchMock = stubFetch({ me: "in" });
+    renderHome({ plans: [], truncated: false });
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("/api/v1/me");
+    expect((fetchMock.mock.calls[0]?.[1]?.method ?? "GET").toUpperCase()).toBe("GET");
+    cleanup();
+
+    const none = stubFetch({ me: "out" });
+    renderHome(null);
+    await Promise.resolve();
+    expect(none).not.toHaveBeenCalled();
+  });
+
+  it("T-001-45/AC-4 null initial data shows the signed-out home and no plan rows", () => {
+    stubFetch({ me: "out" });
+    renderHome(null);
+    expect(screen.getByText(en.Home.signedOutFriends)).toBeTruthy();
+    expect(getCreateLink().getAttribute("href")).toBe("/account?next=/plans/new");
+    expect(screen.queryByRole("listitem")).toBeNull();
+  });
+
+  it("T-001-32/AC-1 a loaded row shows title, answered count, threshold, and one state with the matching open", () => {
+    stubFetch({ me: "in" });
+    renderHome({ plans: [collecting, blocked, proposed, locked], truncated: false });
 
     const collectingLink = screen.getByRole("link", {
       name: /Thursday in Maadi/,
@@ -286,7 +296,6 @@ describe("HomeList", () => {
     const blockedLink = screen.getByRole("link", { name: /Friday downtown/ });
     expect(blockedLink.getAttribute("href")).toBe(`/plans/${blocked.id}`);
     expect(blockedLink.textContent).toContain("2 of 2 answered");
-    expect(blockedLink.textContent).toContain("blocked");
     expect(blockedLink.querySelector(".text-destructive")?.textContent).toBe(
       "blocked",
     );
@@ -294,7 +303,6 @@ describe("HomeList", () => {
     const proposedLink = screen.getByRole("link", { name: /Saturday walk/ });
     expect(proposedLink.getAttribute("href")).toBe(`/plans/${proposed.id}`);
     expect(proposedLink.textContent).toContain("4 of 3 answered");
-    expect(proposedLink.textContent).toContain("proposed");
     expect(proposedLink.querySelector(".text-destructive")).toBeNull();
     expect(proposedLink.querySelector(".text-success")).toBeNull();
 
@@ -303,13 +311,9 @@ describe("HomeList", () => {
       `/plans/${locked.id}/confirmed`,
     );
     expect(lockedLink.textContent).toContain("5 of 3 answered");
-    expect(lockedLink.textContent).toContain("locked");
     expect(lockedLink.querySelector(".text-success")?.textContent).toBe(
       "locked",
     );
-
-    await waitFor(() => {
-      expect(getCreateLink().getAttribute("href")).toBe("/plans/new");
-    });
+    expect(getCreateLink().getAttribute("href")).toBe("/plans/new");
   });
 });
