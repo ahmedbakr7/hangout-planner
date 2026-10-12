@@ -326,11 +326,31 @@ function renderInvite(initial: unknown = inviteBody("ok").body) {
   );
 }
 
-function renderInbox() {
+const thursdayRow = {
+  plan_id: PLAN_ID,
+  title: "Thursday in Maadi",
+  organizer_display_name: "Omar",
+};
+
+const thursdayInbox = { invitations: [thursdayRow], truncated: false };
+
+function renderInbox(initial: unknown = thursdayInbox) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <InvitationsList />
+      <InvitationsList initialInbox={initial} />
     </NextIntlClientProvider>,
+  );
+}
+
+function inboxGets(fetchMock: ReturnType<typeof vi.fn>): unknown[] {
+  return fetchMock.mock.calls.filter(
+    (call) => String(call[0]) === "/api/v1/invitations",
+  );
+}
+
+function meGets(fetchMock: ReturnType<typeof vi.fn>): unknown[] {
+  return fetchMock.mock.calls.filter(
+    (call) => String(call[0]) === "/api/v1/me",
   );
 }
 
@@ -684,19 +704,70 @@ describe("InvitePanel", () => {
 });
 
 describe("InvitationsList", () => {
-  it("signed-out opens the account gate with next=/invitations", async () => {
+  it("T-001-47/AC-4 null initial data shows the account gate with next=/invitations", async () => {
     const fetchMock = stubInboxFetch({ me: "out" });
-    renderInbox();
+    renderInbox(null);
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Account" })).toBeTruthy();
     expect(screen.queryByText("No invitations yet.")).toBeNull();
     expect(screen.queryByText("Thursday in Maadi")).toBeNull();
-    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls).toContain("/api/v1/me");
-    expect(urls.some((url) => url === "/api/v1/invitations")).toBe(false);
+    expect(inboxGets(fetchMock)).toHaveLength(0);
   });
 
-  it("T-001-32/AC-1 shows one row per plan with the authored title and the organizer display name, and opening a row follows that plan's opening next", async () => {
+  it("T-001-47/AC-3 given null, the only GET /api/v1/me is the account gate's own on mount", async () => {
+    const fetchMock = stubInboxFetch({ me: "out" });
+    renderInbox(null);
+    await screen.findByRole("button", { name: "Sign in" });
+    expect(meGets(fetchMock)).toHaveLength(1);
+  });
+
+  it("T-001-47/AC-3 given initial data sends exactly one GET /api/v1/me after mount", async () => {
+    const fetchMock = stubInboxFetch({ me: "in" });
+    renderInbox();
+    await waitFor(() => {
+      expect(meGets(fetchMock)).toHaveLength(1);
+    });
+    expect(meGets(fetchMock)[0]).toEqual(["/api/v1/me", { credentials: "same-origin" }]);
+  });
+
+  it("T-001-47/AC-2 shows each row's plan title and organizer display name and makes no inbox request on first render", async () => {
+    const fetchMock = stubInboxFetch({ me: "in" });
+    renderInbox({
+      invitations: [
+        thursdayRow,
+        { plan_id: OTHER_PLAN_ID, title: "Friday in Zamalek", organizer_display_name: "Hana" },
+      ],
+      truncated: false,
+    });
+    expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
+    expect(screen.getByText("Organized by Omar")).toBeTruthy();
+    expect(screen.getByText("Friday in Zamalek")).toBeTruthy();
+    expect(screen.getByText("Organized by Hana")).toBeTruthy();
+    await waitFor(() => {
+      expect(meGets(fetchMock)).toHaveLength(1);
+    });
+    expect(inboxGets(fetchMock)).toHaveLength(0);
+  });
+
+  it("T-001-47/AC-5 initial data that does not parse shows the load error and a retry button that refetches the inbox", async () => {
+    const fetchMock = stubInboxFetch({ me: "in", inbox: "list" });
+    renderInbox({ invitations: "not a list" });
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe(en.invitations.loadError);
+    expect(inboxGets(fetchMock)).toHaveLength(0);
+    fireEvent.click(screen.getByRole("button", { name: en.invitations.retry }));
+    expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
+    expect(inboxGets(fetchMock)).toHaveLength(1);
+  });
+
+  it("T-001-47/AC-5 initial data that is not an object shows the load error", () => {
+    stubInboxFetch({ me: "in" });
+    renderInbox("garbage");
+    expect(screen.getByRole("alert").textContent).toBe(en.invitations.loadError);
+    expect(screen.queryByText("Thursday in Maadi")).toBeNull();
+  });
+
+  it("T-001-47/AC-7 T-001-32/AC-1 shows one row per plan with the authored title and the organizer display name, and opening a row follows that plan's opening next", async () => {
     const fetchMock = stubInboxFetch({
       me: "in",
       inbox: "list",
@@ -711,12 +782,16 @@ describe("InvitationsList", () => {
       expect(router.push).toHaveBeenCalledWith(`/plans/${PLAN_ID}/respond`);
     });
     expect(getCall(fetchMock, OPENING_GET)?.credentials).toBe("same-origin");
+    expect(inboxGets(fetchMock)).toHaveLength(0);
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
   });
 
   it("opening a row with next on the payload follows that next without another plan's data", async () => {
-    const fetchMock = stubInboxFetch({ me: "in", inbox: "withNext" });
-    renderInbox();
+    const fetchMock = stubInboxFetch({ me: "in" });
+    renderInbox({
+      invitations: [{ ...thursdayRow, next: "proposal" }],
+      truncated: false,
+    });
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Thursday in Maadi/ }));
     await waitFor(() => {
@@ -745,8 +820,8 @@ describe("InvitationsList", () => {
   });
 
   it("signed-in empty copy uses text-muted-foreground and offers home", async () => {
-    stubInboxFetch({ me: "in", inbox: "empty" });
-    renderInbox();
+    stubInboxFetch({ me: "in" });
+    renderInbox({ invitations: [], truncated: false });
     const empty = await screen.findByText("No invitations yet.");
     expect(classTokens(empty)).toContain("text-muted-foreground");
     expect(classTokens(empty)).not.toContain("text-destructive");
@@ -787,10 +862,16 @@ describe("InvitationsList", () => {
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderInbox();
+    renderInbox({ invitations: null });
 
-    const alert = await screen.findByRole("alert");
+    const alert = screen.getByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
+    expect(inboxCalls).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(inboxCalls).toBe(1);
+    });
+    await screen.findByRole("alert");
     expect(alert.textContent).toBe("Invitations could not be loaded.");
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
     expect(screen.queryByText("Hidden Host")).toBeNull();
@@ -804,10 +885,8 @@ describe("InvitationsList", () => {
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
-    const inboxGets = fetchMock.mock.calls.filter(
-      (call) => String(call[0]) === "/api/v1/invitations",
-    );
-    expect(inboxGets.length).toBe(2);
-    expect(inboxGets[0]?.[1]?.credentials).toBe("same-origin");
+    const gets = inboxGets(fetchMock) as [string, RequestInit][];
+    expect(gets.length).toBe(2);
+    expect(gets[0]?.[1]?.credentials).toBe("same-origin");
   });
 });
