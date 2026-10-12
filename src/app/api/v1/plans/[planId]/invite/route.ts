@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import { errorResponse, logged } from "@/server/auth/http";
-import {
-  inviteCallerError,
-  inviteReadBody,
-  planLockedInviteError,
-} from "@/server/invites/send";
-import { loadSentInvitations } from "@/server/invites/sent";
-import { loadPlanRow, notFoundResponse, storedState } from "@/server/plans/http";
-import { planRoleFor } from "@/server/plans/role";
+import { errorResponse, logged, readCookie } from "@/server/auth/http";
+import { loadInvitePage } from "@/server/invites/page-data";
+import { planLockedInviteError } from "@/server/invites/send";
+import { notFoundResponse, organizerOnlyResponse } from "@/server/plans/http";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,22 +16,15 @@ export async function GET(
   context: InviteRouteContext,
 ): Promise<NextResponse> {
   const { planId } = await context.params;
-  const plan = await loadPlanRow(planId);
-  if (!plan) {
-    return logged(request, notFoundResponse());
+  const page = await loadInvitePage(planId, (name) => readCookie(request, name));
+  if (page.kind === "ok") {
+    return logged(request, NextResponse.json(page.view));
   }
-
-  const denied = inviteCallerError(await planRoleFor(request, plan));
-  if (denied) {
-    return logged(request, errorResponse(denied));
+  if (page.kind === "organizer_only") {
+    return logged(request, organizerOnlyResponse());
   }
-  if (storedState(plan.state) === "locked") {
+  if (page.kind === "locked") {
     return logged(request, errorResponse(planLockedInviteError()));
   }
-
-  const invitationsList = await loadSentInvitations(plan.id);
-  return logged(
-    request,
-    NextResponse.json(inviteReadBody(plan.joinToken, invitationsList)),
-  );
+  return logged(request, notFoundResponse());
 }
