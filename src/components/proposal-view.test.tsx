@@ -266,17 +266,17 @@ function stubFetch(config: FetchConfig = {}) {
   return fetchMock;
 }
 
-function renderView() {
+function renderView(initialProposal: unknown) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ProposalView planId={PLAN_ID} />
+      <ProposalView planId={PLAN_ID} initialProposal={initialProposal} />
     </NextIntlClientProvider>,
   );
 }
 
 async function renderLoaded(config: FetchConfig = {}) {
-  const fetchMock = stubFetch({ get: proposedBody(), ...config });
-  renderView();
+  const fetchMock = stubFetch(config);
+  renderView(config.get ?? proposedBody());
   expect(await screen.findByText("Abu Tarek")).toBeTruthy();
   return fetchMock;
 }
@@ -359,9 +359,43 @@ describe("ProposalView", () => {
     stubFetch({ get: proposedBody() });
   });
 
-  it("while collecting this surface is not shown and leaked places stay omitted", async () => {
+  it("T-001-39/AC-2 given the proposed data it shows the proposal and makes no request on its first render", async () => {
+    const fetchMock = stubFetch();
+    renderView(proposedBody());
+    expect(screen.getByText("Abu Tarek")).toBeTruthy();
+    expect(screen.getByText("2026-10-02 18:30 Africa/Cairo")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-39/AC-2 given the blocked data it shows the blocked state and makes no request on its first render", async () => {
+    const fetchMock = stubFetch();
+    renderView(blockedBody({ time: true, budget: false, venue_data: false }));
+    expect(
+      screen.getByText("No time inside the windows works for the group."),
+    ).toBeTruthy();
+    expect(screen.queryByText("This proposal could not be loaded.")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-39/AC-4 given no initial data it shows the load error and no plan data, and makes no request", async () => {
+    const fetchMock = stubFetch();
+    renderView(null);
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("This proposal could not be loaded.");
+    expect(screen.getByRole("heading", { name: "Proposal" })).toBeTruthy();
+    expect(screen.queryByText("Abu Tarek")).toBeNull();
+    expectLeakedAbsent();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-39/AC-6 a refetch that finds the plan collecting leaves for the organizer plan and leaked places stay omitted", async () => {
     stubFetch({ get: collectingBody() });
-    renderView();
+    renderView(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
     });
@@ -372,10 +406,8 @@ describe("ProposalView", () => {
   });
 
   it("while blocked the organizer sees time, budget, and venue-data sentences in text-destructive, and lock is absent", async () => {
-    stubFetch({
-      get: blockedBody({ time: true, budget: true, venue_data: true }),
-    });
-    renderView();
+    stubFetch();
+    renderView(blockedBody({ time: true, budget: true, venue_data: true }));
     const time = await screen.findByText(
       "No time inside the windows works for the group.",
     );
@@ -395,10 +427,8 @@ describe("ProposalView", () => {
   });
 
   it("when time and budget are both true both sentences are visible", async () => {
-    stubFetch({
-      get: blockedBody({ time: true, budget: true, venue_data: false }),
-    });
-    renderView();
+    stubFetch();
+    renderView(blockedBody({ time: true, budget: true, venue_data: false }));
     expect(
       await screen.findByText("No time inside the windows works for the group."),
     ).toBeTruthy();
@@ -412,9 +442,10 @@ describe("ProposalView", () => {
     expect(screen.queryByRole("button", { name: "Lock this outing" })).toBeNull();
   });
 
-  it("a joined participant while blocked is shown the response surface", async () => {
+  it("T-001-39/AC-6 a refetch answered not_proposed sends a joined participant to the response surface", async () => {
     stubFetch({ get: "not_proposed" });
-    renderView();
+    renderView(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/respond`);
     });
@@ -427,7 +458,6 @@ describe("ProposalView", () => {
 
   it("venue-data offers retry and a missing duration is blank and is not rendered as zero", async () => {
     const fetchMock = stubFetch({
-      get: blockedBody({ time: false, budget: false, venue_data: true }),
       attempts: proposedBody(
         {},
         {
@@ -442,7 +472,7 @@ describe("ProposalView", () => {
         },
       ),
     });
-    renderView();
+    renderView(blockedBody({ time: false, budget: false, venue_data: true }));
     const venue = await screen.findByText(
       "Venue or travel data is unavailable. Retry.",
     );
@@ -482,13 +512,8 @@ describe("ProposalView", () => {
     expect(screen.getByText("b4m2")).toBeTruthy();
 
     cleanup();
-    stubFetch({
-      get: proposedBody(
-        {},
-        { attending_count: 3, cohort_size: 3 },
-      ),
-    });
-    renderView();
+    stubFetch();
+    renderView(proposedBody({}, { attending_count: 3, cohort_size: 3 }));
     expect(await screen.findByText("Everyone can make this time.")).toBeTruthy();
     expect(screen.queryByText("3 of 3 can make this time.")).toBeNull();
   });
@@ -646,11 +671,8 @@ describe("ProposalView", () => {
         ],
       },
     );
-    const fetchMock = stubFetch({
-      get: cohortProposal,
-      signal: { signal: "dislike" },
-    });
-    renderView();
+    const fetchMock = stubFetch({ signal: { signal: "dislike" } });
+    renderView(cohortProposal);
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
     const like = screen.getAllByRole("button", { name: "Like" })[0];
     expect(like?.getAttribute("aria-pressed")).toBe("true");
@@ -683,8 +705,9 @@ describe("ProposalView", () => {
     expect(JSON.parse(String(signaled?.[1]?.body))).toEqual({ signal: "dislike" });
 
     cleanup();
-    stubFetch({
-      get: proposedBody(
+    stubFetch();
+    renderView(
+      proposedBody(
         {},
         {
           steps: [
@@ -703,8 +726,7 @@ describe("ProposalView", () => {
           ],
         },
       ),
-    });
-    renderView();
+    );
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
     expect(screen.getByText("Cilantro")).toBeTruthy();
     expect(screen.getByText("14 min")).toBeTruthy();
@@ -721,7 +743,7 @@ describe("ProposalView", () => {
     expectNoInstall();
   });
 
-  it("a load failure uses text-destructive and retry and omits another plan's places; a locked open shows the confirmed surface", async () => {
+  it("T-001-39/AC-6 a load failure uses text-destructive and retry refetches and omits another plan's places; a locked refetch shows the confirmed surface", async () => {
     let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -736,7 +758,10 @@ describe("ProposalView", () => {
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderView();
+    renderView(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
@@ -756,7 +781,8 @@ describe("ProposalView", () => {
     cleanup();
     router.replace.mockReset();
     stubFetch({ get: "locked" });
-    renderView();
+    renderView(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
@@ -784,22 +810,15 @@ describe("ProposalView", () => {
     expect(posted?.[1]?.headers).toMatchObject({ "X-HP-Request": "1" });
   });
 
-  it("T-001-33/AC-1 load, retry, attempt, swap, signal and lock request only CONTRACTS paths under /api/v1/", async () => {
+  it("T-001-33/AC-1 T-001-39/AC-6 load, retry, attempt, swap, signal and lock request only CONTRACTS paths under /api/v1/", async () => {
     const requests: string[] = [];
-    function recordThrough(config: FetchConfig, failFirstGet = false) {
+    function recordThrough(config: FetchConfig) {
       const answer = stubFetch(config);
-      let gets = 0;
       vi.stubGlobal(
         "fetch",
         vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
           const method = (init?.method ?? "GET").toUpperCase();
           requests.push(`${method} ${String(input)}`);
-          if (String(input) === PROPOSAL_GET && method === "GET") {
-            gets += 1;
-            if (failFirstGet && gets === 1) {
-              return jsonResponse(500, leakedFail);
-            }
-          }
           if (!String(input).startsWith("/api/v1/")) {
             return jsonResponse(404, {
               error: { code: "not_found", message: "not found", fields: [] },
@@ -810,27 +829,24 @@ describe("ProposalView", () => {
       );
     }
 
-    recordThrough({ get: proposedBody() }, true);
-    renderView();
+    recordThrough({ get: proposedBody() });
+    renderView(null);
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
-    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `GET ${PROPOSAL_GET}`]);
+    expect(requests).toEqual([`GET ${PROPOSAL_GET}`]);
 
     cleanup();
     requests.length = 0;
-    recordThrough({
-      get: blockedBody({ time: false, budget: false, venue_data: true }),
-      attempts: proposedBody(),
-    });
-    renderView();
+    recordThrough({ attempts: proposedBody() });
+    renderView(blockedBody({ time: false, budget: false, venue_data: true }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
-    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `POST ${ATTEMPTS_POST}`]);
+    expect(requests).toEqual([`POST ${ATTEMPTS_POST}`]);
 
     cleanup();
     requests.length = 0;
-    recordThrough({ get: proposedBody(), lock: "ok" });
-    renderView();
+    recordThrough({ lock: "ok" });
+    renderView(proposedBody());
     fireEvent.click(await screen.findByRole("button", { name: "Use this place" }));
     await waitFor(() => {
       expect(requests).toContain(`POST ${DINNER_SWAP}`);
@@ -839,16 +855,13 @@ describe("ProposalView", () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
-    expect(requests).toEqual([
-      `GET ${PROPOSAL_GET}`,
-      `POST ${DINNER_SWAP}`,
-      `POST ${LOCK_POST}`,
-    ]);
+    expect(requests).toEqual([`POST ${DINNER_SWAP}`, `POST ${LOCK_POST}`]);
 
     cleanup();
     requests.length = 0;
-    recordThrough({
-      get: proposedBody(
+    recordThrough({ signal: { signal: "like" } });
+    renderView(
+      proposedBody(
         {},
         {
           steps: [
@@ -862,16 +875,14 @@ describe("ProposalView", () => {
           ],
         },
       ),
-      signal: { signal: "like" },
-    });
-    renderView();
+    );
     fireEvent.click((await screen.findAllByRole("button", { name: "Like" }))[0] as HTMLElement);
     await waitFor(() => {
       expect(
         screen.getAllByRole("button", { name: "Like" })[0]?.getAttribute("aria-pressed"),
       ).toBe("true");
     });
-    expect(requests).toEqual([`GET ${PROPOSAL_GET}`, `PUT ${DINNER_SIGNAL}`]);
+    expect(requests).toEqual([`PUT ${DINNER_SIGNAL}`]);
 
     expect(PROPOSAL_GET).toBe(`/api/v1/plans/${PLAN_ID}/proposal`);
     expect(ATTEMPTS_POST).toBe(`/api/v1/plans/${PLAN_ID}/proposal-attempts`);

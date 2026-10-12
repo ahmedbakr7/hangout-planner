@@ -4,6 +4,7 @@ import { hashCookieToken } from "@/server/auth/session";
 import { now } from "@/server/clock";
 import { guestSessions, participants } from "@/server/db/schema";
 import { db } from "@/server/plans/http";
+import type { CookieReader } from "@/server/plans/role";
 
 type ParticipantRow = {
   id: string;
@@ -30,7 +31,17 @@ export async function loadCallerParticipant(
   request: Request,
   planId: string,
 ): Promise<ParticipantRow | null> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
+  return loadCallerParticipantForCookies(
+    (name) => readCookie(request, name),
+    planId,
+  );
+}
+
+export async function loadCallerParticipantForCookies(
+  readCookieValue: CookieReader,
+  planId: string,
+): Promise<ParticipantRow | null> {
+  const session = await readAccountSession(readCookieValue("hp_session"));
   if (session.ok) {
     const rows = await db()
       .select({ id: participants.id })
@@ -46,7 +57,7 @@ export async function loadCallerParticipant(
       return rows[0];
     }
   }
-  const hash = tokenHash(readCookie(request, "hp_guest"));
+  const hash = tokenHash(readCookieValue("hp_guest"));
   if (!hash) {
     return null;
   }
