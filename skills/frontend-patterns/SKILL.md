@@ -29,7 +29,11 @@ Change this lock only by a superseding ADR.
 - Do not send starting coordinates, emails of other people, or Google key material to the browser
 - Clipboard failure leaves the link text on the page
 
-## Where things go
+## Conventions
+
+Where files go, which library, how things are named. Builders follow this or name the gap (kit rule 11); reviewers treat a deviation as blocking.
+
+### Where things go
 
 Copy the named example; if nothing here or in the ticket settles it, stop and report (`AGENTS.md`).
 
@@ -44,7 +48,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 
 Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: none. T-001-36 converts `/plans/{planId}` and becomes the example. A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.
 
-## Use X, not Y
+### Use X, not Y
 
 Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 

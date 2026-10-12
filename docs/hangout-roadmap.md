@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-12. Main: `eb5b0a6`, kit pin `c8b3ca7` (v3.0.3).
+Date: 2026-10-12. Main: `480b6f4`, kit pin `004df5f` (v3.2.1).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -13,7 +13,6 @@ Date: 2026-10-12. Main: `eb5b0a6`, kit pin `c8b3ca7` (v3.0.3).
 |---|---|---|
 | `artifacts` | 14 | 14 |
 | `contracts` | 11 | 11 |
-| `typecheck` | 7 | 9 |
 | `test-quality` | 11 | 26 |
 | `ac-coverage` | 241 | 241 |
 | `trace` | 241 | 241 |
@@ -59,12 +58,12 @@ Date: 2026-10-12. Main: `eb5b0a6`, kit pin `c8b3ca7` (v3.0.3).
 - The runner drives every ticket play. Three agents are configured in `sdlc.toml`, all headless `claude -p`: `builder`, `tester` and `reviewer`. Each run is a fresh process with no prior context. Permissions are file tools, the kit CLI, the test commands, and read-only git; the builder and tester also get the type-check commands. The reviewer has no Edit tool, but keeps Write for its review record. There are no MCP servers and no git writes. Pick models with `SDLC_BUILD_MODEL`, `SDLC_TEST_MODEL` and `SDLC_REVIEW_MODEL`, and give the reviewer a different model from the builder. Per ticket:
   1. `sdlc run build <id> --agent builder`. The runner branches `build/<id>`, runs the agent, gates each attempt (up to `[gate] max_attempts`), feeds failures back, and commits with the `Sdlc-*` trailers.
   2. `sdlc run test <id> --agent tester`, on the same branch.
-  3. `sdlc run review <id> --agent reviewer --extra .sdlc-run/review-extra.md`. `--extra` takes a **file path**, not text; a sentence crashes the runner. The file says: set `reviewer: reviewer` in the record and write no model name (T-001-34's reviewer wrote its model id there). For a `test: none` ticket the file also says the test play does not apply. The kit's review skill omits that exemption, and without it the reviewer asks for test evidence the kit refuses to produce (T-001-35; reported to the kit). The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
+  3. `sdlc run review <id> --agent reviewer --extra .sdlc-run/review-extra.md`. `--extra` takes a **file path**, not text; a sentence crashes the runner. The file says: set `reviewer: reviewer` in the record and write no model name (T-001-34's reviewer wrote its model id there). Since kit v3.2.1 the review skill exempts `test: none`, `type: test`, spike and mechanical builds from test evidence; before it, T-001-35's reviewer asked for evidence the kit refuses to produce. The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. The lead approves in chat with "approve #<n>"; the lead's agent posts the `role: lead` record on the head the lead saw, naming the instruction (who, when, PR, commit). A new head needs a new approval.
   6. Merge with a merge commit once CI and `sdlc/approval` are green and CodeRabbit has finished. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
   - Check a set-up without running an agent: `sdlc run build <id> --agent builder --dry-run` prints the branch and the exact command.
   - By hand, if the runner can't be used: commit with `sdlc commit <id> --agent <name> --play <play> -m "..."` and run `sdlc gate <play> <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
-- Lead PRs (no ticket): a fresh process reviews the head with the fixed prompt in `docs/sdlc-lead-review-prompt.md`, and the author posts its `role: review` record unchanged with the run log. The `role: lead` record is posted as in step 5 above: only on the lead's "approve #<n>" for that head. `sdlc/approval` is judged by the kit pinned on the base branch.
+- Lead PRs (no ticket): `sdlc prompt review --pr <n>` writes the review prompt to `.sdlc-run/prompts/review-pr-<n>.md`. A fresh `claude -p` process with the reviewer's tools runs it and writes `.sdlc-run/lead-review-<n>.md`. The author publishes it with `sdlc review publish --pr <n>`, or posts it unchanged. The `role: lead` record is posted as in step 5 above: only on the lead's "approve #<n>" for that head. `sdlc/approval` is judged by the kit pinned on the base branch.
 - Never commit a `sdlc baseline --prune` result without reading it. If a check errors in that run (for example `ac-coverage`: "no test command wrote JUnit"), prune drops all of that check's entries.
 - Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails (`ac-red` does this for the build's files).
