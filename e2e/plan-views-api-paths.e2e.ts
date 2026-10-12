@@ -299,7 +299,8 @@ describe("plan views against the real route handlers", () => {
 
     server.useCookies(organizer);
     setProposalAttemptGoogleOptions({ apiKey: "test-places-key", fetch: fakeGoogle });
-    show(React.createElement(ProposalView, { planId }));
+    const blockedProposal: unknown = await (await server.serve(`/api/v1/plans/${planId}/proposal`)).json();
+    show(React.createElement(ProposalView, { planId, initialProposal: blockedProposal }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Use this place" })[0] as HTMLElement);
@@ -314,7 +315,8 @@ describe("plan views against the real route handlers", () => {
     cleanup();
 
     server.useCookies(guest);
-    show(React.createElement(ProposalView, { planId }));
+    const guestProposal: unknown = await (await server.serve(`/api/v1/plans/${planId}/proposal`)).json();
+    show(React.createElement(ProposalView, { planId, initialProposal: guestProposal }));
     await screen.findByText("Koshary El Tahrir");
     fireEvent.click(screen.getAllByRole("button", { name: "Like" })[0] as HTMLElement);
     await waitFor(() => {
@@ -325,7 +327,8 @@ describe("plan views against the real route handlers", () => {
     cleanup();
 
     server.useCookies(organizer);
-    show(React.createElement(ProposalView, { planId }));
+    const organizerProposal: unknown = await (await server.serve(`/api/v1/plans/${planId}/proposal`)).json();
+    show(React.createElement(ProposalView, { planId, initialProposal: organizerProposal }));
     fireEvent.click(await screen.findByRole("button", { name: "Lock this outing" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${planId}/confirmed`);
