@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-12. Main: `72138ca`, kit pin `38f11c3` (tag v3.2.1).
+Date: 2026-10-12. Main: `3643f20`, kit pin `38f11c3` (tag v3.2.1).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -46,11 +46,11 @@ Date: 2026-10-12. Main: `72138ca`, kit pin `38f11c3` (tag v3.2.1).
 | 17 | Done: Next.js 16.4 (T-001-35, #88). Next: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP | New ticket | The rulebook's Next 16 lines are updated in this lead PR (ADR-0006 consequence) |
 | 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | #86 |
 | 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | #86. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
-| 20 | Pages load their first data on the server (ADR-0007). Done for `/plans/{planId}`: T-001-36 (#91), the example. Its `error.tsx`: T-001-37 (#93) (lead decision: a page whose loader throws renders its route's error boundary, never catches). Then one ticket per remaining page, each with its own `error.tsx`, ticketed three per lead PR (lead decision of 2026-10-12). First batch: T-001-38 `/plans/{planId}/confirmed`, T-001-39 `/plans/{planId}/proposal`, T-001-40 `/plans/{planId}/respond`. Still to ticket: `/`, `/account`, `/plans/new`, `/plans/{planId}/invite`, `/plans/{planId}/join`, `/invitations`, `/join/{token}` | New tickets | Lead decision of 2026-10-12. Each page ticket also removes that page's copy of the initial-load fetch (part of item 10) |
+| 20 | Pages load their first data on the server (ADR-0007). Done for `/plans/{planId}`: T-001-36 (#91), the example. Its `error.tsx`: T-001-37 (#93) (lead decision: a page whose loader throws renders its route's error boundary, never catches). Then one ticket per remaining page, each with its own `error.tsx`, ticketed three per lead PR (lead decision of 2026-10-12). First batch done: T-001-38 `/plans/{planId}/confirmed` (#95), T-001-39 `/plans/{planId}/proposal` (#96), T-001-40 `/plans/{planId}/respond` (#97). Second batch: T-001-41 `/plans/{planId}/invite`, T-001-42 `/plans/{planId}/join`, and T-001-43 (test cleanup from the #96 review: exact redirect assertions, `link_sessions` rows left by e2e files). Still to ticket: `/`, `/account`, `/plans/new`, `/invitations`. Blocked: `/join/{token}` (see the lead decision below) | New tickets | Lead decision of 2026-10-12. Each page ticket also removes that page's copy of the initial-load fetch (part of item 10) |
 
 ## Decisions the lead owes
 
-- None open. Page data loading was decided on 2026-10-12: pages load on the server (ADR-0007, item 20).
+- `/join/{token}` (item 20). Its `GET` writes a link session and sets the `hp_link` cookie. A server component cannot set cookies, and ADR-0007 rules out Server Actions, so the page cannot load on the server as ADR-0007 stands. Options: (A) record an exception to ADR-0007 in a new ADR, and the page stays client-loaded; (B) move the link attach to its own `POST`, a contract change; (C) attach the link in `proxy.ts`, an architecture change. Until decided, T-001-42 keeps `JoinPanel`'s client load for the token path.
 
 ## Running it
 
