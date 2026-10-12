@@ -27,7 +27,11 @@ Change this lock only by a superseding ADR.
 - Money is integer minor units. Time selection and fairness use the integer rules in the contract, not floating comparisons.
 - Clock reads go through `src/server/clock.ts` so tests can freeze rate limits and the attempt lock
 
-## Where things go
+## Conventions
+
+Where files go, which library, how things are named. Builders follow this or name the gap (kit rule 11); reviewers treat a deviation as blocking.
+
+### Where things go
 
 Copy the named example; if nothing here or in the ticket settles it, stop and report (`AGENTS.md`).
 
@@ -45,7 +49,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
 | Handler-level test | `e2e/<name>.e2e.ts` (test agent only) | `e2e/attempt-in-progress.e2e.ts` |
 
-## Use X, not Y
+### Use X, not Y
 
 Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 

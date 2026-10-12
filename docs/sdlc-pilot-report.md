@@ -179,10 +179,10 @@ The review caught nothing in #75 itself, but it found a test that passes without
 
 Each play runs as a fresh headless agent (`sdlc run build|test|review <id> --agent <name>`). The lead's agent opens the PR, posts the records and merges once the lead approves in chat.
 
-| Ticket | PR | Build attempts | Test play | Review runs | Build start → PR green | Lead actions | Notes |
+| Ticket | PR | Build attempts | Test play | Review runs | Build start → PR green / merge | Lead actions | Notes |
 |---|---|---|---|---|---|---|---|
-| T-001-34 (frontend, medium) | #85 | 1 | 1 | 1 | about 44 min to merge | 2 ("Go" to run, "Go" to approve) | Postgres was idle-restarted twice mid-run. The gate needs `DATABASE_URL` in the runner's environment. The reviewer wrote its model id in `reviewer:` |
-| T-001-35 (chore, `test: none`) | #88 | 1 (209 s) | none (`test: none`) | 2 | 14 min (05:28 → 05:42 UTC) | 1 ("Approve and go without asking") | Next.js 15.5 → 16.4 and the 9 test type errors. Merged 07:38, after waiting for the lead |
+| T-001-34 (frontend, medium) | #85 | 1 | 1 | 1 | merge: about 44 min | 2 ("Go" to run, "Go" to approve) | Postgres was idle-restarted twice mid-run. The gate needs `DATABASE_URL` in the runner's environment. The reviewer wrote its model id in `reviewer:` |
+| T-001-35 (chore, `test: none`) | #88 | 1 (209 s) | none (`test: none`) | 2 | PR green: 14 min (05:28 → 05:42 UTC) | 1 ("Approve and go without asking") | Next.js 15.5 → 16.4 and the 9 test type errors. Merged 07:38, after waiting for the lead |
 
 Findings from T-001-35:
 
