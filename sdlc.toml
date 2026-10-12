@@ -59,7 +59,7 @@ max_attempts = 3
 # {prompt_file} (repo-relative path). See .sdlc/adapters/AGENTS-RUNNER.md.
 #
 # All three are headless Claude Code (`claude -p`), each a fresh process with no prior context.
-# Permissions (lead decision, option A): file tools plus the kit CLI, the product's test and
+# Permissions (lead decision of 2026-10-11, recorded in docs/hangout-roadmap.md "Running it"): file tools plus the kit CLI, the product's test and
 # type-check commands, and read-only git. No MCP servers (--strict-mcp-config with none given),
 # no network tools, no git writes: the runner makes every commit. A tool outside the list is
 # denied, not prompted. The reviewer has no Edit tool but keeps Write, which it needs for its

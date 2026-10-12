@@ -31,7 +31,8 @@ have no other context. Your whole task is below; when you have written the recor
    - Every changed file is a lead artifact or matches `[scope] lead_allowed` in `sdlc.toml`.
      Code needs a ticket.
    - `.sdlc/bin/sdlc gate pr --base BASE` passes. Run it and quote its verdict line.
-   - `.sdlc/bin/sdlc lint` reports nothing new compared with `BASE`.
+   - `.sdlc/bin/sdlc lint` reports no error outside the baselined count `gate pr` prints, and none in a
+     file this PR changes. (You cannot check out `BASE`; do not try.)
 4. Check the content: every factual claim in the diff (paths, commands, versions, shas, behavior of
    the kit) against the repository. Run any command a doc tells someone to run if it is safe and
    local. A claim you could not check is a finding.

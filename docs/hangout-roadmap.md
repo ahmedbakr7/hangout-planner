@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-11. Main: `2def0a1`, kit pin `c8b3ca7` (v3.0.3).
+Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -43,23 +43,27 @@ Date: 2026-10-11. Main: `2def0a1`, kit pin `c8b3ca7` (v3.0.3).
 | 13 | Tighten `e2e/plan-views-api-paths.e2e.ts` `fakeGoogle` (match the place-details URL, throw on any other) and check `isDirectory()` in `e2e/route-server.ts` | New ticket | From the #74 CodeRabbit review |
 | 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build. Done in this lead PR (ADR-0003) |
 | 15 | `src/i18n/fallback.test.ts:90` stubs `/v1/me`, but AccountGate calls `/api/v1/me`, so the 401 path is never exercised; `src/app/api/v1/join/[token]/route.ts:128` logs the path as `/v1/join`; doc comments in `src/server/plans/views.ts:240,260` | New ticket | From the post-merge review of #75. Can join item 1's ticket. Optional: route-test request URLs to `/api/v1` |
-| 16 | On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, `src/components/response-form.tsx` and `src/components/organizer-plan.tsx` show a generic save error; CONTRACTS § Proposal attempt says the client refetches the plan (the write committed) | New ticket | From the CodeRabbit review of #79 (ADR-0004) |
+| 16 | Done: T-001-34 (#85). On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, the response form and organizer plan now refetch instead of showing a save error | New ticket | First ticket run end to end by `sdlc run` |
+| 17 | Upgrade Next.js 15 → 16 (installed 15.5.27; 15.x end of life 2026-10-21) | New ticket | Its own lead PR adds the ticket. After it: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP (needs Next 16) |
+| 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | This lead PR |
+| 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | This lead PR. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
 
 ## Decisions the lead owes
 
-- None open. Items 8 and 9 are decided in ADR-0004 and ADR-0005.
+- Page data loading (ADR-0006 § Open question). ADR-0001 says page loads call the same view functions as the route handlers. Every page today awaits its params and renders a client component that fetches `/api/v1`. Either supersede that ADR-0001 line to match the code, or ticket the pages to load on the server. Until then, tickets keep the current pattern for existing pages and a ticket that adds a page stops and asks.
 
 ## Running it
 
-- Local Postgres for gates: start Postgres 16 on port 5433. Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
+- Local Postgres for gates: start Postgres 16 on port 5433, and check it is still up before each run (an idle cloud container stops it). Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
 - The runner drives every ticket play. Three agents are configured in `sdlc.toml`, all headless `claude -p`: `builder`, `tester` and `reviewer`. Each run is a fresh process with no prior context. Permissions are file tools, the kit CLI, the test commands, and read-only git; the builder and tester also get the type-check commands. The reviewer has no Edit tool, but keeps Write for its review record. There are no MCP servers and no git writes. Pick models with `SDLC_BUILD_MODEL`, `SDLC_TEST_MODEL` and `SDLC_REVIEW_MODEL`, and give the reviewer a different model from the builder. Per ticket:
   1. `sdlc run build <id> --agent builder`. The runner branches `build/<id>`, runs the agent, gates each attempt (up to `[gate] max_attempts`), feeds failures back, and commits with the `Sdlc-*` trailers.
   2. `sdlc run test <id> --agent tester`, on the same branch.
-  3. `sdlc run review <id> --agent reviewer`. The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
+  3. `sdlc run review <id> --agent reviewer --extra "Set reviewer: reviewer in the record; do not write a model name."` (T-001-34's reviewer wrote its model id there). The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
   4. Open the PR. CI runs `gate ci` and `gate pr`.
-  5. Merge with a merge commit once CI and `sdlc/approval` are green. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
+  5. The lead approves in chat with "approve #<n>"; the lead's agent posts the `role: lead` record on the head the lead saw, naming the instruction (who, when, PR, commit). A new head needs a new approval.
+  6. Merge with a merge commit once CI and `sdlc/approval` are green and CodeRabbit has finished. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
   - Check a set-up without running an agent: `sdlc run build <id> --agent builder --dry-run` prints the branch and the exact command.
   - By hand, if the runner can't be used: commit with `sdlc commit <id> --agent <name> --play <play> -m "..."` and run `sdlc gate <play> <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
-- Lead PRs (no ticket): a fresh process reviews the head with the fixed prompt in `docs/sdlc-lead-review-prompt.md`, and the author posts its `role: review` record unchanged with the run log. The `role: lead` record comes only from the lead. `sdlc/approval` is judged by the kit pinned on the base branch.
+- Lead PRs (no ticket): a fresh process reviews the head with the fixed prompt in `docs/sdlc-lead-review-prompt.md`, and the author posts its `role: review` record unchanged with the run log. The `role: lead` record is posted as in step 5 above: only on the lead's "approve #<n>" for that head. `sdlc/approval` is judged by the kit pinned on the base branch.
 - Never commit a `sdlc baseline --prune` result without reading it. If a check errors in that run (for example `ac-coverage`: "no test command wrote JUnit"), prune drops all of that check's entries.
 - Prove AC tests by mutation: revert each changed path or branch one at a time and confirm a tagged test fails (`ac-red` does this for the build's files).
