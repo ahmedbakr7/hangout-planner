@@ -33,4 +33,4 @@ ADR-0001 says page loads call the same view functions as the route handlers. Eve
 
 - Agents have a named example for the common cases, which narrows guessing to the cases the rulebook does not cover. In those cases they stop instead of inventing.
 - The rulebook can drift from the code. Review checks new code against it.
-- The Next.js 16 upgrade ticket updates the "Use X, not Y" lines that change with the version.
+- After the Next.js 16 upgrade ticket merges, a lead PR updates the "Use X, not Y" lines that change with the version (tickets cannot edit `skills/`).
