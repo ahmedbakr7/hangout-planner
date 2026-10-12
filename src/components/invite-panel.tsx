@@ -59,6 +59,7 @@ type InboxInvitation = {
 
 export type InvitePanelProps = {
   planId: string;
+  initialInvite: unknown;
 };
 
 function isOpeningNext(value: unknown): value is OpeningNext {
@@ -373,7 +374,10 @@ function FieldBlock({
   );
 }
 
-function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
+function InvitePanelBody({
+  planId,
+  initialInvite,
+}: InvitePanelProps): ReactNode {
   const router = useRouter();
   const t = useTranslations("invite");
   const tCommon = useTranslations("common");
@@ -381,9 +385,14 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
   const tCode = useTranslations("errors.code");
   const tFields = useTranslations("errors.fields");
 
-  const [load, setLoad] = useState<InviteLoadState>("loading");
-  const [joinPath, setJoinPath] = useState<string | null>(null);
-  const [invitations, setInvitations] = useState<SentInvitation[]>([]);
+  const [first] = useState(() => parseInviteBody(initialInvite));
+  const [load, setLoad] = useState<InviteLoadState>(first ? "loaded" : "error");
+  const [joinPath, setJoinPath] = useState<string | null>(
+    first?.joinPath ?? null,
+  );
+  const [invitations, setInvitations] = useState<SentInvitation[]>(
+    first?.invitations ?? [],
+  );
   const [email, setEmail] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -463,65 +472,6 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
       setLoad("error");
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setJoinPath(null);
-      setInvitations([]);
-      setFormError(null);
-      setCopyError(null);
-      setFieldErrors([]);
-      try {
-        const response = await fetch(`/api/v1/plans/${planId}/invite`, {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        if (isPlanLockedResponse(response.status, body)) {
-          setJoinPath(null);
-          setInvitations([]);
-          setLoad("locked");
-          router.replace(`/plans/${planId}/confirmed`);
-          return;
-        }
-        if (!response.ok) {
-          setJoinPath(null);
-          setInvitations([]);
-          setLoad("error");
-          return;
-        }
-        const parsed = parseInviteBody(body);
-        if (!parsed) {
-          setJoinPath(null);
-          setInvitations([]);
-          setLoad("error");
-          return;
-        }
-        setJoinPath(parsed.joinPath);
-        setInvitations(parsed.invitations);
-        setLoad("loaded");
-      } catch {
-        if (!cancelled) {
-          setJoinPath(null);
-          setInvitations([]);
-          setLoad("error");
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, [planId, router]);
 
   async function onCopy(): Promise<void> {
     if (!joinPath) {
@@ -728,10 +678,13 @@ function InvitePanelBody({ planId }: InvitePanelProps): ReactNode {
   );
 }
 
-export function InvitePanel({ planId }: InvitePanelProps): ReactNode {
+export function InvitePanel({
+  planId,
+  initialInvite,
+}: InvitePanelProps): ReactNode {
   return (
     <LanguageControl>
-      <InvitePanelBody planId={planId} />
+      <InvitePanelBody planId={planId} initialInvite={initialInvite} />
     </LanguageControl>
   );
 }
