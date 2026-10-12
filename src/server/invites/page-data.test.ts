@@ -8,8 +8,14 @@ import { POST as createPlan } from "@/app/api/v1/plans/route";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
 import { generateId } from "@/server/ids";
-import { loadInvitePage } from "@/server/invites/page-data";
+import { GET as getInvitations } from "@/app/api/v1/invitations/route";
+import { loadInvitationsPage, loadInvitePage } from "@/server/invites/page-data";
 import { closeDatabase as closePlans } from "@/server/plans/http";
+
+vi.mock("@/server/invites/page-data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/invites/page-data")>();
+  return { ...actual, loadInvitationsPage: vi.fn(actual.loadInvitationsPage) };
+});
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -341,5 +347,99 @@ describe("GET /api/v1/plans/{planId}/invite", () => {
 
     expect(response.status).toBe(409);
     expect(await errorOf(response)).toMatchObject({ code: "conflict", reason: "plan_locked" });
+  });
+});
+
+describe("loadInvitationsPage", () => {
+  it("T-001-47/AC-2 answers ok with the account's invitations, newest first, each with plan title and organizer name", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const first = await openPlan(organizer.token);
+    const second = await openPlan(organizer.token);
+    await addInvitation(first.id, invitee.id);
+    await addInvitation(second.id, invitee.id);
+
+    expect(await loadInvitationsPage(reader({ hp_session: invitee.token }))).toEqual({
+      kind: "ok",
+      view: {
+        invitations: [
+          { plan_id: second.id, title: "Thursday in Maadi", organizer_display_name: "Omar" },
+          { plan_id: first.id, title: "Thursday in Maadi", organizer_display_name: "Omar" },
+        ],
+        truncated: false,
+      },
+    });
+  });
+
+  it("T-001-47/AC-2 answers ok with an empty list for an account with no invitations", async () => {
+    const account = await register(uniqueEmail("lonely"), "Nour");
+
+    expect(await loadInvitationsPage(reader({ hp_session: account.token }))).toEqual({
+      kind: "ok",
+      view: { invitations: [], truncated: false },
+    });
+  });
+
+  it("T-001-47/AC-2 leaves out other accounts' invitations", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const other = await register(uniqueEmail("other"), "Ziad");
+    const plan = await openPlan(organizer.token);
+    await addInvitation(plan.id, invitee.id);
+
+    expect(await loadInvitationsPage(reader({ hp_session: other.token }))).toEqual({
+      kind: "ok",
+      view: { invitations: [], truncated: false },
+    });
+  });
+
+  it("T-001-47/AC-4 answers signed_out for no cookie and an invalid hp_session", async () => {
+    expect(await loadInvitationsPage(reader({}))).toEqual({ kind: "signed_out" });
+    expect(await loadInvitationsPage(reader({ hp_session: "not-a-session" }))).toEqual({
+      kind: "signed_out",
+    });
+  });
+});
+
+describe("GET /api/v1/invitations", () => {
+  async function get(cookie?: string): Promise<Response> {
+    return getInvitations(
+      new Request("http://localhost/api/v1/invitations", {
+        headers: cookie ? { cookie } : {},
+      }),
+    );
+  }
+
+  it("T-001-47/AC-1 answers 200 with the account's invitation rows and truncated", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const plan = await openPlan(organizer.token);
+    await addInvitation(plan.id, invitee.id);
+
+    vi.mocked(loadInvitationsPage).mockClear();
+    const response = await get(`hp_session=${invitee.token}`);
+
+    expect(loadInvitationsPage).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-request-id")).toBeTruthy();
+    expect(await response.json()).toEqual({
+      invitations: [
+        { plan_id: plan.id, title: "Thursday in Maadi", organizer_display_name: "Omar" },
+      ],
+      truncated: false,
+    });
+  });
+
+  it("T-001-47/AC-1 answers 401 missing_session with no valid hp_session", async () => {
+    for (const cookie of [undefined, "hp_session=not-a-session"]) {
+      vi.mocked(loadInvitationsPage).mockClear();
+      const response = await get(cookie);
+      expect(loadInvitationsPage).toHaveBeenCalledTimes(1);
+      expect(response.status).toBe(401);
+      expect(response.headers.get("x-request-id")).toBeTruthy();
+      expect(
+        ((await response.json()) as { error: { code: string; reason?: string } }).error,
+      ).toMatchObject({ code: "unauthenticated", reason: "missing_session" });
+    }
   });
 });

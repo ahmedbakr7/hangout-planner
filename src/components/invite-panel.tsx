@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
-  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSessionSlide } from "@/components/use-session-slide";
 
 const OPENING_NEXTS = [
   "organizer",
@@ -29,7 +29,6 @@ const OPENING_NEXTS = [
 
 type OpeningNext = (typeof OPENING_NEXTS)[number];
 type InvitationStatus = "invited" | "joined" | "answered";
-type SessionState = "checking" | "signed_out" | "signed_in";
 type InviteLoadState = "loading" | "loaded" | "error" | "locked";
 type InboxLoadState = "idle" | "loading" | "loaded" | "error";
 
@@ -689,11 +688,18 @@ export function InvitePanel({
   );
 }
 
-function InvitationsListBody(): ReactNode {
+function InvitationsListBody({
+  initialInbox,
+}: {
+  initialInbox: unknown;
+}): ReactNode {
   const router = useRouter();
   const t = useTranslations("invitations");
-  const [load, setLoad] = useState<InboxLoadState>("loading");
-  const [invitations, setInvitations] = useState<InboxInvitation[]>([]);
+  const [seed] = useState(() => parseInbox(initialInbox));
+  const [load, setLoad] = useState<InboxLoadState>(
+    seed === null ? "error" : "loaded",
+  );
+  const [invitations, setInvitations] = useState<InboxInvitation[]>(seed ?? []);
   const [openError, setOpenError] = useState<string | null>(null);
 
   async function loadInbox(): Promise<void> {
@@ -723,51 +729,6 @@ function InvitationsListBody(): ReactNode {
       setLoad("error");
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setInvitations([]);
-      setOpenError(null);
-      try {
-        const response = await fetch("/api/v1/invitations", {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        if (!response.ok) {
-          setInvitations([]);
-          setLoad("error");
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        const rows = parseInbox(body);
-        if (!rows) {
-          setInvitations([]);
-          setLoad("error");
-          return;
-        }
-        setInvitations(rows);
-        setLoad("loaded");
-      } catch {
-        if (!cancelled) {
-          setInvitations([]);
-          setLoad("error");
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function openInvitation(row: InboxInvitation): Promise<void> {
     setOpenError(null);
@@ -879,62 +840,20 @@ function InvitationsListBody(): ReactNode {
   );
 }
 
-function InvitationsListRoot(): ReactNode {
-  const t = useTranslations("invitations");
-  const [session, setSession] = useState<SessionState>("checking");
+export function InvitationsList({
+  initialInbox,
+}: {
+  initialInbox: unknown;
+}): ReactNode {
+  useSessionSlide(initialInbox !== null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMe(): Promise<void> {
-      try {
-        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
-        if (cancelled) {
-          return;
-        }
-        if (!response.ok) {
-          setSession("signed_out");
-          return;
-        }
-        setSession("signed_in");
-      } catch {
-        if (!cancelled) {
-          setSession("signed_out");
-        }
-      }
-    }
-
-    void loadMe();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (session === "signed_out") {
+  if (initialInbox === null) {
     return <AccountGate next="/invitations" />;
-  }
-
-  if (session === "checking") {
-    return (
-      <LanguageControl>
-        <PanelShell>
-          <CardHeader>
-            <h1 className="title text-foreground text-start text-pretty">
-              {t("title")}
-            </h1>
-          </CardHeader>
-        </PanelShell>
-      </LanguageControl>
-    );
   }
 
   return (
     <LanguageControl>
-      <InvitationsListBody />
+      <InvitationsListBody initialInbox={initialInbox} />
     </LanguageControl>
   );
-}
-
-export function InvitationsList(): ReactNode {
-  return <InvitationsListRoot />;
 }

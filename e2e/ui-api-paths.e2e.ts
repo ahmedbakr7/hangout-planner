@@ -5,7 +5,7 @@
  * against the real database. A request to a path no route serves fails the test.
  */
 import { randomBytes } from "node:crypto";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -118,7 +118,9 @@ describe("UI requests against the real route handlers", () => {
     show(React.createElement(HomeList));
     await screen.findByRole("link", { name: "Create a plan" });
     cleanup();
-    show(React.createElement(InvitationsList));
+    // The inbox loads on the server (T-001-47); the retry button is the list's own fetch.
+    show(React.createElement(InvitationsList, { initialInbox: {} }));
+    fireEvent.click(await screen.findByRole("button", { name: en.invitations.retry }));
     await vi.waitFor(() => expect(requested.some((r) => r.endsWith("/api/v1/invitations"))).toBe(true));
     expect(requested.length).toBeGreaterThan(0);
     expect(requested.every((r) => r.split(" ")[1]?.startsWith("/api/v1/"))).toBe(true);
