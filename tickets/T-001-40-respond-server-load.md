@@ -39,7 +39,7 @@ source_adr:
 
 Convert `/plans/{planId}/respond` to ADR-0007 server loading. Copy T-001-36 (`loadOrganizerPlanPage`, `src/app/plans/[planId]/page.tsx`, `initialPlan` in `src/components/organizer-plan.tsx`) and T-001-37 (`src/app/plans/[planId]/error.tsx`). It uses `loadCallerParticipantForCookies` from T-001-39.
 
-- **`src/server/response/page-data.ts`:** move `loadPlanShape` and the GET body assembly (the stored response, its windows and picks, their ordering, the `start` value) out of the response route, unchanged. The route's `PUT` imports `loadPlanShape` from here. Add `loadResponsePage(planId, readCookie)`, with the same steps and order as today's `GET`: `loadPlanRow`, the participant check (`planRoleForCookies` and `loadCallerParticipantForCookies`), then the closed check on `asPlanState(plan.state)`. It returns one of:
+- **`src/server/response/page-data.ts`:** move `loadPlanShape` and the GET body assembly (the stored response, its windows and picks, their ordering, the `start` value) out of the response route, unchanged. The route's `PUT` imports `loadPlanShape` from here. `loadPlanShapeTx` (used only inside `PUT`'s transaction) stays in the route, unchanged; the `PlanShape` type moves with `loadPlanShape` and the route imports it. Add `loadResponsePage(planId, readCookie)`, with the same steps and order as today's `GET`: `loadPlanRow`, the participant check (`planRoleForCookies` and `loadCallerParticipantForCookies`), then the closed check on `asPlanState(plan.state)`. It returns one of:
   - `{ kind: "ok", view }`, where `view` is today's 200 body;
   - `{ kind: "proposed" }`;
   - `{ kind: "locked" }`;
