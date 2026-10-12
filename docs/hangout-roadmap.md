@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
+Date: 2026-10-12. Main: `eb5b0a6`, kit pin `c8b3ca7` (v3.0.3).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -29,7 +29,7 @@ Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
 | # | Item | Kind | Notes |
 |---|---|---|---|
 | 1 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket (`type: test`) | Possible since kit v2.0.0 (pilot finding 19): a test ticket's build runs the real-stack suites and may write `e2e/**`, and may change nothing outside the test globs. Each test registers its own account and resets cookies; wait for loaded empty states; cover create form and join panel. Use `e2e/route-server.ts` (from #73), which already keeps a cookie jar per actor |
-| 2 | Fix the 9 test type errors | New ticket | `typecheck` baseline → 0 |
+| 2 | Done: the 9 test type errors, in T-001-35 (#88) | New ticket | `typecheck` baseline removed |
 | 3 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | 11 files, 26 hits; `test-quality` baseline |
 | 4 | Declare the 11 pages in CONTRACTS | Lead | `contracts` baseline → 0 |
 | 5 | Add Playwright e2e against `next start`; then remove the temporary `tests.real_stack = ["integration"]` override in `sdlc.toml` | New ticket + lead | Needs Playwright in CI |
@@ -44,13 +44,14 @@ Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
 | 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build. Done in this lead PR (ADR-0003) |
 | 15 | `src/i18n/fallback.test.ts:90` stubs `/v1/me`, but AccountGate calls `/api/v1/me`, so the 401 path is never exercised; `src/app/api/v1/join/[token]/route.ts:128` logs the path as `/v1/join`; doc comments in `src/server/plans/views.ts:240,260` | New ticket | From the post-merge review of #75. Can join item 1's ticket. Optional: route-test request URLs to `/api/v1` |
 | 16 | Done: T-001-34 (#85). On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, the response form and organizer plan now refetch instead of showing a save error | New ticket | First ticket run end to end by `sdlc run` |
-| 17 | Upgrade Next.js 15 → 16 (installed 15.5.27; 15.x end of life 2026-10-21) | New ticket | Its own lead PR adds the ticket. After it: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP (needs Next 16) |
-| 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | This lead PR |
-| 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | This lead PR. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
+| 17 | Done: Next.js 16.4 (T-001-35, #88). Next: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP | New ticket | The rulebook's Next 16 lines are updated in this lead PR (ADR-0006 consequence) |
+| 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | #86 |
+| 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | #86. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
+| 20 | Pages load their first data on the server (ADR-0007). T-001-36 converts `/plans/{planId}` and becomes the example; then one ticket per remaining page: `/`, `/account`, `/plans/new`, `/plans/{planId}/invite`, `/plans/{planId}/join`, `/invitations`, `/join/{token}`, `/plans/{planId}/respond`, `/plans/{planId}/proposal`, `/plans/{planId}/confirmed` | New tickets | Lead decision of 2026-10-12. Each page ticket also removes that page's copy of the initial-load fetch (part of item 10) |
 
 ## Decisions the lead owes
 
-- Page data loading (ADR-0006 § Open question). ADR-0001 says page loads call the same view functions as the route handlers. Every page today awaits its params and renders a client component that fetches `/api/v1`. Either supersede that ADR-0001 line to match the code, or ticket the pages to load on the server. Until then, tickets keep the current pattern for existing pages and a ticket that adds a page stops and asks.
+- None open. Page data loading was decided on 2026-10-12: pages load on the server (ADR-0007, item 20).
 
 ## Running it
 
@@ -58,7 +59,7 @@ Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
 - The runner drives every ticket play. Three agents are configured in `sdlc.toml`, all headless `claude -p`: `builder`, `tester` and `reviewer`. Each run is a fresh process with no prior context. Permissions are file tools, the kit CLI, the test commands, and read-only git; the builder and tester also get the type-check commands. The reviewer has no Edit tool, but keeps Write for its review record. There are no MCP servers and no git writes. Pick models with `SDLC_BUILD_MODEL`, `SDLC_TEST_MODEL` and `SDLC_REVIEW_MODEL`, and give the reviewer a different model from the builder. Per ticket:
   1. `sdlc run build <id> --agent builder`. The runner branches `build/<id>`, runs the agent, gates each attempt (up to `[gate] max_attempts`), feeds failures back, and commits with the `Sdlc-*` trailers.
   2. `sdlc run test <id> --agent tester`, on the same branch.
-  3. `sdlc run review <id> --agent reviewer --extra "Set reviewer: reviewer in the record; do not write a model name."` (T-001-34's reviewer wrote its model id there). The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
+  3. `sdlc run review <id> --agent reviewer --extra .sdlc-run/review-extra.md`. `--extra` takes a **file path**, not text; a sentence crashes the runner. The file says: set `reviewer: reviewer` in the record and write no model name (T-001-34's reviewer wrote its model id there). For a `test: none` ticket the file also says the test play does not apply. The kit's review skill omits that exemption, and without it the reviewer asks for test evidence the kit refuses to produce (T-001-35; reported to the kit). The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. The lead approves in chat with "approve #<n>"; the lead's agent posts the `role: lead` record on the head the lead saw, naming the instruction (who, when, PR, commit). A new head needs a new approval.
   6. Merge with a merge commit once CI and `sdlc/approval` are green and CodeRabbit has finished. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
