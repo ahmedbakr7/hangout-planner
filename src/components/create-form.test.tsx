@@ -143,12 +143,18 @@ function stubFetch(config: FetchConfig = {}) {
   return fetchMock;
 }
 
-function renderCreate() {
+function renderCreate(initialCurrencies: unknown = currenciesBody) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <CreateForm />
+      <CreateForm initialCurrencies={initialCurrencies} />
     </NextIntlClientProvider>,
   );
+}
+
+function getRequests(fetchMock: ReturnType<typeof stubFetch>): string[] {
+  return fetchMock.mock.calls
+    .filter(([, init]) => (init?.method ?? "GET").toUpperCase() === "GET")
+    .map(([url]) => String(url));
 }
 
 async function renderSignedInForm(config: FetchConfig = {}) {
@@ -435,16 +441,80 @@ describe("CreateForm", () => {
     });
     expect(createdPlan.state).toBe("collecting");
     expect(createdPlan.answered_count).toBe(0);
-    // The defaults equal the stubbed list, so only the request itself proves the path.
-    const requested = fetchMock.mock.calls.map(
-      ([url, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(url)}`,
-    );
-    expect(requested).toContain("GET /api/v1/currencies");
   });
 
-  it("a signed-out open of create is the account gate with next=/plans/new", async () => {
-    stubFetch({ me: "out", sessions: "ok" });
+  it("T-001-46/AC-7 a valid submit sends one POST /api/v1/plans and opens the organizer plan", async () => {
+    const fetchMock = await renderSignedInForm({ plansPost: "ok" });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/plans/${createdPlan.id}`);
+    });
+    const posts = fetchMock.mock.calls.filter(
+      ([url, init]) =>
+        String(url) === "/api/v1/plans" && (init?.method ?? "GET") === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    // The form was seeded from the server, so the only GET is the slide request.
+    expect(getRequests(fetchMock)).toEqual(["/api/v1/me"]);
+  });
+
+  it("T-001-46/AC-2 shows the form with the initial currencies and makes no first-load request beyond the slide", async () => {
+    const fetchMock = stubFetch({ me: "in" });
+    renderCreate({
+      currencies: [
+        { code: "EGP", exponent: 2 },
+        { code: "KWD", exponent: 3 },
+      ],
+    });
+
+    const field = (await screen.findByLabelText("Currency")) as HTMLSelectElement;
+    expect(Array.from(field.options).map((option) => option.value)).toEqual([
+      "EGP",
+      "KWD",
+    ]);
+    await waitFor(() => {
+      expect(getRequests(fetchMock)).toEqual(["/api/v1/me"]);
+    });
+    expect(getRequests(fetchMock)).not.toContain("/api/v1/currencies");
+  });
+
+  it("T-001-46/AC-3 with initial data sends exactly one GET /api/v1/me after mount", async () => {
+    const fetchMock = stubFetch({ me: "in" });
     renderCreate();
+    await screen.findByLabelText("Plan title");
+    await waitFor(() => {
+      expect(getRequests(fetchMock)).toEqual(["/api/v1/me"]);
+    });
+  });
+
+  it("T-001-46/AC-3 with null the slide sends nothing and only the gate's own GET /api/v1/me runs", async () => {
+    const fetchMock = stubFetch({ me: "out" });
+    renderCreate(null);
+    await screen.findByText("An account is required to organize a plan.");
+    await waitFor(() => {
+      expect(getRequests(fetchMock)).toEqual(["/api/v1/me"]);
+    });
+  });
+
+  it("T-001-46/AC-5 initial data that does not parse shows the form with the default currencies", async () => {
+    const fetchMock = stubFetch({ me: "in" });
+    renderCreate({ currencies: "nope" });
+
+    const field = (await screen.findByLabelText("Currency")) as HTMLSelectElement;
+    expect(Array.from(field.options).map((option) => option.value)).toEqual([
+      "EGP",
+      "USD",
+      "SAR",
+      "AED",
+    ]);
+    expect(getRequests(fetchMock)).not.toContain("/api/v1/currencies");
+  });
+
+  it("T-001-46/AC-4 a null initial value is the account gate with next=/plans/new", async () => {
+    stubFetch({ me: "out", sessions: "ok" });
+    renderCreate(null);
 
     expect(
       await screen.findByText("An account is required to organize a plan."),

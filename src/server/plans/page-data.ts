@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { readAccountSession } from "@/server/auth/http";
 import { plans } from "@/server/db/schema";
+import { CURRENCIES } from "@/server/money";
 import {
   HOME_LIST_LIMIT,
   assembleOrganizerPlan,
@@ -122,6 +123,33 @@ export async function loadHomePage(readCookie: CookieReader): Promise<HomePage> 
         state: row.state,
       })),
       truncated,
+    },
+  };
+}
+
+export type CurrenciesView = {
+  currencies: { code: string; exponent: number }[];
+};
+
+export type CreatePlanPage =
+  | { kind: "ok"; view: CurrenciesView }
+  | { kind: "signed_out" };
+
+export async function loadCreatePlanPage(
+  readCookie: CookieReader,
+): Promise<CreatePlanPage> {
+  const session = await readAccountSession(readCookie("hp_session"));
+  if (!session.ok) {
+    return { kind: "signed_out" };
+  }
+
+  return {
+    kind: "ok",
+    view: {
+      currencies: CURRENCIES.map((currency) => ({
+        code: currency.code,
+        exponent: currency.exponent,
+      })),
     },
   };
 }

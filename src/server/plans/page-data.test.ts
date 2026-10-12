@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import { POST as createAccount } from "@/app/api/v1/accounts/route";
+import { GET as getCurrencies } from "@/app/api/v1/currencies/route";
 import { GET as getConfirmed } from "@/app/api/v1/plans/[planId]/confirmed/route";
 import { GET as listPlans, POST as createPlan } from "@/app/api/v1/plans/route";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
@@ -11,6 +12,7 @@ import { generateId } from "@/server/ids";
 import { closeDatabase as closePlans } from "@/server/plans/http";
 import {
   loadConfirmedPage,
+  loadCreatePlanPage,
   loadHomePage,
   loadOrganizerPlanPage,
 } from "@/server/plans/page-data";
@@ -464,5 +466,59 @@ describe("loadHomePage", () => {
       plans: { id: string }[];
     };
     expect(listed.plans.map((row) => row.id)).toEqual([plan.id]);
+  });
+});
+
+describe("loadCreatePlanPage", () => {
+  const currencies = [
+    { code: "EGP", exponent: 2 },
+    { code: "USD", exponent: 2 },
+    { code: "SAR", exponent: 2 },
+    { code: "AED", exponent: 2 },
+  ];
+
+  async function listCurrencies(cookie?: string): Promise<Response> {
+    return getCurrencies(
+      new Request("http://localhost/api/v1/currencies", {
+        headers: cookie ? { cookie } : {},
+      }),
+    );
+  }
+
+  it("T-001-46/AC-2 answers ok with the currency list for a signed-in account", async () => {
+    const account = await register(uniqueEmail("create"), "Omar");
+
+    expect(await loadCreatePlanPage(reader({ hp_session: account.token }))).toEqual({
+      kind: "ok",
+      view: { currencies },
+    });
+  });
+
+  it("T-001-46/AC-4 answers signed_out for no cookie and for an invalid hp_session", async () => {
+    expect(await loadCreatePlanPage(reader({}))).toEqual({ kind: "signed_out" });
+    expect(await loadCreatePlanPage(reader({ hp_session: "not-a-real-token" }))).toEqual({
+      kind: "signed_out",
+    });
+  });
+
+  it("T-001-46/AC-1 GET /api/v1/currencies answers 200 with the loader's view for a signed-in account", async () => {
+    const account = await register(uniqueEmail("create"), "Omar");
+
+    const response = await listCurrencies(`hp_session=${account.token}`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ currencies });
+    const loaded = await loadCreatePlanPage(reader({ hp_session: account.token }));
+    expect(loaded.kind === "ok" && loaded.view).toEqual({ currencies });
+  });
+
+  it("T-001-46/AC-1 GET /api/v1/currencies answers 401 missing_session with no valid hp_session", async () => {
+    for (const cookie of [undefined, "hp_session=not-a-real-token"]) {
+      const response = await listCurrencies(cookie);
+      expect(response.status).toBe(401);
+      const body = (await response.json()) as { error: { code: string; reason: string } };
+      expect(body.error.code).toBe("unauthenticated");
+      expect(body.error.reason).toBe("missing_session");
+    }
   });
 });
