@@ -29,16 +29,16 @@ describe("proposal page redirects", () => {
     loadProposalPage.mockReset();
   });
 
-  it("T-001-39/AC-3 redirects to the confirmed page when the plan is locked", async () => {
-    await expect(open("locked")).rejects.toThrow("NEXT_REDIRECT /plans/pln_a/confirmed");
+  it("T-001-39/AC-3 T-001-43/AC-1 redirects to the confirmed page when the plan is locked", async () => {
+    await expect(open("locked")).rejects.toThrow(/^NEXT_REDIRECT \/plans\/pln_a\/confirmed$/);
   });
 
-  it("T-001-39/AC-3 redirects the organizer to the plan page while collecting", async () => {
-    await expect(open("collecting")).rejects.toThrow("NEXT_REDIRECT /plans/pln_a");
+  it("T-001-39/AC-3 T-001-43/AC-1 redirects the organizer to the plan page while collecting", async () => {
+    await expect(open("collecting")).rejects.toThrow(/^NEXT_REDIRECT \/plans\/pln_a$/);
   });
 
-  it("T-001-39/AC-3 redirects a participant to the respond page while collecting or blocked", async () => {
-    await expect(open("not_proposed")).rejects.toThrow("NEXT_REDIRECT /plans/pln_a/respond");
+  it("T-001-39/AC-3 T-001-43/AC-1 redirects a participant to the respond page while collecting or blocked", async () => {
+    await expect(open("not_proposed")).rejects.toThrow(/^NEXT_REDIRECT \/plans\/pln_a\/respond$/);
   });
 
   it("T-001-39/AC-3 does not redirect when the proposal cannot be loaded", async () => {

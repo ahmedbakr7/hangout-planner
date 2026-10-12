@@ -154,6 +154,9 @@ afterAll(async () => {
       SELECT DISTINCT guest_session_id AS id FROM participants
       WHERE plan_id = ${planId} AND guest_session_id IS NOT NULL
     `;
+    const linkSessions = await sql<{ id: string }[]>`
+      SELECT DISTINCT link_session_id AS id FROM link_session_plans WHERE plan_id = ${planId}
+    `;
     await sql`DELETE FROM proposal_runs WHERE plan_id = ${planId}`;
     await sql`DELETE FROM response_picks WHERE participant_id IN (${participants})`;
     await sql`DELETE FROM response_windows WHERE participant_id IN (${participants})`;
@@ -164,6 +167,12 @@ afterAll(async () => {
     await sql`DELETE FROM plan_steps WHERE plan_id = ${planId}`;
     await sql`DELETE FROM plan_windows WHERE plan_id = ${planId}`;
     await sql`DELETE FROM plans WHERE id = ${planId}`;
+    for (const link of linkSessions) {
+      await sql`
+        DELETE FROM link_sessions WHERE id = ${link.id}
+        AND NOT EXISTS (SELECT 1 FROM link_session_plans WHERE link_session_id = ${link.id})
+      `;
+    }
     for (const guest of guests) {
       await sql`DELETE FROM guest_sessions WHERE id = ${guest.id}`;
     }
