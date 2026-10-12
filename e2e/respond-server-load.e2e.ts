@@ -198,6 +198,9 @@ afterAll(async () => {
       SELECT DISTINCT guest_session_id AS id FROM participants
       WHERE plan_id = ${planId} AND guest_session_id IS NOT NULL
     `;
+    const linkSessions = await sql<{ id: string }[]>`
+      SELECT DISTINCT link_session_id AS id FROM link_session_plans WHERE plan_id = ${planId}
+    `;
     await sql`DELETE FROM proposal_runs WHERE plan_id = ${planId}`;
     await sql`DELETE FROM response_picks WHERE participant_id IN (${participants})`;
     await sql`DELETE FROM response_windows WHERE participant_id IN (${participants})`;
@@ -208,6 +211,12 @@ afterAll(async () => {
     await sql`DELETE FROM plan_steps WHERE plan_id = ${planId}`;
     await sql`DELETE FROM plan_windows WHERE plan_id = ${planId}`;
     await sql`DELETE FROM plans WHERE id = ${planId}`;
+    for (const link of linkSessions) {
+      await sql`
+        DELETE FROM link_sessions WHERE id = ${link.id}
+        AND NOT EXISTS (SELECT 1 FROM link_session_plans WHERE link_session_id = ${link.id})
+      `;
+    }
     for (const guest of guests) {
       await sql`DELETE FROM guest_sessions WHERE id = ${guest.id}`;
     }
@@ -221,6 +230,14 @@ afterAll(async () => {
 });
 
 describe("respond page loads on the server", () => {
+  it("T-001-43/AC-2 earlier e2e files left no link_sessions row without a link_session_plans row", async () => {
+    const orphans = await sql<{ id: string }[]>`
+      SELECT id FROM link_sessions
+      WHERE NOT EXISTS (SELECT 1 FROM link_session_plans WHERE link_session_id = link_sessions.id)
+    `;
+    expect(orphans).toEqual([]);
+  });
+
   it("T-001-40/AC-1 GET /api/v1/plans/{planId}/response answers each caller and state as before", async () => {
     const open = await seedPlan();
     const closed = await seedPlan();
