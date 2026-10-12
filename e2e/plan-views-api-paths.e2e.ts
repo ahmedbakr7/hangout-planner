@@ -282,7 +282,8 @@ describe("plan views against the real route handlers", () => {
     });
     cleanup();
 
-    show(React.createElement(OrganizerPlan, { planId }));
+    const initialPlan: unknown = await (await server.serve(`/api/v1/plans/${planId}`)).json();
+    show(React.createElement(OrganizerPlan, { planId, initialPlan }));
     const title = (await screen.findByLabelText("Plan title")) as HTMLInputElement;
     fireEvent.change(title, { target: { value: "Thursday night in Maadi" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
