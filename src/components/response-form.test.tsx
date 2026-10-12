@@ -268,17 +268,17 @@ function stubFetch(config: FetchConfig = {}) {
   return fetchMock;
 }
 
-function renderForm() {
+function renderForm(initialResponse: unknown = collectingBody) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ResponseForm planId={PLAN_ID} />
+      <ResponseForm planId={PLAN_ID} initialResponse={initialResponse} />
     </NextIntlClientProvider>,
   );
 }
 
 async function renderLoaded(config: FetchConfig = {}) {
   const fetchMock = stubFetch({ get: "collecting", ...config });
-  renderForm();
+  renderForm(getBody(config.get ?? "collecting").body);
   await screen.findByLabelText(/approximate/i);
   return fetchMock;
 }
@@ -405,7 +405,67 @@ describe("ResponseForm", () => {
     expect(screen.getByText("Ahwa")).toBeTruthy();
     expect(screen.getByText("Specialty")).toBeTruthy();
     expect(screen.getByLabelText(/approximate/i)).toBeTruthy();
-    expect(getCall(fetchMock)?.credentials).toBe("same-origin");
+    expect(getCall(fetchMock)).toBeUndefined();
+  });
+
+  it("T-001-40/AC-2 shows the initial data's title and saved answers and makes no GET on first render", async () => {
+    const fetchMock = stubFetch();
+    renderForm(getBody("draft").body);
+
+    expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
+    expect(screen.getByText("Maadi, Cairo")).toBeTruthy();
+    expect((within(firstWindow()).getByLabelText("Busy") as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect((within(dinnerStep()).getByLabelText("Koshary") as HTMLInputElement).checked).toBe(
+      true,
+    );
+    await waitFor(() => {
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("T-001-40/AC-2 a complete saved response starts with the saved notice", () => {
+    stubFetch();
+    renderForm(getBody("complete").body);
+
+    expect(screen.getByText("Answers saved.")).toBeTruthy();
+    expect(screen.getByText("Maadi, Cairo")).toBeTruthy();
+  });
+
+  it("T-001-40/AC-4 initial data null shows the not-found error state and no plan data", async () => {
+    const fetchMock = stubFetch();
+    renderForm(null);
+
+    const alert = screen.getByRole("alert");
+    expect(classTokens(alert)).toContain("text-destructive");
+    expect(alert.textContent).toBe(en.errors.code.not_found);
+    expect(screen.queryByText("Thursday in Maadi")).toBeNull();
+    expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+    expectForbiddenAbsent();
+    await waitFor(() => {
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("T-001-40/AC-4 initial data that does not parse shows the upstream error state", () => {
+    stubFetch();
+    renderForm({ unexpected: true });
+
+    expect(screen.getByRole("alert").textContent).toBe(en.errors.code.upstream);
+    expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+  });
+
+  it("T-001-40/AC-4 initial data for a proposed or locked plan shows the error state, not the form", () => {
+    stubFetch();
+    renderForm({ ...collectingBody, plan_state: "proposed" });
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+
+    cleanup();
+    renderForm({ ...collectingBody, plan_state: "locked" });
+    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   });
 
   it("omits answered count, threshold, other participants, other starting points, and any map", async () => {
@@ -463,7 +523,7 @@ describe("ResponseForm", () => {
     cleanup();
     router.push.mockReset();
     const completeMock = stubFetch({ get: "collecting", search: "ok", put: "ok-complete" });
-    renderForm();
+    renderForm(collectingBody);
     await screen.findByLabelText(/approximate/i);
     fireEvent.click(within(firstWindow()).getByLabelText("Free"));
     fireEvent.change(within(firstWindow()).getByLabelText("Earliest"), {
@@ -572,9 +632,10 @@ describe("ResponseForm", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("while proposed this open shows the proposal surface, and while locked it shows the confirmed surface", async () => {
+  it("a retry that finds the plan proposed shows the proposal surface, and locked shows the confirmed surface", async () => {
     stubFetch({ get: "proposed" });
-    renderForm();
+    renderForm(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/proposal`);
     });
@@ -585,7 +646,8 @@ describe("ResponseForm", () => {
     cleanup();
     router.replace.mockReset();
     stubFetch({ get: "locked" });
-    renderForm();
+    renderForm(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
@@ -632,12 +694,17 @@ describe("ResponseForm", () => {
     );
   });
 
-  it("a failed open uses text-destructive for this plan and omits another plan's title, people, and places", async () => {
+  it("a failed retry uses text-destructive for this plan and omits another plan's title, people, and places", async () => {
     stubFetch({ get: "fail" });
-    renderForm();
-    const alert = await screen.findByRole("alert");
+    renderForm(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toBe(
+        "A data source is unavailable. Retry.",
+      );
+    });
+    const alert = screen.getByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
-    expect(alert.textContent).toBe("A data source is unavailable. Retry.");
     const retry = screen.getByRole("button", { name: "Retry" });
     expect(classTokens(retry)).not.toContain("bg-primary");
     expect(screen.queryByText("Thursday in Maadi")).toBeNull();
@@ -651,7 +718,7 @@ describe("ResponseForm", () => {
 
   it("keeps fields editable on a blocked plan and retry reloads this plan after a failed open", async () => {
     stubFetch({ get: "blocked" });
-    renderForm();
+    renderForm(blockedBody);
     await screen.findByLabelText(/approximate/i);
     expect(screen.getByText("2026-10-02 18:00-23:00")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
@@ -673,10 +740,11 @@ describe("ResponseForm", () => {
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderForm();
+    renderForm(null);
     const retry = await screen.findByRole("button", { name: "Retry" });
     expect(classTokens(retry)).not.toContain("bg-primary");
     fireEvent.click(retry);
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByLabelText(/approximate/i)).toBeTruthy();
     expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
@@ -702,8 +770,9 @@ describe("ResponseForm", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderForm();
+    renderForm(null);
 
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await screen.findByLabelText(/approximate/i);
     fireEvent.change(screen.getByLabelText(/approximate/i), {
@@ -765,13 +834,11 @@ function conflict(reason: string): Response {
 }
 
 function stubPutConflict(reason: string, refetched: unknown = collectingBody) {
-  let gets = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
     if (url === RESPONSE_GET && method === "GET") {
-      gets += 1;
-      return jsonResponse(200, gets === 1 ? collectingBody : refetched);
+      return jsonResponse(200, refetched);
     }
     if (url === RESPONSE_PUT && method === "PUT") {
       return conflict(reason);
@@ -790,7 +857,7 @@ function requestLines(fetchMock: ReturnType<typeof stubPutConflict>): string[] {
 
 async function saveWithConflict(reason: string, refetched?: unknown) {
   const fetchMock = stubPutConflict(reason, refetched);
-  renderForm();
+  renderForm(collectingBody);
   await screen.findByLabelText(/approximate/i);
   fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -809,7 +876,6 @@ describe("ResponseForm attempt_in_progress", () => {
     expect((screen.getByLabelText(/approximate/i) as HTMLInputElement).disabled).toBe(false);
     expect(screen.getByText("Maadi, Cairo")).toBeTruthy();
     expect(requestLines(fetchMock)).toEqual([
-      `GET ${RESPONSE_GET}`,
       `PUT ${RESPONSE_PUT}`,
       `GET ${RESPONSE_GET}`,
     ]);
@@ -821,7 +887,7 @@ describe("ResponseForm attempt_in_progress", () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
-    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+    expect(requestLines(fetchMock)).toEqual([`PUT ${RESPONSE_PUT}`]);
   });
 
   it("T-001-34/AC-3 responses_closed still redirects to the proposal surface", async () => {
@@ -829,7 +895,7 @@ describe("ResponseForm attempt_in_progress", () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/proposal`);
     });
-    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+    expect(requestLines(fetchMock)).toEqual([`PUT ${RESPONSE_PUT}`]);
   });
 
   it("T-001-34/AC-3 only attempt_in_progress refetches: another reason keeps its save error, then attempt_in_progress clears it", async () => {
@@ -848,17 +914,17 @@ describe("ResponseForm attempt_in_progress", () => {
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderForm();
+    renderForm(collectingBody);
     await screen.findByLabelText(/approximate/i);
     fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(gets).toBe(1);
+    expect(gets).toBe(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => {
-      expect(gets).toBe(2);
+      expect(gets).toBe(1);
     });
     await screen.findByLabelText(/approximate/i);
     expect(screen.queryByRole("alert")).toBeNull();
@@ -869,6 +935,6 @@ describe("ResponseForm attempt_in_progress", () => {
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
     expect(router.replace).not.toHaveBeenCalled();
-    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+    expect(requestLines(fetchMock)).toEqual([`PUT ${RESPONSE_PUT}`]);
   });
 });
