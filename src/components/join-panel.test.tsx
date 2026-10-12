@@ -19,6 +19,21 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
+const { slideCalls } = vi.hoisted(() => ({
+  slideCalls: [] as boolean[],
+}));
+
+vi.mock("@/components/use-session-slide", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/components/use-session-slide")>();
+  return {
+    useSessionSlide: (signedIn: boolean) => {
+      slideCalls.push(signedIn);
+      actual.useSessionSlide(signedIn);
+    },
+  };
+});
+
 const TICKET_FILES = [
   "src/app/join/[token]/page.tsx",
   "src/app/plans/[planId]/join/page.tsx",
@@ -250,6 +265,7 @@ afterEach(() => {
   router.push.mockReset();
   router.replace.mockReset();
   router.refresh.mockReset();
+  slideCalls.length = 0;
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
@@ -527,7 +543,8 @@ describe("JoinPanel initial data", () => {
     expect(
       screen.getByRole("button", { name: "Join with an account" }),
     ).toBeTruthy();
-    expect(fetchMock).not.toHaveBeenCalled();
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls).not.toContain(OPENING_GET);
   });
 
   it("T-001-42/AC-2 offers the sign-in link when the initial state is signed out", () => {
@@ -569,5 +586,40 @@ describe("JoinPanel initial data", () => {
     const withInitial = stubFetch();
     renderInitial({ token: JOIN_TOKEN, initialOpening: null });
     expect(withInitial).not.toHaveBeenCalled();
+  });
+
+  it("T-001-44/AC-3 a signed-in initial opening shows the preview, skips the opening request, and sends exactly one me request", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening, initialSignedIn: true });
+    expect(screen.getByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url === OPENING_GET)).toHaveLength(0);
+    expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
+    expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
+  });
+
+  it("T-001-44/AC-3 a signed-out initial opening sends no me request", () => {
+    const fetchMock = stubFetch();
+    renderInitial({ planId: PLAN_ID, initialOpening, initialSignedIn: false });
+    expect(screen.getByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-44/AC-5 a token with initialSignedIn true still sends one me request, none from the hook", async () => {
+    const fetchMock = stubFetch({ me: "in", opening: "join" });
+    renderInitial({ token: JOIN_TOKEN, initialSignedIn: true });
+    await screen.findByRole("heading", { name: "Thursday in Maadi" });
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url === JOIN_GET)).toHaveLength(1);
+    expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
+    expect(slideCalls.length).toBeGreaterThan(0);
+    expect(slideCalls.every((signedIn) => signedIn === false)).toBe(true);
+  });
+
+  it("T-001-44/AC-5 a token with no initial opening sends exactly one me request, from the first load", async () => {
+    const fetchMock = await renderLoaded({ token: JOIN_TOKEN });
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url === JOIN_GET)).toHaveLength(1);
+    expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
   });
 });

@@ -294,7 +294,8 @@ describe("plan join page loads on the server", () => {
     expect(screen.getByRole("button", { name: en.join.joinWithAccount })).toBeTruthy();
     expect(screen.queryByText(en.join.unknownLink)).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(server.requested).toEqual([]);
+    // ADR-0009: the one slide request is the only fetch; no opening or token load.
+    expect(server.requested).toEqual(["GET /api/v1/me"]);
   });
 
   it("T-001-42/AC-3 the page redirects a caller whose next is not join to that surface", async () => {

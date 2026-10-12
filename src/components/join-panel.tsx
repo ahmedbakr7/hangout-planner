@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSessionSlide } from "@/components/use-session-slide";
 
 const DISPLAY_NAME_MAX = 40;
 const BUDGET_EXPONENT = 2;
@@ -413,7 +414,7 @@ function initialJoin(props: JoinPanelProps): InitialJoin {
 }
 
 function JoinPanelBody(props: JoinPanelProps): ReactNode {
-  const { token, planId, initialOpening } = props;
+  const { token, planId, initialOpening, initialSignedIn } = props;
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("join");
@@ -495,6 +496,8 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
   }
 
   const loadsOnMount = initialOpening === undefined;
+
+  useSessionSlide(!loadsOnMount && initialSignedIn === true);
 
   useEffect(() => {
     if (!loadsOnMount) {
