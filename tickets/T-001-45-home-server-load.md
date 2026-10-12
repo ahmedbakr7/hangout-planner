@@ -30,7 +30,8 @@ acceptance_criteria:
   - "AC-3: HomeList given initial data sends exactly one GET /api/v1/me after mount (ADR-0009), and given null sends none"
   - "AC-4: for no cookie or an invalid hp_session, the page renders HomeList with no initial data, which shows the signed-out home (Home.signedOutFriends and the create link) and no plan rows"
   - "AC-5: HomeList given initial data that does not parse shows the home error state (Home.loadError) with the Home.retry button"
-  - "AC-6: when the page's load throws, the route renders src/app/error.tsx, which shows Home.title, Home.loadError in a role=\"alert\" element and a Home.retry button that calls the retry function Next passes, and calls console.error(error) once"
+  - "AC-6: when the page's load throws, the route renders src/app/error.tsx, which on / shows Home.title, Home.loadError in a role=\"alert\" element and a Home.retry button that calls the retry function Next passes, and calls console.error(error) once"
+  - "AC-7: src/app/error.tsx rendered for any other path shows no Home text: errors.code.upstream in a role=\"alert\" element and a common.retry button that calls the retry function, and calls console.error(error) once"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
@@ -54,7 +55,10 @@ Convert `/` to ADR-0007 server loading. Copy T-001-41: `loadInvitePage`, the inv
   - Any other value starts signed in with the `error` load state.
   - Remove the first-load effect. Keep `loadPlans`, which the retry button uses.
   - Call `useSessionSlide(initialPlans !== null)`.
-- **`src/app/error.tsx` and its test:** copy `src/app/plans/[planId]/invite/error.tsx` and its test, with the text of this screen's `load === "error"` branch: `Home.title`, `Home.loadError`, and `Home.retry` on the button. This is the root segment's boundary. It also catches a throw from any route below it that has no `error.tsx` of its own. That is accepted, because those routes have no loader that throws.
+- **`src/app/error.tsx` and its test:** copy `src/app/plans/[planId]/invite/error.tsx` and its test. This is the root segment's boundary, so it also catches a throw from any route below it that has no `error.tsx` of its own (today `/join/{token}` and `/account`, which have no loader that throws).
+  - Read the path with `usePathname()` from `next/navigation`.
+  - On `/`, show this screen's `load === "error"` text: `Home.title`, `Home.loadError`, and `Home.retry` on the button (N-001-14).
+  - On any other path, show route-neutral text: `errors.code.upstream` in the alert and `common.retry` on the button, with no Home heading.
 - No new message key, no new dependency, no Server Action, and no new field in the body.
 - **Unit tests:**
   - The loader runs against the test database, signed in (with zero plans and with plans) and signed out.
