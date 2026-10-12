@@ -4,12 +4,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import postgres from "postgres";
 import { POST as createAccount } from "@/app/api/v1/accounts/route";
 import { GET as getConfirmed } from "@/app/api/v1/plans/[planId]/confirmed/route";
-import { POST as createPlan } from "@/app/api/v1/plans/route";
+import { GET as listPlans, POST as createPlan } from "@/app/api/v1/plans/route";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
 import { generateId } from "@/server/ids";
 import { closeDatabase as closePlans } from "@/server/plans/http";
-import { loadConfirmedPage, loadOrganizerPlanPage } from "@/server/plans/page-data";
+import {
+  loadConfirmedPage,
+  loadHomePage,
+  loadOrganizerPlanPage,
+} from "@/server/plans/page-data";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -366,5 +370,99 @@ describe("loadConfirmedPage", () => {
       kind: "not_locked",
       next: "organizer",
     });
+  });
+});
+
+describe("loadHomePage", () => {
+  async function list(cookie?: string): Promise<Response> {
+    return listPlans(
+      new Request("http://localhost/api/v1/plans", {
+        headers: cookie ? { cookie } : {},
+      }),
+    );
+  }
+
+  it("T-001-45/AC-2 answers ok with an empty list for a signed-in account with no plans", async () => {
+    const account = await register(uniqueEmail("empty"), "Omar");
+
+    expect(await loadHomePage(reader({ hp_session: account.token }))).toEqual({
+      kind: "ok",
+      view: { plans: [], truncated: false },
+    });
+  });
+
+  it("T-001-45/AC-2 answers ok with only the organizer's own plans", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const other = await register(uniqueEmail("other"), "Ziad");
+    const plan = await openPlan(organizer.token);
+    await openPlan(other.token);
+
+    const result = await loadHomePage(reader({ hp_session: organizer.token }));
+
+    expect(result).toEqual({
+      kind: "ok",
+      view: {
+        plans: [
+          {
+            id: plan.id,
+            title: "Thursday in Maadi",
+            answered_count: 0,
+            threshold: 3,
+            state: "collecting",
+          },
+        ],
+        truncated: false,
+      },
+    });
+  });
+
+  it("T-001-45/AC-4 answers signed_out for no cookie and for an invalid hp_session", async () => {
+    expect(await loadHomePage(reader({}))).toEqual({ kind: "signed_out" });
+    expect(await loadHomePage(reader({ hp_session: "not-a-real-token" }))).toEqual({
+      kind: "signed_out",
+    });
+  });
+
+  it("T-001-45/AC-1 GET /api/v1/plans answers 200 with the loader's view and 401 missing_session without a session", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const plan = await openPlan(organizer.token);
+
+    const ok = await list(`hp_session=${organizer.token}`);
+    expect(ok.status).toBe(200);
+    const loaded = await loadHomePage(reader({ hp_session: organizer.token }));
+    expect(loaded.kind).toBe("ok");
+    expect(await ok.clone().json()).toEqual(loaded.kind === "ok" ? loaded.view : null);
+    expect(await ok.json()).toEqual({
+      plans: [
+        {
+          id: plan.id,
+          title: "Thursday in Maadi",
+          answered_count: 0,
+          threshold: 3,
+          state: "collecting",
+        },
+      ],
+      truncated: false,
+    });
+
+    for (const cookie of [undefined, "hp_session=not-a-real-token"]) {
+      const missing = await list(cookie);
+      expect(missing.status).toBe(401);
+      const body = (await missing.json()) as { error: { code: string; reason: string } };
+      expect(body.error.code).toBe("unauthenticated");
+      expect(body.error.reason).toBe("missing_session");
+    }
+  });
+
+  it("T-001-45/AC-1 POST /api/v1/plans keeps creating a plan for a signed-in account", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const plan = await openPlan(organizer.token);
+    expect(plan.id.startsWith("pln_")).toBe(true);
+    const home = await loadHomePage(reader({ hp_session: organizer.token }));
+    expect(home.kind === "ok" && home.view.plans.map((row) => row.id)).toEqual([plan.id]);
+    const listed = (await (await list(`hp_session=${organizer.token}`)).json()) as {
+      plans: { id: string }[];
+    };
+    expect(listed.plans.map((row) => row.id)).toEqual([plan.id]);
   });
 });

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { desc, eq } from "drizzle-orm";
 import {
   logged,
   missingSessionResponse,
@@ -12,7 +11,6 @@ import { now } from "@/server/clock";
 import { plans } from "@/server/db/schema";
 import { generateId, generateJoinToken } from "@/server/ids";
 import {
-  HOME_LIST_LIMIT,
   REQUIRED_CREATE_FIELDS,
   db,
   insertSteps,
@@ -23,6 +21,7 @@ import {
   planValidationFailed,
   type ParsedCreate,
 } from "@/server/plans/http";
+import { loadHomePage } from "@/server/plans/page-data";
 import type { OrganizerPlanView } from "@/server/plans/views";
 
 export const runtime = "nodejs";
@@ -98,37 +97,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
-  if (!session.ok) {
+  const page = await loadHomePage((name) => readCookie(request, name));
+  if (page.kind === "signed_out") {
     return logged(request, missingSessionResponse());
   }
-
-  const rows = await db()
-    .select({
-      id: plans.id,
-      title: plans.title,
-      answeredCount: plans.answeredCount,
-      threshold: plans.threshold,
-      state: plans.state,
-    })
-    .from(plans)
-    .where(eq(plans.organizerAccountId, session.account.id))
-    .orderBy(desc(plans.updatedAt), desc(plans.id))
-    .limit(HOME_LIST_LIMIT + 1);
-
-  const truncated = rows.length > HOME_LIST_LIMIT;
-  const page = truncated ? rows.slice(0, HOME_LIST_LIMIT) : rows;
-  return logged(
-    request,
-    NextResponse.json({
-      plans: page.map((row) => ({
-        id: row.id,
-        title: row.title,
-        answered_count: row.answeredCount,
-        threshold: row.threshold,
-        state: row.state,
-      })),
-      truncated,
-    }),
-  );
+  return logged(request, NextResponse.json(page.view));
 }
