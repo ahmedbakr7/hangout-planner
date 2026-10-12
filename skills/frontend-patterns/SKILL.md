@@ -41,7 +41,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 |---|---|---|
 | Page | `src/app/<route>/page.tsx`, a Server Component: awaits `params` / `searchParams`, loads its first data through the surface loader (ADR-0007), renders one component | `src/app/plans/[planId]/page.tsx` |
 | Screen logic, writes, refetch after writes | `src/components/<screen>.tsx` (`"use client"`): first render from the page's initial data, then `fetch` to `/api/v1/...` | `src/components/organizer-plan.tsx`; `src/components/response-form.tsx` for writes |
-| Page load failure: a converted page whose loader throws | `src/app/<route>/error.tsx` (`"use client"`, `{ error, retry }`): the screen's load error text in `role="alert"`, a retry button that calls `retry()` (it re-runs the server load; `reset()` does not), `console.error(error)` once | `src/app/plans/[planId]/error.tsx` once T-001-37 merges |
+| Page load failure: a converted page whose loader throws | `src/app/<route>/error.tsx` (`"use client"`, `{ error, retry }`): the screen's load error text in `role="alert"`, a retry button that calls `retry()` (it re-runs the server load; `reset()` does not), `console.error(error)` once | `src/app/plans/[planId]/error.tsx` |
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
