@@ -105,7 +105,7 @@ describe("shell tokens and chrome catalogs", () => {
     expect(globals).toMatch(/text-align:\s*start/);
     expect(globals).toMatch(/min-block-size:\s*100%/);
     expect(globals).toMatch(
-      /:focus-visible\s*\{[^}]*outline:\s*var\(--focus-ring-width\)\s+solid\s+var\(--focus\)/s,
+      /:focus-visible\s*\{[^}]*outline:\s*var\(--focus-ring-width\)\s+solid\s+var\(--focus\)/,
     );
     expect(globals).toMatch(/outline-offset:\s*var\(--focus-ring-offset\)/);
     expect(globals).not.toMatch(/outline:\s*\d+px/);

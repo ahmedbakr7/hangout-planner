@@ -282,7 +282,7 @@ describe("participantResponseView", () => {
         windows: [
           {
             window_id: windowRow.id,
-            kind: "busy",
+            kind: "busy" as const,
             earliest_local: "18:00",
             latest_local: "23:00",
           },

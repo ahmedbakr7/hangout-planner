@@ -122,7 +122,7 @@ const CONTRACT_COLUMNS: Record<string, string[]> = {
 const CONTRACT_TABLES = Object.keys(CONTRACT_COLUMNS).sort();
 
 function schemaTables() {
-  return Object.values(schema).filter(isTable);
+  return (Object.values(schema) as unknown[]).filter(isTable);
 }
 
 async function expectCode(run: () => Promise<unknown>, code: string) {

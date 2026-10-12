@@ -142,7 +142,9 @@ describe("drizzle.config", () => {
     const url = "postgres://user:pass@127.0.0.1:5432/testdb";
     process.env.DATABASE_URL = url;
     vi.resetModules();
-    const { default: config } = await import("../../../drizzle.config.ts");
-    expect(config.dbCredentials).toMatchObject({ url });
+    const { default: config } = await import("../../../drizzle.config");
+    expect((config as { dbCredentials?: unknown }).dbCredentials).toMatchObject(
+      { url },
+    );
   });
 });
