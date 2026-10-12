@@ -236,7 +236,8 @@ afterAll(async () => {
 });
 
 async function answerAsGuest(planId: string): Promise<void> {
-  show(React.createElement(ResponseForm, { planId }));
+  const initialResponse: unknown = await (await server.serve(`/api/v1/plans/${planId}/response`)).json();
+  show(React.createElement(ResponseForm, { planId, initialResponse }));
   const window = (await screen.findByText("2026-10-02 18:00-19:00")).closest("fieldset");
   const dinner = screen.getByText("Dinner").closest("fieldset");
   const coffee = screen.getByText("Coffee").closest("fieldset");

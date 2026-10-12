@@ -186,16 +186,17 @@ describe("attempt_in_progress against the real route handlers", () => {
     const { planId, guest } = await seedPlan(1);
     await holdAttemptLock(planId);
     server.useCookies(guest);
+    const initialResponse: unknown = await (await server.serve(`/api/v1/plans/${planId}/response`)).json();
     server.requested.length = 0;
 
-    show(React.createElement(ResponseForm, { planId }));
+    show(React.createElement(ResponseForm, { planId, initialResponse }));
     await fillResponse();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
       expect(
         server.requested.filter((line) => line.startsWith("GET ") && line.includes("/response")),
-      ).toHaveLength(2);
+      ).toHaveLength(1);
     });
     await waitFor(() => {
       const dinner = screen.getByText("Dinner").closest("fieldset") as HTMLElement;
@@ -217,7 +218,8 @@ describe("attempt_in_progress against the real route handlers", () => {
   it("T-001-34/AC-2 a PATCH plan that loses the attempt lock shows no save error, refetches the plan and shows it", async () => {
     const { planId, organizer, guest } = await seedPlan(2);
     server.useCookies(guest);
-    show(React.createElement(ResponseForm, { planId }));
+    const initialResponse: unknown = await (await server.serve(`/api/v1/plans/${planId}/response`)).json();
+    show(React.createElement(ResponseForm, { planId, initialResponse }));
     await fillResponse();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Answers saved.")).toBeTruthy();
