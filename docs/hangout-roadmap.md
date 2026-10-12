@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-12. Main: `480b6f4`, kit pin `38f11c3` (tag v3.2.1).
+Date: 2026-10-12. Main: `0f1e910`, kit pin `38f11c3` (tag v3.2.1).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -46,7 +46,7 @@ Date: 2026-10-12. Main: `480b6f4`, kit pin `38f11c3` (tag v3.2.1).
 | 17 | Done: Next.js 16.4 (T-001-35, #88). Next: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP | New ticket | The rulebook's Next 16 lines are updated in this lead PR (ADR-0006 consequence) |
 | 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | #86 |
 | 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | #86. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
-| 20 | Pages load their first data on the server (ADR-0007). T-001-36 converts `/plans/{planId}` and becomes the example; then one ticket per remaining page: `/`, `/account`, `/plans/new`, `/plans/{planId}/invite`, `/plans/{planId}/join`, `/invitations`, `/join/{token}`, `/plans/{planId}/respond`, `/plans/{planId}/proposal`, `/plans/{planId}/confirmed` | New tickets | Lead decision of 2026-10-12. Each page ticket also removes that page's copy of the initial-load fetch (part of item 10) |
+| 20 | Pages load their first data on the server (ADR-0007). Done for `/plans/{planId}`: T-001-36 (#91), the example. T-001-37 adds its `error.tsx` (lead decision: a page whose loader throws renders its route's error boundary, never catches). Then one ticket per remaining page, each with its own `error.tsx`: `/`, `/account`, `/plans/new`, `/plans/{planId}/invite`, `/plans/{planId}/join`, `/invitations`, `/join/{token}`, `/plans/{planId}/respond`, `/plans/{planId}/proposal`, `/plans/{planId}/confirmed` | New tickets | Lead decision of 2026-10-12. Each page ticket also removes that page's copy of the initial-load fetch (part of item 10) |
 
 ## Decisions the lead owes
 

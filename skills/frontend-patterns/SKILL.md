@@ -39,14 +39,18 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 
 | What | Where | Copy |
 |---|---|---|
-| Page | `src/app/<route>/page.tsx`, a Server Component: awaits `params` / `searchParams`, loads its first data through the surface loader (ADR-0007), renders one component | `src/app/plans/[planId]/page.tsx` once T-001-36 merges |
-| Screen logic, writes, refetch after writes | `src/components/<screen>.tsx` (`"use client"`): first render from the page's initial data, then `fetch` to `/api/v1/...` | `src/components/organizer-plan.tsx` once T-001-36 merges; `src/components/response-form.tsx` for writes |
+| Page | `src/app/<route>/page.tsx`, a Server Component: awaits `params` / `searchParams`, loads its first data through the surface loader (ADR-0007), renders one component | `src/app/plans/[planId]/page.tsx` |
+| Screen logic, writes, refetch after writes | `src/components/<screen>.tsx` (`"use client"`): first render from the page's initial data, then `fetch` to `/api/v1/...` | `src/components/organizer-plan.tsx`; `src/components/response-form.tsx` for writes |
+| Page load failure: a converted page whose loader throws | `src/app/<route>/error.tsx` (`"use client"`, `{ error, retry }`): the screen's load error text in `role="alert"`, a retry button that calls `retry()` (it re-runs the server load; `reset()` does not), `console.error(error)` once | `src/app/plans/[planId]/error.tsx` once T-001-37 merges |
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
 
-Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: none. T-001-36 converts `/plans/{planId}` and becomes the example. A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.
+Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: `/plans/{planId}` (T-001-36), the example to copy. A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.
+
+- A page does not catch its loader's errors. A thrown loader error renders the route's `error.tsx`, so it is logged and never looks like a `not_found` or `organizer_only` result. Each page ticket adds its route's `error.tsx` (lead decision 2026-10-12, #91 review).
+- A screen component seeds its state once from the page's initial data. It does not reset that state when a route param changes, because the App Router keys a segment by its dynamic params and remounts it for a new value. This holds while Cache Components is off; turning it on (an ADR, see Next 16 defaults) preserves page state across navigations and changes this rule.
 
 ### Use X, not Y
 
