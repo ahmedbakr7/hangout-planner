@@ -757,3 +757,118 @@ describe("ResponseForm", () => {
     expect(String(saves[0]?.[0])).toBe(`/api/v1/plans/${PLAN_ID}/response`);
   });
 });
+
+function conflict(reason: string): Response {
+  return jsonResponse(409, {
+    error: { code: "conflict", reason, message: reason, fields: [] },
+  });
+}
+
+function stubPutConflict(reason: string, refetched: unknown = collectingBody) {
+  let gets = 0;
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (url === RESPONSE_GET && method === "GET") {
+      gets += 1;
+      return jsonResponse(200, gets === 1 ? collectingBody : refetched);
+    }
+    if (url === RESPONSE_PUT && method === "PUT") {
+      return conflict(reason);
+    }
+    throw new Error(`unexpected fetch ${method} ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function requestLines(fetchMock: ReturnType<typeof stubPutConflict>): string[] {
+  return fetchMock.mock.calls.map(
+    ([input, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(input)}`,
+  );
+}
+
+async function saveWithConflict(reason: string, refetched?: unknown) {
+  const fetchMock = stubPutConflict(reason, refetched);
+  renderForm();
+  await screen.findByLabelText(/approximate/i);
+  fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  return fetchMock;
+}
+
+describe("ResponseForm attempt_in_progress", () => {
+  it("T-001-34/AC-1 409 attempt_in_progress shows no save error, refetches the response and shows it", async () => {
+    const refetched = getBody("complete").body;
+    const fetchMock = await saveWithConflict("attempt_in_progress", refetched);
+
+    expect(await screen.findByText("Answers saved.")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Answers could not be saved.")).toBeNull();
+    expect(screen.queryByText("A proposal attempt is already running.")).toBeNull();
+    expect((screen.getByLabelText(/approximate/i) as HTMLInputElement).disabled).toBe(false);
+    expect(screen.getByText("Maadi, Cairo")).toBeTruthy();
+    expect(requestLines(fetchMock)).toEqual([
+      `GET ${RESPONSE_GET}`,
+      `PUT ${RESPONSE_PUT}`,
+      `GET ${RESPONSE_GET}`,
+    ]);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("T-001-34/AC-3 plan_locked still redirects to the confirmed surface", async () => {
+    const fetchMock = await saveWithConflict("plan_locked");
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
+    });
+    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+  });
+
+  it("T-001-34/AC-3 responses_closed still redirects to the proposal surface", async () => {
+    const fetchMock = await saveWithConflict("responses_closed");
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/proposal`);
+    });
+    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+  });
+
+  it("T-001-34/AC-3 only attempt_in_progress refetches: another reason keeps its save error, then attempt_in_progress clears it", async () => {
+    const reasons = ["not_proposed", "attempt_in_progress"];
+    let gets = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === RESPONSE_GET && method === "GET") {
+        gets += 1;
+        return jsonResponse(200, collectingBody);
+      }
+      if (url === RESPONSE_PUT && method === "PUT") {
+        return conflict(reasons.shift() ?? "attempt_in_progress");
+      }
+      throw new Error(`unexpected fetch ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderForm();
+    await screen.findByLabelText(/approximate/i);
+    fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(gets).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(gets).toBe(2);
+    });
+    await screen.findByLabelText(/approximate/i);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("T-001-34/AC-3 any other 409 reason still shows the save error without refetching", async () => {
+    const fetchMock = await saveWithConflict("not_proposed");
+    const alert = await screen.findByRole("alert");
+    expect(classTokens(alert)).toContain("text-destructive");
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(requestLines(fetchMock)).toEqual([`GET ${RESPONSE_GET}`, `PUT ${RESPONSE_PUT}`]);
+  });
+});

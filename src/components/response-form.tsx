@@ -21,6 +21,7 @@ import { Label } from "@/components/ui/label";
 const BUDGET_EXPONENT = 2;
 const PLACE_SEARCH_Q_MIN = 1;
 const PLACE_SEARCH_Q_MAX = 80;
+const ATTEMPT_IN_PROGRESS = "attempt_in_progress";
 
 type PlanState = "collecting" | "blocked" | "proposed" | "locked";
 type LoadState = "loading" | "loaded" | "error" | "redirecting";
@@ -963,7 +964,12 @@ function ResponseFormBody({ planId }: ResponseFormProps): ReactNode {
       });
       const payload = await readJson(response);
       if (response.status === 409) {
-        if (leaveClosed(parseError(payload).reason)) {
+        const reason = parseError(payload).reason;
+        if (reason === ATTEMPT_IN_PROGRESS) {
+          await loadResponse();
+          return;
+        }
+        if (leaveClosed(reason)) {
           return;
         }
       }
