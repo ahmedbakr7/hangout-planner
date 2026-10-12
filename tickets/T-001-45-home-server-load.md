@@ -4,7 +4,7 @@ title: "Home loads the organizer's plan list on the server"
 type: fullstack
 status: ready
 risk: medium
-depends_on: [T-001-38, T-001-44]
+depends_on: [T-001-38, T-001-41, T-001-44]
 files:
   - "src/server/plans/page-data.ts"
   - "src/server/plans/page-data.test.ts"
