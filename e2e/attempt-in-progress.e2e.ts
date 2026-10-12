@@ -225,14 +225,15 @@ describe("attempt_in_progress against the real route handlers", () => {
 
     await holdAttemptLock(planId);
     server.useCookies(organizer);
+    const initialPlan: unknown = await (await server.serve(`/api/v1/plans/${planId}`)).json();
     server.requested.length = 0;
-    show(React.createElement(OrganizerPlan, { planId }));
+    show(React.createElement(OrganizerPlan, { planId, initialPlan }));
     const threshold = (await screen.findByLabelText("Answered threshold")) as HTMLInputElement;
     fireEvent.change(threshold, { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() => {
-      expect(server.requested.filter((line) => line === `GET /api/v1/plans/${planId}`)).toHaveLength(2);
+      expect(server.requested.filter((line) => line === `GET /api/v1/plans/${planId}`)).toHaveLength(1);
     });
     await waitFor(() => {
       expect((screen.getByLabelText("Answered threshold") as HTMLInputElement).value).toBe("1");

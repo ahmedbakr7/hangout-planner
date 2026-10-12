@@ -57,11 +57,13 @@ async function accountInvited(
   return rows.length > 0;
 }
 
+export type CookieReader = (name: string) => string | null;
+
 async function guestOwnsParticipant(
-  request: Request,
+  readCookieValue: CookieReader,
   planId: string,
 ): Promise<boolean> {
-  const hash = tokenHash(readCookie(request, "hp_guest"));
+  const hash = tokenHash(readCookieValue("hp_guest"));
   if (!hash) {
     return false;
   }
@@ -81,10 +83,10 @@ async function guestOwnsParticipant(
 }
 
 async function linkIncludesPlan(
-  request: Request,
+  readCookieValue: CookieReader,
   planId: string,
 ): Promise<boolean> {
-  const hash = tokenHash(readCookie(request, "hp_link"));
+  const hash = tokenHash(readCookieValue("hp_link"));
   if (!hash) {
     return false;
   }
@@ -107,7 +109,14 @@ export async function planRoleFor(
   request: Request,
   plan: PlanRow,
 ): Promise<PlanRole | null> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
+  return planRoleForCookies((name) => readCookie(request, name), plan);
+}
+
+export async function planRoleForCookies(
+  readCookieValue: CookieReader,
+  plan: PlanRow,
+): Promise<PlanRole | null> {
+  const session = await readAccountSession(readCookieValue("hp_session"));
   const sessionAccountId = session.ok ? session.account.id : null;
   const accountHasParticipant =
     sessionAccountId !== null
@@ -121,9 +130,9 @@ export async function planRoleFor(
     sessionAccountId,
     organizerAccountId: plan.organizerAccountId,
     accountHasParticipant,
-    guestOwnsParticipant: await guestOwnsParticipant(request, plan.id),
+    guestOwnsParticipant: await guestOwnsParticipant(readCookieValue, plan.id),
     accountHasInvitation,
-    linkIncludesPlan: await linkIncludesPlan(request, plan.id),
+    linkIncludesPlan: await linkIncludesPlan(readCookieValue, plan.id),
     requestJoinToken: null,
     planJoinToken: plan.joinToken,
   });

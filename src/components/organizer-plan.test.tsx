@@ -238,10 +238,10 @@ function stubPlanFetch(
   return fetchMock;
 }
 
-function renderPlan(planId: string) {
+function renderPlan(planId: string, initialPlan: unknown = basePlan(planId)) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <OrganizerPlan planId={planId} />
+      <OrganizerPlan planId={planId} initialPlan={initialPlan} />
     </NextIntlClientProvider>,
   );
 }
@@ -345,15 +345,15 @@ describe("OrganizerPlan", () => {
   });
 
   it("while collecting there is no itinerary, and the waiting copy uses text-muted-foreground", async () => {
-    stubPlanFetch(collectingId, {
-      get: basePlan(collectingId, {
+    renderPlan(
+      collectingId,
+      basePlan(collectingId, {
         answered_count: 0,
         in_progress_count: 0,
         participants: [],
         editable: openEditable,
       }),
-    });
-    renderPlan(collectingId);
+    );
 
     const waiting = await screen.findByText("The proposal waits for answers.");
     expect(classTokens(waiting)).toContain("text-muted-foreground");
@@ -373,14 +373,14 @@ describe("OrganizerPlan", () => {
   });
 
   it("while blocked or proposed the same counts remain and there is a way to the proposal surface; the itinerary is not duplicated on this page", async () => {
-    stubPlanFetch(blockedId, {
-      get: basePlan(blockedId, {
+    renderPlan(
+      blockedId,
+      basePlan(blockedId, {
         state: "blocked",
         title: "Friday downtown",
         editable: blockedEditable,
       }),
-    });
-    renderPlan(blockedId);
+    );
 
     expect(await screen.findByText("Friday downtown")).toBeTruthy();
     expect(screen.getByText("1 answered of 3")).toBeTruthy();
@@ -399,14 +399,14 @@ describe("OrganizerPlan", () => {
 
     cleanup();
 
-    stubPlanFetch(proposedId, {
-      get: basePlan(proposedId, {
+    renderPlan(
+      proposedId,
+      basePlan(proposedId, {
         state: "proposed",
         title: "Saturday walk",
         editable: proposedEditable,
       }),
-    });
-    renderPlan(proposedId);
+    );
 
     expect(await screen.findByText("Saturday walk")).toBeTruthy();
     expect(screen.getByText("1 answered of 3")).toBeTruthy();
@@ -425,15 +425,15 @@ describe("OrganizerPlan", () => {
   });
 
   it("edit controls follow editable for the current state, budget shows the currency, and a rejected edit leaves the stored value and says the field can no longer be changed", async () => {
-    stubPlanFetch(collectingId, {
-      get: basePlan(collectingId, {
+    renderPlan(
+      collectingId,
+      basePlan(collectingId, {
         answered_count: 0,
         in_progress_count: 0,
         participants: [],
         editable: openEditable,
       }),
-    });
-    renderPlan(collectingId);
+    );
 
     expect(await screen.findByLabelText("Plan title")).toBeTruthy();
     expect((screen.getByLabelText("Plan title") as HTMLInputElement).disabled).toBe(
@@ -466,10 +466,7 @@ describe("OrganizerPlan", () => {
 
     cleanup();
 
-    const fetchMock = stubPlanFetch(collectingId, {
-      get: basePlan(collectingId),
-      patch: "frozen",
-    });
+    const fetchMock = stubPlanFetch(collectingId, { patch: "frozen" });
     renderPlan(collectingId);
 
     await screen.findByLabelText("Plan title");
@@ -544,25 +541,25 @@ describe("OrganizerPlan", () => {
     expect(classTokens(collectingInvite)).toContain("bg-primary");
 
     cleanup();
-    stubPlanFetch(blockedId, {
-      get: basePlan(blockedId, {
+    renderPlan(
+      blockedId,
+      basePlan(blockedId, {
         state: "blocked",
         editable: blockedEditable,
       }),
-    });
-    renderPlan(blockedId);
+    );
     const blockedInvite = await screen.findByRole("link", { name: "Invite" });
     expect(blockedInvite.getAttribute("href")).toBe(`/plans/${blockedId}/invite`);
     expect(classTokens(blockedInvite)).not.toContain("bg-primary");
 
     cleanup();
-    stubPlanFetch(proposedId, {
-      get: basePlan(proposedId, {
+    renderPlan(
+      proposedId,
+      basePlan(proposedId, {
         state: "proposed",
         editable: proposedEditable,
       }),
-    });
-    renderPlan(proposedId);
+    );
     const proposedInvite = await screen.findByRole("link", { name: "Invite" });
     expect(proposedInvite.getAttribute("href")).toBe(
       `/plans/${proposedId}/invite`,
@@ -570,10 +567,11 @@ describe("OrganizerPlan", () => {
     expect(classTokens(proposedInvite)).not.toContain("bg-primary");
   });
 
-  it("a locked open shows the confirmed surface instead of this page", async () => {
+  it("a reload that finds the plan locked shows the confirmed surface instead of this page", async () => {
     stubPlanFetch(lockedId, { get: "locked" });
-    renderPlan(lockedId);
+    renderPlan(lockedId, null);
 
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(
         `/plans/${lockedId}/confirmed`,
@@ -586,25 +584,9 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByRole("link", { name: "Open proposal" })).toBeNull();
   });
 
-  it("a load failure uses text-destructive and retry and omits any other plan's title, people, and places", async () => {
-    let gets = 0;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const method = (init?.method ?? "GET").toUpperCase();
-      if (url === `/api/v1/plans/${collectingId}` && method === "GET") {
-        gets += 1;
-        if (gets === 1) {
-          return jsonResponse(500, {
-            error: { code: "upstream", message: "fail", fields: [] },
-            ...leakedPlan,
-          });
-        }
-        return jsonResponse(200, basePlan(collectingId));
-      }
-      throw new Error(`unexpected fetch ${method} ${url}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderPlan(collectingId);
+  it("T-001-36/AC-3 with no initial data it shows the error state with retry, omits any plan's title, people, and places, and makes no request until retry", async () => {
+    const fetchMock = stubPlanFetch(collectingId);
+    renderPlan(collectingId, null);
 
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
@@ -619,6 +601,8 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByText("Hana")).toBeNull();
     expect(screen.queryByText("Alex")).toBeNull();
 
+    expect(fetchMock).not.toHaveBeenCalled();
+
     fireEvent.click(retry);
 
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
@@ -629,22 +613,45 @@ describe("OrganizerPlan", () => {
     const planGets = fetchMock.mock.calls.filter(
       (call) => String(call[0]) === `/api/v1/plans/${collectingId}`,
     );
-    expect(planGets.length).toBeGreaterThanOrEqual(2);
+    expect(planGets.length).toBe(1);
     expect(planGets[0]?.[1]?.credentials).toBe("same-origin");
   });
 
+  it("T-001-36/AC-3 initial data that does not parse, or holds another plan, starts in the error state without its data", async () => {
+    const fetchMock = stubPlanFetch(collectingId);
+    renderPlan(collectingId, { title: "Not a plan" });
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "This plan could not be loaded.",
+    );
+    expect(screen.queryByText("Not a plan")).toBeNull();
+
+    cleanup();
+    renderPlan(collectingId, leakedPlan);
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText("Someone else's private plan")).toBeNull();
+    expect(screen.queryByText("Secret Person")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-36/AC-2 shows the title and threshold from initial data and makes no GET request on its first render", async () => {
+    const fetchMock = stubPlanFetch(collectingId);
+    renderPlan(collectingId, basePlan(collectingId, { title: "Initial title", threshold: 4 }));
+
+    expect(screen.getByText("Initial title", { selector: "h1" })).toBeTruthy();
+    expect(screen.getByText("1 answered of 4")).toBeTruthy();
+    expect((screen.getByLabelText("Plan title") as HTMLInputElement).value).toBe(
+      "Initial title",
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("T-001-33/AC-1 load, retry and save request only CONTRACTS paths under /api/v1/", async () => {
-    let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
       if (url === `/api/v1/plans/${collectingId}` && method === "GET") {
-        gets += 1;
-        if (gets === 1) {
-          return jsonResponse(500, {
-            error: { code: "upstream", message: "fail", fields: [] },
-          });
-        }
         return jsonResponse(200, basePlan(collectingId));
       }
       if (url === `/api/v1/plans/${collectingId}` && method === "PATCH") {
@@ -660,7 +667,7 @@ describe("OrganizerPlan", () => {
       });
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderPlan(collectingId);
+    renderPlan(collectingId, null);
 
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
@@ -674,14 +681,13 @@ describe("OrganizerPlan", () => {
       ).toBe("100.00");
     });
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     const requests = fetchMock.mock.calls.map(
       ([input, init]) => `${(init?.method ?? "GET").toUpperCase()} ${String(input)}`,
     );
     expect(requests).toEqual([
-      `GET /api/v1/plans/${collectingId}`,
       `GET /api/v1/plans/${collectingId}`,
       `PATCH /api/v1/plans/${collectingId}`,
     ]);
@@ -690,13 +696,11 @@ describe("OrganizerPlan", () => {
 });
 
 function stubPatchConflict(planId: string, reason: string, refetched: unknown) {
-  let gets = 0;
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const method = (init?.method ?? "GET").toUpperCase();
     if (url === `/api/v1/plans/${planId}` && method === "GET") {
-      gets += 1;
-      return jsonResponse(200, gets === 1 ? basePlan(planId) : refetched);
+      return jsonResponse(200, refetched);
     }
     if (url === `/api/v1/plans/${planId}` && method === "PATCH") {
       return jsonResponse(409, {
@@ -726,7 +730,7 @@ function planRequests(fetchMock: ReturnType<typeof stubPatchConflict>): string[]
 }
 
 describe("OrganizerPlan attempt_in_progress", () => {
-  it("T-001-34/AC-2 409 attempt_in_progress shows no save error, refetches the plan and shows it", async () => {
+  it("T-001-34/AC-2 T-001-36/AC-4 409 attempt_in_progress shows no save error, refetches the plan with GET and shows it", async () => {
     const refetched = basePlan(collectingId, {
       title: "Refetched after attempt",
       state: "proposed",
@@ -742,7 +746,6 @@ describe("OrganizerPlan attempt_in_progress", () => {
       "Refetched after attempt",
     );
     expect(planRequests(fetchMock)).toEqual([
-      `GET /api/v1/plans/${collectingId}`,
       `PATCH /api/v1/plans/${collectingId}`,
       `GET /api/v1/plans/${collectingId}`,
     ]);
@@ -754,10 +757,7 @@ describe("OrganizerPlan attempt_in_progress", () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${collectingId}/confirmed`);
     });
-    expect(planRequests(fetchMock)).toEqual([
-      `GET /api/v1/plans/${collectingId}`,
-      `PATCH /api/v1/plans/${collectingId}`,
-    ]);
+    expect(planRequests(fetchMock)).toEqual([`PATCH /api/v1/plans/${collectingId}`]);
   });
 
   it("T-001-34/AC-3 only attempt_in_progress refetches: another reason keeps its save error, then attempt_in_progress clears it", async () => {
@@ -786,11 +786,11 @@ describe("OrganizerPlan attempt_in_progress", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
 
     expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(gets).toBe(1);
+    expect(gets).toBe(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => {
-      expect(gets).toBe(2);
+      expect(gets).toBe(1);
     });
     await screen.findByLabelText("Plan title");
     expect(screen.queryByRole("alert")).toBeNull();
@@ -801,9 +801,6 @@ describe("OrganizerPlan attempt_in_progress", () => {
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
     expect(router.replace).not.toHaveBeenCalled();
-    expect(planRequests(fetchMock)).toEqual([
-      `GET /api/v1/plans/${collectingId}`,
-      `PATCH /api/v1/plans/${collectingId}`,
-    ]);
+    expect(planRequests(fetchMock)).toEqual([`PATCH /api/v1/plans/${collectingId}`]);
   });
 });

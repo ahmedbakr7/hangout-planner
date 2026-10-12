@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
-  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -663,9 +662,61 @@ function FieldBlock({
 
 export type OrganizerPlanProps = {
   planId: string;
+  initialPlan: unknown;
 };
 
-function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
+type PlanDrafts = {
+  title: string;
+  timezone: string;
+  windows: WindowDraft[];
+  amount: string;
+  currency: string;
+  steps: StepDraft[];
+  threshold: string;
+};
+
+function planDrafts(next: OrganizerPlanData): PlanDrafts {
+  return {
+    title: next.title,
+    timezone: next.timezone,
+    windows: next.windows.map((window) => ({
+      localDate: window.localDate,
+      startLocal: toHm(window.startLocal),
+      endLocal: toHm(window.endLocal),
+    })),
+    amount: amountMinorToDecimal(
+      next.budget.amountMinor,
+      exponentFor(next.budget.currency),
+    ),
+    currency: next.budget.currency,
+    steps: next.steps.map((step) => ({
+      name: step.name,
+      options: next.editable.steps
+        ? padOptions(step.options.map((option) => option.label))
+        : step.options.map((option) => option.label),
+    })),
+    threshold: String(next.threshold),
+  };
+}
+
+function firstPlan(
+  planId: string,
+  initialPlan: unknown,
+): OrganizerPlanData | null {
+  if (initialPlan === null || typeof initialPlan !== "object") {
+    return null;
+  }
+  const parsed = parsePlan(initialPlan);
+  if (!parsed || parsed.id !== planId || parsed.state === "locked") {
+    return null;
+  }
+  return parsed;
+}
+
+function OrganizerPlanBody({
+  planId,
+  initialPlan,
+}: OrganizerPlanProps): ReactNode {
   const router = useRouter();
   const t = useTranslations("plans");
   const tCreate = useTranslations("Create");
@@ -675,15 +726,19 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
   const tReason = useTranslations("errors.reason");
   const tFields = useTranslations("errors.fields");
 
-  const [load, setLoad] = useState<LoadState>("loading");
-  const [plan, setPlan] = useState<OrganizerPlanData | null>(null);
-  const [title, setTitle] = useState("");
-  const [timezone, setTimezone] = useState("");
-  const [windows, setWindows] = useState<WindowDraft[]>([]);
-  const [amount, setAmount] = useState("");
-  const [currency, setCurrency] = useState("EGP");
-  const [steps, setSteps] = useState<StepDraft[]>([]);
-  const [threshold, setThreshold] = useState("");
+  const [first] = useState(() => firstPlan(planId, initialPlan));
+  const [firstDrafts] = useState(() => (first ? planDrafts(first) : null));
+  const [load, setLoad] = useState<LoadState>(first ? "loaded" : "error");
+  const [plan, setPlan] = useState<OrganizerPlanData | null>(first);
+  const [title, setTitle] = useState(firstDrafts?.title ?? "");
+  const [timezone, setTimezone] = useState(firstDrafts?.timezone ?? "");
+  const [windows, setWindows] = useState<WindowDraft[]>(
+    firstDrafts?.windows ?? [],
+  );
+  const [amount, setAmount] = useState(firstDrafts?.amount ?? "");
+  const [currency, setCurrency] = useState(firstDrafts?.currency ?? "EGP");
+  const [steps, setSteps] = useState<StepDraft[]>(firstDrafts?.steps ?? []);
+  const [threshold, setThreshold] = useState(firstDrafts?.threshold ?? "");
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [rejectedFrozen, setRejectedFrozen] = useState<Set<string>>(
     () => new Set(),
@@ -692,32 +747,15 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
   const [submitting, setSubmitting] = useState(false);
 
   function applyPlan(next: OrganizerPlanData): void {
+    const drafts = planDrafts(next);
     setPlan(next);
-    setTitle(next.title);
-    setTimezone(next.timezone);
-    setWindows(
-      next.windows.map((window) => ({
-        localDate: window.localDate,
-        startLocal: toHm(window.startLocal),
-        endLocal: toHm(window.endLocal),
-      })),
-    );
-    setAmount(
-      amountMinorToDecimal(
-        next.budget.amountMinor,
-        exponentFor(next.budget.currency),
-      ),
-    );
-    setCurrency(next.budget.currency);
-    setSteps(
-      next.steps.map((step) => ({
-        name: step.name,
-        options: next.editable.steps
-          ? padOptions(step.options.map((option) => option.label))
-          : step.options.map((option) => option.label),
-      })),
-    );
-    setThreshold(String(next.threshold));
+    setTitle(drafts.title);
+    setTimezone(drafts.timezone);
+    setWindows(drafts.windows);
+    setAmount(drafts.amount);
+    setCurrency(drafts.currency);
+    setSteps(drafts.steps);
+    setThreshold(drafts.threshold);
   }
 
   async function loadPlan(): Promise<void> {
@@ -761,65 +799,6 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
       setPlan(null);
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setPlan(null);
-      setFieldErrors([]);
-      setRejectedFrozen(new Set());
-      setFormError(null);
-      try {
-        const response = await fetch(`/api/v1/plans/${planId}`, {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        if (isPlanLockedResponse(response.status, body)) {
-          setLoad("locked");
-          setPlan(null);
-          router.replace(`/plans/${planId}/confirmed`);
-          return;
-        }
-        if (!response.ok) {
-          setLoad("error");
-          setPlan(null);
-          return;
-        }
-        const parsed = parsePlan(body);
-        if (!parsed || parsed.id !== planId) {
-          setLoad("error");
-          setPlan(null);
-          return;
-        }
-        if (parsed.state === "locked") {
-          setLoad("locked");
-          setPlan(null);
-          router.replace(`/plans/${planId}/confirmed`);
-          return;
-        }
-        applyPlan(parsed);
-        setLoad("loaded");
-      } catch {
-        if (!cancelled) {
-          setLoad("error");
-          setPlan(null);
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, [planId, router]);
 
   function fieldCode(path: string): string | undefined {
     return fieldErrors.find((field) => field.path === path)?.code;
@@ -1740,10 +1719,13 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
   );
 }
 
-export function OrganizerPlan({ planId }: OrganizerPlanProps): ReactNode {
+export function OrganizerPlan({
+  planId,
+  initialPlan,
+}: OrganizerPlanProps): ReactNode {
   return (
     <LanguageControl>
-      <OrganizerPlanBody planId={planId} />
+      <OrganizerPlanBody planId={planId} initialPlan={initialPlan} />
     </LanguageControl>
   );
 }

@@ -16,6 +16,7 @@ import { POST as createAccount } from "../../accounts/route";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { POST as createPlan } from "../route";
 import { closeDatabase } from "@/server/plans/http";
+import { loadOrganizerPlanPage } from "@/server/plans/page-data";
 import {
   GET,
   PATCH,
@@ -293,7 +294,7 @@ type OrganizerPlanBody = {
 };
 
 describe("GET /v1/plans/{planId}", () => {
-  it("returns the organizer document with editable, counts, and participants in created_at then id order, and includes no starting points, step picks, or itinerary", async () => {
+  it("T-001-36/AC-1 returns the organizer document with editable, counts, and participants in created_at then id order, and includes no starting points, step picks, or itinerary", async () => {
     const email = track(uniqueEmail("org"));
     const organizer = await register(email, "Omar");
     const plan = await openPlan(organizer.token, { title: "Thursday in Maadi" });
@@ -421,7 +422,24 @@ describe("GET /v1/plans/{planId}", () => {
     );
   });
 
-  it("returns 403 organizer_only for a participant, invited account, or link reader, 404 for a stranger, and 409 plan_locked when locked", async () => {
+  it("T-001-36/AC-1 sends the same view the page loader returns for the same cookies", async () => {
+    const organizer = await register(track(uniqueEmail("same")), "Omar");
+    const plan = await openPlan(organizer.token);
+    const cookie = `hp_session=${organizer.token}`;
+
+    const response = await getPlan(plan.id, cookie);
+    const page = await loadOrganizerPlanPage(plan.id, (name) =>
+      name === "hp_session" ? organizer.token : null,
+    );
+
+    expect(response.status).toBe(200);
+    expect(page.kind).toBe("ok");
+    if (page.kind === "ok") {
+      expect(await response.json()).toEqual(JSON.parse(JSON.stringify(page.view)));
+    }
+  });
+
+  it("T-001-36/AC-1 returns 403 organizer_only for a participant, invited account, or link reader, 404 for a stranger, and 409 plan_locked when locked", async () => {
     const orgEmail = track(uniqueEmail("lock"));
     const memberEmail = track(uniqueEmail("member"));
     const invitedEmail = track(uniqueEmail("invited"));
