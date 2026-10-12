@@ -46,7 +46,7 @@ Date: 2026-10-12. Main: `8906fd6`, kit pin `c8b3ca7` (v3.0.3).
 | 16 | Done: T-001-34 (#85). On 409 `attempt_in_progress` after a `PUT` response or `PATCH` plan, the response form and organizer plan now refetch instead of showing a save error | New ticket | First ticket run end to end by `sdlc run` |
 | 17 | Upgrade Next.js 15 → 16 (installed 15.5.27; 15.x end of life 2026-10-21) | New ticket | Its own lead PR adds the ticket. After it: ESLint import boundaries in the gate (joins item 11), and a frontend builder agent with the Next.js MCP (needs Next 16) |
 | 18 | Done: patterns rulebook (ADR-0006). `skills/frontend-patterns` and `skills/backend-patterns` each gain a "Where things go" table and a "Use X, not Y" list. Existing code moves to it only when a ticket touches it | Lead | This lead PR |
-| 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | This lead PR. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5 |
+| 19 | Done: vendored `impeccable` and `webapp-testing` under `skills/vendor/`, pinned in `skills.lock.json` | Lead | This lead PR. Runner agents read them but cannot run their scripts (no shell, no Python, no Playwright yet); `webapp-testing` becomes usable with item 5. The `impeccable` launcher (`scripts/impeccable`) downloads an executable on first run: do not add it to an agent's allowlist without a lead decision |
 
 ## Decisions the lead owes
 

@@ -48,7 +48,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 
 - `now()` from `src/server/clock.ts`, not `new Date()` or `Date.now()`.
-- `db` from `src/server/db/client.ts` and Drizzle, not raw `postgres` clients or a second ORM (tests excepted).
+- Database through an existing `db()` (the one in your module, else `db()` from `src/server/plans/http.ts`; each wraps `createDb()` from `src/server/db/client.ts`) and Drizzle. Not a new `createDb()` singleton, a raw `postgres(...)` client or a second ORM (tests excepted).
 - `authorize()` before any read or write, not inline role checks.
 - `httpError` / `errorResponse` and the codes in `errors.ts`, not ad hoc `NextResponse.json({ error })`.
 - Google calls through `src/server/google/places.ts` / `routes.ts`, not `fetch` to Google.
