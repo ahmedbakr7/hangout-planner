@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useState, type ReactNode } from "react";
 import { LanguageControl } from "@/components/language-control";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +87,7 @@ type LoadedDoc =
 
 export type ProposalViewProps = {
   planId: string;
+  initialProposal: unknown;
 };
 
 function isPlanState(value: unknown): value is PlanState {
@@ -601,15 +602,30 @@ function CountsLine({
   );
 }
 
-function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
+function firstDoc(initialProposal: unknown): LoadedDoc | null {
+  const outcome = parseFetchBody(200, initialProposal);
+  if (outcome.kind === "blocked") {
+    return { kind: "blocked", block: outcome.block };
+  }
+  if (outcome.kind === "proposed") {
+    return { kind: "proposed", proposal: outcome.proposal };
+  }
+  return null;
+}
+
+function ProposalViewBody({
+  planId,
+  initialProposal,
+}: ProposalViewProps): ReactNode {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("proposal");
   const tCode = useTranslations("errors.code");
   const tReason = useTranslations("errors.reason");
 
-  const [load, setLoad] = useState<LoadState>("loading");
-  const [doc, setDoc] = useState<LoadedDoc | null>(null);
+  const [first] = useState(() => firstDoc(initialProposal));
+  const [load, setLoad] = useState<LoadState>(first ? "loaded" : "error");
+  const [doc, setDoc] = useState<LoadedDoc | null>(first);
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -672,39 +688,6 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
       setLoad("error");
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setDoc(null);
-      setFormError(null);
-      try {
-        const response = await fetch(`/api/v1/plans/${planId}/proposal`, {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        applyOutcome(parseFetchBody(response.status, body));
-      } catch {
-        if (!cancelled) {
-          setDoc(null);
-          setLoad("error");
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, [planId, router]);
 
   async function retryAttempt(): Promise<void> {
     setBusy(true);
@@ -1098,10 +1081,13 @@ function ProposalViewBody({ planId }: ProposalViewProps): ReactNode {
   );
 }
 
-export function ProposalView({ planId }: ProposalViewProps): ReactNode {
+export function ProposalView({
+  planId,
+  initialProposal,
+}: ProposalViewProps): ReactNode {
   return (
     <LanguageControl>
-      <ProposalViewBody planId={planId} />
+      <ProposalViewBody planId={planId} initialProposal={initialProposal} />
     </LanguageControl>
   );
 }

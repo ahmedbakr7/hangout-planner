@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import { resetClock } from "@/server/clock";
+import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
 import { generateId } from "@/server/ids";
 import { PLACES_SEARCH_TEXT_URL, type FetchFn } from "@/server/google/places";
 import { ROUTES_MATRIX_URL } from "@/server/google/routes";
@@ -460,7 +461,7 @@ type ProposalGetBody = {
 };
 
 describe("GET /v1/plans/{planId}/proposal", () => {
-  it("returns the organizer collecting and blocked shapes, and the organizer and participant proposed shapes from the contract", async () => {
+  it("T-001-39/AC-1 returns the organizer collecting and blocked shapes, and the organizer and participant proposed shapes from the contract", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const nour = await register(track(uniqueEmail("nour")), "Nour");
     const ziad = await register(track(uniqueEmail("ziad")), "Ziad");
@@ -601,7 +602,43 @@ describe("GET /v1/plans/{planId}/proposal", () => {
     expect(visitorBody.proposal?.legs).toEqual(organizerBody.proposal?.legs);
   });
 
-  it("a participant while collecting or blocked gets 409 not_proposed; locked is 409 plan_locked; a stranger gets 404 with the envelope only", async () => {
+  it("T-001-39/AC-1 an invited account, a link reader and an unknown plan get 404 with the envelope only", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const invited = await register(track(uniqueEmail("invited")), "Hana");
+    const plan = await openPlan(organizer.token);
+    await sql`
+      INSERT INTO invitations (id, plan_id, account_id, distinguisher)
+      VALUES (${generateId("inv_")}, ${plan.id}, ${invited.account.id}, 'k7m2')
+    `;
+    const linkToken = generateCookieToken();
+    const linkId = `lnk_${randomBytes(8).toString("hex")}`;
+    await sql`
+      INSERT INTO link_sessions (id, token_hash, expires_at)
+      VALUES (${linkId}, ${hashCookieToken(linkToken)}, ${new Date("2099-01-01T00:00:00.000Z")})
+    `;
+    await sql`INSERT INTO link_session_plans (link_session_id, plan_id) VALUES (${linkId}, ${plan.id})`;
+
+    const notFound = {
+      error: { code: "not_found", message: "plan not found", fields: [] },
+    };
+    const inviteRes = await proposalGet(plan.id, `hp_session=${invited.token}`);
+    expect(inviteRes.status).toBe(404);
+    expect(await inviteRes.json()).toEqual(notFound);
+    const linkRes = await proposalGet(plan.id, `hp_link=${linkToken}`);
+    expect(linkRes.status).toBe(404);
+    expect(await linkRes.json()).toEqual(notFound);
+    const unknown = await proposalGet(
+      generateId("pln_"),
+      `hp_session=${organizer.token}`,
+    );
+    expect(unknown.status).toBe(404);
+    expect(await unknown.json()).toEqual(notFound);
+
+    await sql`DELETE FROM link_session_plans WHERE link_session_id = ${linkId}`;
+    await sql`DELETE FROM link_sessions WHERE id = ${linkId}`;
+  });
+
+  it("T-001-39/AC-1 a participant while collecting or blocked gets 409 not_proposed; locked is 409 plan_locked; a stranger gets 404 with the envelope only", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const stranger = await register(track(uniqueEmail("stranger")), "Ziad");
