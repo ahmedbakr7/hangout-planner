@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
-  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -18,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSessionSlide } from "@/components/use-session-slide";
 
 const AMOUNT_MINOR_MAX = 100_000_000_000;
 const TITLE_MAX = 80;
@@ -41,8 +41,6 @@ const DEFAULT_CURRENCIES: CurrencyOption[] = [
 
 const selectClassName =
   "flex h-9 w-full rounded-sm border border-input bg-background px-3 py-1 text-sm text-foreground text-start shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
-
-type SessionState = "checking" | "signed_out" | "signed_in";
 
 type FieldError = {
   path: string;
@@ -286,7 +284,11 @@ function FieldBlock({
   );
 }
 
-function CreateFormFields(): ReactNode {
+function CreateFormFields({
+  currencies,
+}: {
+  currencies: CurrencyOption[];
+}): ReactNode {
   const router = useRouter();
   const t = useTranslations("Create");
   const tCode = useTranslations("errors.code");
@@ -298,39 +300,11 @@ function CreateFormFields(): ReactNode {
   const [windows, setWindows] = useState<WindowDraft[]>([]);
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState(DEFAULT_CURRENCY);
-  const [currencies, setCurrencies] = useState<CurrencyOption[]>(DEFAULT_CURRENCIES);
   const [steps, setSteps] = useState<StepDraft[]>([]);
   const [threshold, setThreshold] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadCurrencies(): Promise<void> {
-      try {
-        const response = await fetch("/api/v1/currencies", {
-          credentials: "same-origin",
-        });
-        if (!response.ok || cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        const parsed = parseCurrencies(body);
-        if (!cancelled && parsed) {
-          setCurrencies(parsed);
-        }
-      } catch {
-        return;
-      }
-    }
-
-    void loadCurrencies();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   function fieldCode(path: string): string | undefined {
     return fieldErrors.find((field) => field.path === path)?.code;
@@ -936,62 +910,22 @@ function CreateFormFields(): ReactNode {
   );
 }
 
-function CreateFormRoot(): ReactNode {
-  const t = useTranslations("Create");
-  const [session, setSession] = useState<SessionState>("checking");
+export function CreateForm({
+  initialCurrencies,
+}: {
+  initialCurrencies: unknown;
+}): ReactNode {
+  useSessionSlide(initialCurrencies !== null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMe(): Promise<void> {
-      try {
-        const response = await fetch("/api/v1/me", { credentials: "same-origin" });
-        if (cancelled) {
-          return;
-        }
-        if (!response.ok) {
-          setSession("signed_out");
-          return;
-        }
-        setSession("signed_in");
-      } catch {
-        if (!cancelled) {
-          setSession("signed_out");
-        }
-      }
-    }
-
-    void loadMe();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (session === "checking") {
-    return (
-      <LanguageControl>
-        <FormShell>
-          <CardHeader>
-            <h1 className="title text-foreground text-start text-pretty">
-              {t("title")}
-            </h1>
-          </CardHeader>
-        </FormShell>
-      </LanguageControl>
-    );
-  }
-
-  if (session === "signed_out") {
+  if (initialCurrencies === null) {
     return <AccountGate next="/plans/new" />;
   }
 
   return (
     <LanguageControl>
-      <CreateFormFields />
+      <CreateFormFields
+        currencies={parseCurrencies(initialCurrencies) ?? DEFAULT_CURRENCIES}
+      />
     </LanguageControl>
   );
-}
-
-export function CreateForm(): ReactNode {
-  return <CreateFormRoot />;
 }
