@@ -318,10 +318,10 @@ function stubInboxFetch(config: InboxConfig = {}) {
   return fetchMock;
 }
 
-function renderInvite(planId = PLAN_ID) {
+function renderInvite(initial: unknown = inviteBody("ok").body) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <InvitePanel planId={planId} />
+      <InvitePanel planId={PLAN_ID} initialInvite={initial} />
     </NextIntlClientProvider>,
   );
 }
@@ -336,8 +336,9 @@ function renderInbox() {
 
 async function renderLoadedInvite(config: InviteConfig = {}) {
   const fetchMock = stubInviteFetch({ invite: "ok", ...config });
-  renderInvite();
+  renderInvite(inviteBody(config.invite ?? "ok").body);
   await screen.findByText(shareUrl());
+  expect(getCall(fetchMock, INVITE_GET)).toBeUndefined();
   return fetchMock;
 }
 
@@ -451,7 +452,7 @@ describe("InvitePanel", () => {
     expect(writeText).toHaveBeenCalledWith(shareUrl());
   });
 
-  it("copies the share URL with a secondary copy control", async () => {
+  it("T-001-41/AC-6 copies the share URL with a secondary copy control", async () => {
     const writeText = stubClipboard("ok");
     await renderLoadedInvite({ invite: "empty" });
     fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
@@ -474,7 +475,7 @@ describe("InvitePanel", () => {
 
   it("T-001-32/AC-1 the sent list shows each invited account once, with display name and status invited, joined, or answered; an empty list uses text-muted-foreground", async () => {
     stubInviteFetch({ invite: "empty" });
-    renderInvite();
+    renderInvite(inviteBody("empty").body);
     const empty = await screen.findByText("No in-app invitations yet.");
     expect(classTokens(empty)).toContain("text-muted-foreground");
     expect(screen.queryByRole("listitem")).toBeNull();
@@ -499,7 +500,7 @@ describe("InvitePanel", () => {
 
   it("shows the distinguisher only when another row in that list has the same display name", async () => {
     stubInviteFetch({ invite: "collision" });
-    renderInvite();
+    renderInvite(inviteBody("collision").body);
     expect(await screen.findByText("Hana")).toBeTruthy();
     const hana = sentItems().find((item) => item.textContent?.includes("Hana"));
     expect(hana?.textContent).not.toContain("k7m2");
@@ -565,7 +566,7 @@ describe("InvitePanel", () => {
     });
   });
 
-  it("T-001-32/AC-1 sending an invite adds the invited account to the sent list", async () => {
+  it("T-001-41/AC-6 T-001-32/AC-1 sending an invite adds the invited account to the sent list", async () => {
     await renderLoadedInvite({ invite: "empty", send: "ok" });
     expect(sentItems()).toHaveLength(0);
     fireEvent.change(screen.getByLabelText("Invitee email"), {
@@ -591,9 +592,12 @@ describe("InvitePanel", () => {
     expect(sentItems()).toHaveLength(2);
   });
 
-  it("while locked this surface is absent", async () => {
-    stubInviteFetch({ invite: "locked" });
-    renderInvite();
+  it("T-001-41/AC-6 while locked this surface is absent", async () => {
+    await renderLoadedInvite({ invite: "ok", send: "locked" });
+    fireEvent.change(screen.getByLabelText("Invitee email"), {
+      target: { value: "hana@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Send invite" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
@@ -619,25 +623,49 @@ describe("InvitePanel", () => {
     );
   });
 
+  it("T-001-41/AC-2 shows the share link and invitation rows from the initial data without fetching", async () => {
+    const fetchMock = stubInviteFetch({ invite: "ok" });
+    renderInvite(inviteBody("ok").body);
+
+    expect(screen.getByText(shareUrl())).toBeTruthy();
+    expect(sentItems()).toHaveLength(2);
+    expect(screen.getByText("Hana")).toBeTruthy();
+    expect(screen.getByText("Omar")).toBeTruthy();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-41/AC-4 starts in the load error state with no plan data when the initial data is null", async () => {
+    const fetchMock = stubInviteFetch({ invite: "ok" });
+    renderInvite(null);
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("This invite page could not be loaded.");
+    expect(screen.queryByText(shareUrl())).toBeNull();
+    expect(screen.queryByLabelText("Invitee email")).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-41/AC-4 treats initial data that is not an invite body as a load error", () => {
+    stubInviteFetch({ invite: "ok" });
+    renderInvite({ join_path: 7, invitations: "none" });
+    expect(screen.getByRole("alert").textContent).toBe(
+      "This invite page could not be loaded.",
+    );
+  });
+
   it("T-001-32/AC-1 a load failure uses text-destructive and retry and omits another plan's link, title, or people", async () => {
-    let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const method = (init?.method ?? "GET").toUpperCase();
       if (url === INVITE_GET && method === "GET") {
-        gets += 1;
-        if (gets === 1) {
-          return jsonResponse(500, {
-            error: { code: "upstream", message: "fail", fields: [] },
-            ...leakedInvite,
-          });
-        }
         return jsonResponse(200, { join_path: JOIN_PATH, invitations: [] });
       }
       throw new Error(`unexpected fetch ${method} ${url}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderInvite();
+    renderInvite(null);
 
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
@@ -646,10 +674,10 @@ describe("InvitePanel", () => {
     expect(screen.queryByText(shareUrl())).toBeNull();
     const retry = screen.getByRole("button", { name: "Retry" });
     expect(classTokens(retry)).not.toContain("bg-primary");
-    expect(getCall(fetchMock, INVITE_GET)?.credentials).toBe("same-origin");
 
     fireEvent.click(retry);
     expect(await screen.findByText(shareUrl())).toBeTruthy();
+    expect(getCall(fetchMock, INVITE_GET)?.credentials).toBe("same-origin");
     expect(screen.queryByRole("alert")).toBeNull();
     expectLeakedInviteAbsent();
   });
