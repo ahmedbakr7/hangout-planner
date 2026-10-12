@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-12. Main: `480b6f4`, kit pin `004df5f` (v3.2.1).
+Date: 2026-10-12. Main: `480b6f4`, kit pin `38f11c3` (tag v3.2.1).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
