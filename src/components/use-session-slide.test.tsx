@@ -202,13 +202,23 @@ describe("session slide on the real stack", () => {
       expect(page.kind).toBe("ok");
       expect(await storedExpiry()).toBe(shortExpiry.getTime());
 
-      const me = await getMe(
-        new Request("http://localhost/api/v1/me", {
-          headers: { cookie: `hp_session=${invitee.token}` },
-        }),
-      );
-      expect(me.status).toBe(200);
-      expect(await storedExpiry()).toBeGreaterThan(shortExpiry.getTime());
+      // The stub answers the hook's fetch with the real handler and the
+      // browser's cookie, as a same-origin request would carry it.
+      const handled: number[] = [];
+      vi.stubGlobal("fetch", async (input: string) => {
+        const answer = await getMe(
+          new Request(`http://localhost${input}`, {
+            headers: { cookie: `hp_session=${invitee.token}` },
+          }),
+        );
+        handled.push(answer.status);
+        return answer;
+      });
+      render(<Probe signedIn />);
+      await vi.waitFor(async () => {
+        expect(await storedExpiry()).toBeGreaterThan(shortExpiry.getTime());
+      });
+      expect(handled).toEqual([200]);
     } finally {
       delete process.env.HP_HASH_TEST;
     }
