@@ -41,6 +41,8 @@ mode = "forge"
 # One account opens, reviews and leads here, so roles are taken on trust (write access is still
 # required) and every result says "trust-based". Drop this once reviewers have their own identities.
 trust_unsigned = true
+# Forge repo for `sdlc review publish` outside CI (CI sets GITHUB_REPOSITORY).
+repo = "ahmedbakr7/hangout-planner"
 
 [scope]
 # always_allowed = []        # globs any play may touch (lockfiles, snapshots)

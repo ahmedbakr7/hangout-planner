@@ -43,8 +43,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Error bodies | `httpError` in `src/server/http/errors.ts`, sent with `errorResponse` | `src/server/auth/http.ts` |
 | View shapes (what a screen receives) | `src/server/<area>/views.ts` | `organizerPlanView` in `src/server/plans/views.ts` |
 | Loading and assembling for handlers | `src/server/<area>/http.ts` | `assembleOrganizerPlan` in `src/server/plans/http.ts` |
-| Page loader (ADR-0007): lookup, role and view for one surface, returning a `kind` union; the `GET` handler and the page both call it | `src/server/<area>/page-data.ts` | `loadOrganizerPlanPage` once T-001-36 merges |
-| Plan role | `src/server/plans/role.ts`: `planRoleFor(request, plan)` in a handler, `planRoleForCookies(readCookie, plan)` in a page loader (added by T-001-36) | import them; never copy the role helpers into a route file |
+| Page loader (ADR-0007): lookup, role and view for one surface, returning a `kind` union; the `GET` handler and the page both call it | `src/server/<area>/page-data.ts` | `loadOrganizerPlanPage` in `src/server/plans/page-data.ts` |
+| Plan role | `src/server/plans/role.ts`: `planRoleFor(request, plan)` in a handler, `planRoleForCookies(readCookie, plan)` in a page loader | import them; never copy the role helpers into a route file |
 | Schema / migration | `src/server/db/schema.ts` and a new file in `drizzle/` | `drizzle/0001_init.sql` |
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
 | Handler-level test | `e2e/<name>.e2e.ts` (test agent only) | `e2e/attempt-in-progress.e2e.ts` |
