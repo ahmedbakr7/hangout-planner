@@ -11,6 +11,11 @@ import { generateId } from "@/server/ids";
 import { loadPlanJoinPage } from "@/server/join/page-data";
 import { closeDatabase as closePlans } from "@/server/plans/http";
 
+vi.mock("@/server/join/page-data", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/join/page-data")>();
+  return { ...actual, loadPlanJoinPage: vi.fn(actual.loadPlanJoinPage) };
+});
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
@@ -261,8 +266,11 @@ describe("GET /api/v1/plans/{planId}/opening", () => {
     await addParticipant(plan.id, member.id);
     await invite(plan.id, invitee.id);
 
+    vi.mocked(loadPlanJoinPage).mockClear();
     const joined = await get(plan.id, `hp_session=${invitee.token}`);
     expect(joined.status).toBe(200);
+    expect(loadPlanJoinPage).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(loadPlanJoinPage).mock.calls[0]?.[0]).toBe(plan.id);
     expect(await joined.json()).toEqual({ plan_id: plan.id, next: "join", preview: PREVIEW });
 
     const asOrganizer = await get(plan.id, `hp_session=${organizer.token}`);
@@ -280,11 +288,14 @@ describe("GET /api/v1/plans/{planId}/opening", () => {
     const plan = await openPlan(organizer.token);
     const linkToken = await addLinkReader(plan.id);
 
-    for (const response of [
+    vi.mocked(loadPlanJoinPage).mockClear();
+    const responses = [
       await get(plan.id, `hp_link=${linkToken}`),
       await get(plan.id, `hp_session=${stranger.token}`),
       await get(generateId("pln_"), `hp_session=${organizer.token}`),
-    ]) {
+    ];
+    expect(loadPlanJoinPage).toHaveBeenCalledTimes(3);
+    for (const response of responses) {
       expect(response.status).toBe(404);
       const body = (await response.json()) as { error: { code: string } };
       expect(Object.keys(body)).toEqual(["error"]);

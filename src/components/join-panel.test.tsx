@@ -559,4 +559,15 @@ describe("JoinPanel initial data", () => {
     expect(getCall(fetchMock, JOIN_GET)?.credentials).toBe("same-origin");
     expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
   });
+
+  it("T-001-42/AC-6 the first-load fetch runs only when no initial opening is given", () => {
+    const withToken = stubFetch({ me: "in", opening: "join" });
+    const first = renderInitial({ token: JOIN_TOKEN });
+    expect(withToken).toHaveBeenCalled();
+    first.unmount();
+
+    const withInitial = stubFetch();
+    renderInitial({ token: JOIN_TOKEN, initialOpening: null });
+    expect(withInitial).not.toHaveBeenCalled();
+  });
 });
