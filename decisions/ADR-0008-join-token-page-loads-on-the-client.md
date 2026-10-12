@@ -10,6 +10,7 @@ status: accepted
 - Date: 2026-10-12
 - Source: lead
 - Supersedes: none
+- Amends: ADR-0007, for the `/join/{token}` page only, and its sentence that the join route's `planRoleFor` moves with that page's ticket
 
 ## Context
 
