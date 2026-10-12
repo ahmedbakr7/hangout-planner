@@ -21,7 +21,7 @@ A page loads its first data on the server. It uses the same code path as the `GE
 
 - **One loader per surface**, in `src/server/<area>/page-data.ts`. It takes the route params and a cookie reader, `(name: string) => string | null`. It runs the same lookup, authorization and view function as the `GET` handler. It returns a result union: `{ kind: "ok", view }`, or one `kind` per non-200 outcome that handler has today.
 - **The `GET` handler calls the loader.** It maps each `kind` to the response it sends today. Statuses, error codes and bodies do not change.
-- **Authorization reads cookies through the reader**, not through `Request`. `src/server/plans/role.ts` gains a cookie-reader form of `planRoleFor`, and the `Request` form calls it. A route file does not keep its own copy of the role helpers.
+- **Authorization reads cookies through the reader**, not through `Request`. `src/server/plans/role.ts` gains a cookie-reader form of `planRoleFor`, and the `Request` form calls it. A route file does not keep its own copy of the role helpers. The join route's own `planRoleFor` takes a join token, and it moves with the `/join/{token}` page ticket.
 - **The page** (`src/app/<route>/page.tsx`, a Server Component) builds the reader from `await cookies()` and calls the loader.
   - On `ok`, it passes `JSON.parse(JSON.stringify(view))` to the screen component as its initial data. That is the body `NextResponse.json` would send, so the component's existing parser reads it unchanged.
   - Each other `kind` maps to what the component does today for that status: a `redirect()` where the component redirects, and the component's existing error state where it shows one.

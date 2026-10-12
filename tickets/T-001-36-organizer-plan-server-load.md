@@ -23,8 +23,8 @@ requirements:
   - N-001-15
 acceptance_criteria:
   - "AC-1: GET /api/v1/plans/{planId} returns the same status and body as before for the organizer (200 with the organizer view), a participant (403, organizer only), a stranger or unknown plan (404) and a locked plan (409 plan_locked)"
-  - "AC-2: opening /plans/{planId} as the organizer returns HTML that already contains the plan title and the threshold, and the organizer plan component makes no GET /api/v1/plans/{planId} request on its first render"
-  - "AC-3: opening /plans/{planId} redirects to /plans/{planId}/confirmed when the plan is locked, and shows the organizer plan error state, with no plan data, for a participant, a stranger or an unknown plan"
+  - "AC-2: the /plans/{planId} page, called with the organizer's session cookie, renders OrganizerPlan with initial data that holds the plan's title and threshold, and OrganizerPlan given that data shows the title and threshold and makes no GET /api/v1/plans/{planId} request on its first render"
+  - "AC-3: the /plans/{planId} page redirects to /plans/{planId}/confirmed when the plan is locked, and renders OrganizerPlan with no initial data, which shows the error state and no plan data, for a participant's cookie, no cookie, or an unknown plan id"
   - "AC-4: after a PATCH from the organizer plan, the component still loads the plan with GET /api/v1/plans/{planId} as it does today, including the refetch on 409 attempt_in_progress"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
@@ -58,4 +58,7 @@ Follow ADR-0007 for the organizer plan page. This is the first page converted, a
   - The loader runs against the test database, for each kind.
   - The component renders with `initialPlan` and makes no fetch on first render. With `null`, it shows the error state.
   - The existing PATCH and refetch tests keep passing.
-- **Real-stack proof:** the test play proves AC-2 and AC-3. It requests the page HTML from the running app with the organizer's, a participant's and no session cookie.
+- **Real-stack proof (test play):** an `e2e/` test proves AC-2 and AC-3 in process, with no HTTP rendering. The harness cannot render pages over HTTP until roadmap item 5 (Playwright).
+  - Set the plan up through the real route handlers and database with `e2e/route-server.ts`: an organizer creates it, a participant joins, and one plan is locked.
+  - Call the page's default export directly, with `next/headers` mocked so `cookies()` returns that actor's cookies from the route-server jar, and with `redirect` from `next/navigation` mocked.
+  - Assert on the element it returns (an `OrganizerPlan` and its `initialPlan`) or on the redirect.
