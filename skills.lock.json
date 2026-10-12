@@ -1,4 +1,17 @@
 {
   "version": 1,
-  "skills": {}
+  "skills": {
+    "impeccable": {
+      "source": "https://github.com/pbakaus/impeccable",
+      "ref": "c63b8dd7dd5a5f3c32eaabe1af76d0694f863ed2",
+      "path": ".claude/skills/impeccable",
+      "sha256": "00d3c7a60f043a81b688e5a1aede38ae9e829c69bc3a7773d5dbe9b1fe60e28b"
+    },
+    "webapp-testing": {
+      "source": "https://github.com/anthropics/skills",
+      "ref": "dbd4588f9e1033efb41dad4bef2f7947c8993d44",
+      "path": "skills/webapp-testing",
+      "sha256": "3ded4688bd2037c39fe7f604a7e0ae8abac53fd95861e6b3c829baad25b29482"
+    }
+  }
 }

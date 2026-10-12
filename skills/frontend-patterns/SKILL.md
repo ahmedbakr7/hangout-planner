@@ -28,3 +28,28 @@ Change this lock only by a superseding ADR.
 - Do not format money with a floating-point multiply
 - Do not send starting coordinates, emails of other people, or Google key material to the browser
 - Clipboard failure leaves the link text on the page
+
+## Where things go
+
+Copy the named example; if nothing here or in the ticket settles it, stop and report (`AGENTS.md`).
+
+| What | Where | Copy |
+|---|---|---|
+| Page | `src/app/<route>/page.tsx`: awaits `params` / `searchParams`, renders one component | `src/app/plans/[planId]/page.tsx` |
+| Screen logic, data loading, writes | `src/components/<screen>.tsx` (`"use client"`), fetching `/api/v1/...` | `src/components/response-form.tsx` |
+| UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
+| Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
+| Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | any component |
+| Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
+
+Open: ADR-0001 says page loads call the server view functions; every page today renders a client component that fetches `/api/v1` (ADR-0006). Edit existing pages in today's pattern; a ticket that adds a page stops and asks.
+
+## Use X, not Y
+
+- `next/navigation` (`useRouter`), not `next/router`; no `next/head`.
+- `await params`, `await searchParams`, `await cookies()`; never read them synchronously.
+- Route handlers and `fetch` to `/api/v1`, not Server Actions, `getServerSideProps` or `getStaticProps`.
+- shadcn/ui primitives from `src/components/ui/`, not raw `<button>` / `<input>` or a second kit.
+- Semantic Tailwind classes, not hex values or inline `style` colors.
+- Logical utilities (`ms-`, `pe-`, `start-`), not `ml-`, `pr-`, `left-`.
+- Writes send `X-HP-Request: 1` and `credentials: "same-origin"`; copy the block from `response-form.tsx`, do not add a client fetch library.
