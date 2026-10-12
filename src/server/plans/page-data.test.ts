@@ -3,12 +3,13 @@ import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import { POST as createAccount } from "@/app/api/v1/accounts/route";
+import { GET as getConfirmed } from "@/app/api/v1/plans/[planId]/confirmed/route";
 import { POST as createPlan } from "@/app/api/v1/plans/route";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
 import { generateId } from "@/server/ids";
 import { closeDatabase as closePlans } from "@/server/plans/http";
-import { loadOrganizerPlanPage } from "@/server/plans/page-data";
+import { loadConfirmedPage, loadOrganizerPlanPage } from "@/server/plans/page-data";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -213,6 +214,157 @@ describe("loadOrganizerPlanPage", () => {
 
     expect(await loadOrganizerPlanPage(plan.id, reader({ hp_session: organizer.token }))).toEqual({
       kind: "locked",
+    });
+  });
+});
+
+async function addParticipant(planId: string, accountId: string): Promise<void> {
+  await sql`
+    INSERT INTO participants (id, plan_id, account_id, guest_session_id, display_name, distinguisher)
+    VALUES (${generateId("prt_")}, ${planId}, ${accountId}, NULL, 'Nour', 'a3k9')
+  `;
+}
+
+async function lockPlan(planId: string): Promise<void> {
+  await sql`UPDATE plans SET state = 'locked', locked_at = now() WHERE id = ${planId}`;
+}
+
+describe("GET /api/v1/plans/{planId}/confirmed", () => {
+  async function get(planId: string, cookie?: string): Promise<Response> {
+    return getConfirmed(
+      new Request(`http://localhost/api/v1/plans/${planId}/confirmed`, {
+        headers: cookie ? { cookie } : {},
+      }),
+      { params: Promise.resolve({ planId }) },
+    );
+  }
+
+  it("T-001-38/AC-1 answers 200, 404 and 409 not_locked as before", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const stranger = await register(uniqueEmail("stranger"), "Ziad");
+    const plan = await openPlan(organizer.token);
+
+    const early = await get(plan.id, `hp_session=${organizer.token}`);
+    expect(early.status).toBe(409);
+    const earlyBody = (await early.json()) as { error: { code: string; reason: string } };
+    expect(earlyBody.error.code).toBe("conflict");
+    expect(earlyBody.error.reason).toBe("not_locked");
+    expect((await get(plan.id, `hp_session=${stranger.token}`)).status).toBe(404);
+
+    await lockPlan(plan.id);
+    const ok = await get(plan.id, `hp_session=${organizer.token}`);
+    expect(ok.status).toBe(200);
+    expect(((await ok.json()) as { title: string }).title).toBe("Thursday in Maadi");
+    expect((await get(plan.id, `hp_session=${stranger.token}`)).status).toBe(404);
+    expect((await get(generateId("pln_"), `hp_session=${organizer.token}`)).status).toBe(404);
+  });
+});
+
+describe("loadConfirmedPage", () => {
+  it("T-001-38/AC-2 answers ok with the confirmed document for any caller with a role on a locked plan", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const member = await register(uniqueEmail("member"), "Nour");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const plan = await openPlan(organizer.token);
+    await addParticipant(plan.id, member.id);
+    await sql`
+      INSERT INTO invitations (id, plan_id, account_id, distinguisher)
+      VALUES (${generateId("inv_")}, ${plan.id}, ${invitee.id}, 'k7m2')
+    `;
+    await lockPlan(plan.id);
+
+    for (const token of [organizer.token, member.token, invitee.token]) {
+      const result = await loadConfirmedPage(plan.id, reader({ hp_session: token }));
+      expect(result.kind).toBe("ok");
+      if (result.kind === "ok") {
+        expect(result.doc.plan_id).toBe(plan.id);
+        expect(result.doc.title).toBe("Thursday in Maadi");
+        expect(result.doc.state).toBe("locked");
+      }
+    }
+  });
+
+  it("T-001-38/AC-1 answers ok for a link reader on a locked plan", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const plan = await openPlan(organizer.token);
+    await lockPlan(plan.id);
+    const linkToken = generateCookieToken();
+    const linkId = `lnk_${randomBytes(8).toString("hex")}`;
+    extraLinkIds.push(linkId);
+    await sql`
+      INSERT INTO link_sessions (id, token_hash, expires_at)
+      VALUES (${linkId}, ${hashCookieToken(linkToken)}, ${new Date("2099-01-01T00:00:00.000Z")})
+    `;
+    await sql`INSERT INTO link_session_plans (link_session_id, plan_id) VALUES (${linkId}, ${plan.id})`;
+
+    const result = await loadConfirmedPage(plan.id, reader({ hp_link: linkToken }));
+    expect(result.kind).toBe("ok");
+  });
+
+  it("T-001-38/AC-1 answers not_found for a stranger, no cookie and an unknown plan", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const stranger = await register(uniqueEmail("stranger"), "Ziad");
+    const plan = await openPlan(organizer.token);
+    await lockPlan(plan.id);
+
+    expect(await loadConfirmedPage(plan.id, reader({ hp_session: stranger.token }))).toEqual({
+      kind: "not_found",
+    });
+    expect(await loadConfirmedPage(plan.id, reader({}))).toEqual({ kind: "not_found" });
+    expect(
+      await loadConfirmedPage(generateId("pln_"), reader({ hp_session: organizer.token })),
+    ).toEqual({ kind: "not_found" });
+  });
+
+  it("T-001-38/AC-3 answers not_locked with the surface /opening names for each role and state", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const member = await register(uniqueEmail("member"), "Nour");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const plan = await openPlan(organizer.token);
+    await addParticipant(plan.id, member.id);
+    await sql`
+      INSERT INTO invitations (id, plan_id, account_id, distinguisher)
+      VALUES (${generateId("inv_")}, ${plan.id}, ${invitee.id}, 'k7m2')
+    `;
+    const linkToken = generateCookieToken();
+    const linkId = `lnk_${randomBytes(8).toString("hex")}`;
+    extraLinkIds.push(linkId);
+    await sql`
+      INSERT INTO link_sessions (id, token_hash, expires_at)
+      VALUES (${linkId}, ${hashCookieToken(linkToken)}, ${new Date("2099-01-01T00:00:00.000Z")})
+    `;
+    await sql`INSERT INTO link_session_plans (link_session_id, plan_id) VALUES (${linkId}, ${plan.id})`;
+
+    const next = async (cookies: Record<string, string>) =>
+      loadConfirmedPage(plan.id, reader(cookies));
+
+    expect(await next({ hp_session: organizer.token })).toEqual({
+      kind: "not_locked",
+      next: "organizer",
+    });
+    expect(await next({ hp_session: member.token })).toEqual({
+      kind: "not_locked",
+      next: "respond",
+    });
+    expect(await next({ hp_session: invitee.token })).toEqual({
+      kind: "not_locked",
+      next: "join",
+    });
+    expect(await next({ hp_link: linkToken })).toEqual({ kind: "not_locked", next: "join" });
+
+    await sql`UPDATE plans SET state = 'blocked' WHERE id = ${plan.id}`;
+    expect(await next({ hp_session: member.token })).toEqual({
+      kind: "not_locked",
+      next: "respond",
+    });
+    await sql`UPDATE plans SET state = 'proposed' WHERE id = ${plan.id}`;
+    expect(await next({ hp_session: member.token })).toEqual({
+      kind: "not_locked",
+      next: "proposal",
+    });
+    expect(await next({ hp_session: organizer.token })).toEqual({
+      kind: "not_locked",
+      next: "organizer",
     });
   });
 });

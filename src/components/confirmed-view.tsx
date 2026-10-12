@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import React, { useEffect, useState, type ReactNode } from "react";
+import React, { useState, type ReactNode } from "react";
 import { LanguageControl } from "@/components/language-control";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +50,7 @@ type ConfirmedDoc = {
 
 export type ConfirmedViewProps = {
   planId: string;
+  initialDoc: unknown;
 };
 
 function parseError(body: unknown): ParsedError {
@@ -379,15 +380,19 @@ function ConfirmedShell({ children }: { children: ReactNode }): ReactNode {
   );
 }
 
-function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
+function ConfirmedViewBody({
+  planId,
+  initialDoc,
+}: ConfirmedViewProps): ReactNode {
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("confirmed");
   const tCommon = useTranslations("common");
   const tProposal = useTranslations("proposal");
 
-  const [load, setLoad] = useState<LoadState>("loading");
-  const [doc, setDoc] = useState<ConfirmedDoc | null>(null);
+  const [first] = useState(() => parseConfirmed(initialDoc));
+  const [load, setLoad] = useState<LoadState>(first ? "loaded" : "error");
+  const [doc, setDoc] = useState<ConfirmedDoc | null>(first);
 
   async function redirectNotLocked(): Promise<boolean> {
     try {
@@ -443,79 +448,6 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
       setLoad("error");
     }
   }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function start(): Promise<void> {
-      setLoad("loading");
-      setDoc(null);
-      try {
-        const response = await fetch(`/api/v1/plans/${planId}/confirmed`, {
-          credentials: "same-origin",
-        });
-        if (cancelled) {
-          return;
-        }
-        const body = await readJson(response);
-        if (cancelled) {
-          return;
-        }
-        const outcome = parseFetchBody(response.status, body);
-        if (outcome.kind === "locked") {
-          setDoc(outcome.doc);
-          setLoad("loaded");
-          return;
-        }
-        if (outcome.kind === "not_locked") {
-          try {
-            const openingResponse = await fetch(`/api/v1/plans/${planId}/opening`, {
-              credentials: "same-origin",
-            });
-            if (cancelled) {
-              return;
-            }
-            if (openingResponse.status === 404) {
-              setDoc(null);
-              setLoad("redirecting");
-              router.replace(`/plans/${planId}/join`);
-              return;
-            }
-            const openingBody = await readJson(openingResponse);
-            if (cancelled) {
-              return;
-            }
-            const href = hrefFromOpeningBody(planId, openingBody);
-            if (href) {
-              setDoc(null);
-              setLoad("redirecting");
-              router.replace(href);
-              return;
-            }
-          } catch {
-            if (cancelled) {
-              return;
-            }
-          }
-          setDoc(null);
-          setLoad("error");
-          return;
-        }
-        setDoc(null);
-        setLoad("error");
-      } catch {
-        if (!cancelled) {
-          setDoc(null);
-          setLoad("error");
-        }
-      }
-    }
-
-    void start();
-    return () => {
-      cancelled = true;
-    };
-  }, [planId, router]);
 
   if (load === "error") {
     return (
@@ -634,10 +566,13 @@ function ConfirmedViewBody({ planId }: ConfirmedViewProps): ReactNode {
   );
 }
 
-export function ConfirmedView({ planId }: ConfirmedViewProps): ReactNode {
+export function ConfirmedView({
+  planId,
+  initialDoc,
+}: ConfirmedViewProps): ReactNode {
   return (
     <LanguageControl>
-      <ConfirmedViewBody planId={planId} />
+      <ConfirmedViewBody planId={planId} initialDoc={initialDoc} />
     </LanguageControl>
   );
 }
