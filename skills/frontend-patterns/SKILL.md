@@ -35,22 +35,23 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 
 | What | Where | Copy |
 |---|---|---|
-| Page | `src/app/<route>/page.tsx`: awaits `params` / `searchParams`, renders one component | `src/app/plans/[planId]/page.tsx` |
-| Screen logic, data loading, writes | `src/components/<screen>.tsx` (`"use client"`), fetching `/api/v1/...` | `src/components/response-form.tsx` |
+| Page | `src/app/<route>/page.tsx`, a Server Component: awaits `params` / `searchParams`, loads its first data through the surface loader (ADR-0007), renders one component | `src/app/plans/[planId]/page.tsx` once T-001-36 merges |
+| Screen logic, writes, refetch after writes | `src/components/<screen>.tsx` (`"use client"`): first render from the page's initial data, then `fetch` to `/api/v1/...` | `src/components/organizer-plan.tsx` once T-001-36 merges; `src/components/response-form.tsx` for writes |
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
 
-Open: ADR-0001 says page loads call the server view functions; every page today renders a client component that fetches `/api/v1` (ADR-0006). Edit existing pages in today's pattern; a ticket that adds a page stops and asks.
+Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: none. T-001-36 converts `/plans/{planId}` and becomes the example. A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.
 
 ## Use X, not Y
 
 Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 
 - `next/navigation` (`useRouter`), not `next/router`; no `next/head`.
-- `await params`, `await searchParams`, `await cookies()`; never read them synchronously.
-- Route handlers and `fetch` to `/api/v1`, not Server Actions, `getServerSideProps` or `getStaticProps`.
+- `await params`, `await searchParams`, `await cookies()`, `await headers()`; Next 16 removed synchronous access.
+- First page data through the surface loader in the page (ADR-0007); writes and refetches through route handlers and `fetch` to `/api/v1`. Not Server Actions, `getServerSideProps` or `getStaticProps`.
+- Next 16 defaults: `proxy.ts`, not `middleware.ts`, if request interception is ever needed; no `webpack` key in `next.config.ts` (Turbopack builds); no Cache Components or React Compiler without an ADR.
 - shadcn/ui primitives from `src/components/ui/`, not raw `<button>` / `<input>` or a second kit.
 - Semantic Tailwind classes, not hex values or inline `style` colors.
 - Logical utilities (`ms-`, `pe-`, `start-`), not `ml-`, `pr-`, `left-`.

@@ -174,3 +174,19 @@ What worked, with no revert and no status-repair commit:
 - Stale `/v1` text the PR did not create, now roadmap items 14 and 15: the pattern skills and ADR-0001/0002 still say the API lives at `/v1`. `src/i18n/fallback.test.ts:90` stubs `/v1/me`, so its 401 path is never exercised. The join route logs `/v1/join`.
 
 The review caught nothing in #75 itself, but it found a test that passes without testing its path, which neither the lead record nor CodeRabbit flagged.
+
+## Runner pilot: tickets driven by `sdlc run` (kit v3.0.3)
+
+Each play runs as a fresh headless agent (`sdlc run build|test|review <id> --agent <name>`). The lead's agent opens the PR, posts the records and merges once the lead approves in chat.
+
+| Ticket | PR | Build attempts | Test play | Review runs | Build start → PR green | Lead actions | Notes |
+|---|---|---|---|---|---|---|---|
+| T-001-34 (frontend, medium) | #85 | 1 | 1 | 1 | about 44 min to merge | 2 ("Go" to run, "Go" to approve) | Postgres was idle-restarted twice mid-run. The gate needs `DATABASE_URL` in the runner's environment. The reviewer wrote its model id in `reviewer:` |
+| T-001-35 (chore, `test: none`) | #88 | 1 (209 s) | none (`test: none`) | 2 | 14 min (05:28 → 05:42 UTC) | 1 ("Approve and go without asking") | Next.js 15.5 → 16.4 and the 9 test type errors. Merged 07:38, after waiting for the lead |
+
+Findings from T-001-35:
+
+1. **Runbook bug (Hangout):** `--extra` takes a file path. The roadmap passed a sentence, and the runner crashed with a `FileNotFoundError` traceback. The roadmap now uses `.sdlc-run/review-extra.md`. The kit's `--help` does not say it is a path (reported to the kit).
+2. **Kit doc gap:** review skill step 1 says missing test evidence fails review whenever `commands.integration` is set. It omits the `test: none` exemption that `gate.py` and `sdlc run` both apply. The first reviewer followed the skill and returned `request_changes`, asking for a test play that `sdlc run test` refuses. The second run, told where the exemption is in the code, verified it and approved. Reported to the kit.
+3. **`sdlc/approval` on a standard-lane ticket** goes green on the reviewer record alone. The lead's chat approval is Hangout's own rule. The kit does not enforce it for that lane.
+4. **Worker restart:** the agent's worker restarted between the merge of #88 and its lead record. The record was posted after the merge and says so. Next time, post the record before merging, in the same step.
