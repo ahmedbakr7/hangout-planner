@@ -1,15 +1,8 @@
 import { NextResponse } from "next/server";
-import { errorResponse, logged } from "@/server/auth/http";
+import { errorResponse, logged, readCookie } from "@/server/auth/http";
 import { httpError } from "@/server/http/errors";
-import { asPlanState } from "@/server/join/open";
-import type { PlanState } from "@/server/plans/edit-rules";
-import { loadConfirmedDocument } from "@/server/plans/confirmed";
-import {
-  loadPlanRow,
-  notFoundResponse,
-  storedState,
-} from "@/server/plans/http";
-import { planRoleFor } from "@/server/plans/role";
+import { notFoundResponse } from "@/server/plans/http";
+import { loadConfirmedPage } from "@/server/plans/page-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,20 +25,14 @@ export async function GET(
   context: ConfirmedRouteContext,
 ): Promise<NextResponse> {
   const { planId } = await context.params;
-  const plan = await loadPlanRow(planId);
-  if (!plan) {
+  const page = await loadConfirmedPage(planId, (name) =>
+    readCookie(request, name),
+  );
+  if (page.kind === "not_found") {
     return logged(request, notFoundResponse());
   }
-
-  const role = await planRoleFor(request, plan);
-  if (role === null) {
-    return logged(request, notFoundResponse());
-  }
-
-  const state: PlanState = storedState(asPlanState(plan.state));
-  if (state !== "locked") {
+  if (page.kind === "not_locked") {
     return logged(request, notLockedResponse());
   }
-
-  return logged(request, NextResponse.json(await loadConfirmedDocument(plan)));
+  return logged(request, NextResponse.json(page.doc));
 }

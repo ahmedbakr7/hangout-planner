@@ -175,10 +175,10 @@ function stubFetch(config: FetchConfig = {}) {
   return fetchMock;
 }
 
-function renderView() {
+function renderView(initialDoc: unknown = lockedBody()) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ConfirmedView planId={PLAN_ID} />
+      <ConfirmedView planId={PLAN_ID} initialDoc={initialDoc} />
     </NextIntlClientProvider>,
   );
 }
@@ -187,6 +187,13 @@ async function renderLoaded(config: FetchConfig = {}) {
   const fetchMock = stubFetch({ get: lockedBody(), ...config });
   renderView();
   expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+  return fetchMock;
+}
+
+async function renderErrorThenRetry(config: FetchConfig) {
+  const fetchMock = stubFetch(config);
+  renderView(null);
+  fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
   return fetchMock;
 }
 
@@ -291,9 +298,34 @@ describe("ConfirmedView", () => {
     stubFetch({ get: lockedBody() });
   });
 
+  it("T-001-38/AC-2 initial data shows the title and makes no confirmed or opening request on first render", async () => {
+    const fetchMock = stubFetch({ get: "fail", opening: "fail" });
+    renderView(lockedBody());
+    expect(screen.getByRole("heading", { name: "Thursday in Maadi" })).toBeTruthy();
+    expect(screen.getByText("Abu Tarek")).toBeTruthy();
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("T-001-38/AC-4 no initial data shows the confirmed load error and no plan data, without fetching", async () => {
+    const fetchMock = stubFetch({ get: lockedBody() });
+    renderView(null);
+    expect(screen.getByRole("alert").textContent).toBe(en.confirmed.loadError);
+    expect(screen.queryByText("Thursday in Maadi")).toBeNull();
+    expect(screen.queryByText("Abu Tarek")).toBeNull();
+    expectLeakedAbsent();
+    await Promise.resolve();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    cleanup();
+    renderView({ title: "Not a confirmed document" });
+    expect(screen.getByRole("alert").textContent).toBe(en.confirmed.loadError);
+    expect(screen.queryByText("Not a confirmed document")).toBeNull();
+  });
+
   it("before lock this surface is absent, and opening it shows the current surface for that person and state", async () => {
-    stubFetch({ get: "not_locked", opening: "organizer" });
-    renderView();
+    await renderErrorThenRetry({ get: "not_locked", opening: "organizer" });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
     });
@@ -306,8 +338,7 @@ describe("ConfirmedView", () => {
 
     cleanup();
     router.replace.mockReset();
-    stubFetch({ get: "not_locked", opening: "respond" });
-    renderView();
+    await renderErrorThenRetry({ get: "not_locked", opening: "respond" });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/respond`);
     });
@@ -317,8 +348,7 @@ describe("ConfirmedView", () => {
 
     cleanup();
     router.replace.mockReset();
-    stubFetch({ get: "not_locked", opening: "proposal" });
-    renderView();
+    await renderErrorThenRetry({ get: "not_locked", opening: "proposal" });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/proposal`);
     });
@@ -347,8 +377,8 @@ describe("ConfirmedView", () => {
     expect(screen.getAllByText("Alex")).toHaveLength(2);
 
     cleanup();
-    stubFetch({
-      get: lockedBody({
+    renderView(
+      lockedBody({
         steps: [dinnerStep(), coffeeStep()],
         legs: [
           {
@@ -358,8 +388,7 @@ describe("ConfirmedView", () => {
           },
         ],
       }),
-    });
-    renderView();
+    );
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
     const dinnerBlank = placeItem("Abu Tarek");
     const captions = dinnerBlank.querySelectorAll(".caption");
@@ -378,15 +407,14 @@ describe("ConfirmedView", () => {
     expect(screen.getByText("b4m2")).toBeTruthy();
 
     cleanup();
-    stubFetch({
-      get: lockedBody({
+    renderView(
+      lockedBody({
         cohort: [
           { display_name: "Nour", distinguisher: "n8p1" },
           { display_name: "Hana", distinguisher: "h2k4" },
         ],
       }),
-    });
-    renderView();
+    );
     expect(await screen.findByText("Nour")).toBeTruthy();
     expect(screen.getByText("Hana")).toBeTruthy();
     expect(screen.queryByText("n8p1")).toBeNull();
@@ -442,21 +470,8 @@ describe("ConfirmedView", () => {
   });
 
   it("a load failure uses text-destructive and retry and omits another plan's title and places", async () => {
-    let gets = 0;
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const method = (init?.method ?? "GET").toUpperCase();
-      if (url === CONFIRMED_GET && method === "GET") {
-        gets += 1;
-        if (gets === 1) {
-          return jsonResponse(500, leakedFail);
-        }
-        return jsonResponse(200, lockedBody());
-      }
-      throw new Error(`unexpected fetch ${method} ${url}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderView();
+    const fetchMock = stubFetch({ get: lockedBody() });
+    renderView(null);
 
     const alert = await screen.findByRole("alert");
     expect(classTokens(alert)).toContain("text-destructive");
@@ -472,14 +487,14 @@ describe("ConfirmedView", () => {
     expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expectLeakedAbsent();
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchMock.mock.calls.length).toBe(1);
     expect(fetchMock.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
     expect(fetchMock.mock.calls[0]?.[1]?.headers).toBeUndefined();
   });
 
   it("retry stays secondary while copy, save, and swap stay off this surface", async () => {
     stubFetch({ get: "fail" });
-    renderView();
+    renderView(null);
     const retry = await screen.findByRole("button", { name: "Retry" });
     expect(classTokens(retry)).not.toContain("bg-primary");
     expect(retry.className).toMatch(/secondary/);
@@ -515,35 +530,21 @@ describe("ConfirmedView", () => {
       );
     }
 
-    recordThrough(["fail", "locked"]);
-    renderView();
+    recordThrough(["locked"]);
+    renderView(null);
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
-    expect(requests).toEqual([`GET ${CONFIRMED_GET}`, `GET ${CONFIRMED_GET}`]);
+    expect(requests).toEqual([`GET ${CONFIRMED_GET}`]);
 
     cleanup();
     requests.length = 0;
     recordThrough(["not_locked"]);
-    renderView();
-    await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
-    });
-    expect(requests).toEqual([`GET ${CONFIRMED_GET}`, `GET ${OPENING_GET}`]);
-
-    cleanup();
-    router.replace.mockReset();
-    requests.length = 0;
-    recordThrough(["fail", "not_locked"]);
-    renderView();
+    renderView(null);
     fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
     });
-    expect(requests).toEqual([
-      `GET ${CONFIRMED_GET}`,
-      `GET ${CONFIRMED_GET}`,
-      `GET ${OPENING_GET}`,
-    ]);
+    expect(requests).toEqual([`GET ${CONFIRMED_GET}`, `GET ${OPENING_GET}`]);
 
     expect(CONFIRMED_GET).toBe(`/api/v1/plans/${PLAN_ID}/confirmed`);
     expect(OPENING_GET).toBe(`/api/v1/plans/${PLAN_ID}/opening`);
