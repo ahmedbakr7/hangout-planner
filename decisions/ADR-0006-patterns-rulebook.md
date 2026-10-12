@@ -21,7 +21,7 @@ Each patterns skill (`skills/frontend-patterns/SKILL.md`, `skills/backend-patter
 - **Where things go**: a table of what goes where, each row naming one file to copy.
 - **Use X, not Y**: one line per idiom the code has settled, with the one to avoid.
 
-Both sections describe the code on main as it is. They are kept short, so an agent reads all of it. Existing code that breaks a rule moves only when a ticket touches it; no sweep ticket. A rule changes by a lead PR that edits the skill and names the change in its description; a rule that reverses an accepted ADR needs a superseding ADR.
+Both sections follow the code on main where it is consistent, and say which way new code goes where it is not. They are kept short, so an agent reads all of it. Existing code that breaks a rule moves only when a ticket touches it; no sweep ticket. A rule changes by a lead PR that edits the skill and names the change in its description; a rule that reverses an accepted ADR needs a superseding ADR.
 
 ADRs are not pasted into prompts. A ticket cites the ADRs it depends on in `source_adr`; `AGENTS.md` makes the agent open them, and review checks it did.
 

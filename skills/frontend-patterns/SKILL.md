@@ -39,12 +39,14 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Screen logic, data loading, writes | `src/components/<screen>.tsx` (`"use client"`), fetching `/api/v1/...` | `src/components/response-form.tsx` |
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
-| Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | any component |
+| Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
 
 Open: ADR-0001 says page loads call the server view functions; every page today renders a client component that fetches `/api/v1` (ADR-0006). Edit existing pages in today's pattern; a ticket that adds a page stops and asks.
 
 ## Use X, not Y
+
+Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 
 - `next/navigation` (`useRouter`), not `next/router`; no `next/head`.
 - `await params`, `await searchParams`, `await cookies()`; never read them synchronously.

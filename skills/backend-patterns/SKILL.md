@@ -45,6 +45,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 
 ## Use X, not Y
 
+Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
+
 - `now()` from `src/server/clock.ts`, not `new Date()` or `Date.now()`.
 - `db` from `src/server/db/client.ts` and Drizzle, not raw `postgres` clients or a second ORM (tests excepted).
 - `authorize()` before any read or write, not inline role checks.
