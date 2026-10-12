@@ -29,6 +29,7 @@ const OPTIONS_MAX = 4;
 const THRESHOLD_MIN = 1;
 const THRESHOLD_MAX = 100;
 const DEFAULT_EXPONENT = 2;
+const ATTEMPT_IN_PROGRESS = "attempt_in_progress";
 
 const DEFAULT_CURRENCIES: CurrencyOption[] = [
   { code: "EGP", exponent: 2 },
@@ -1186,6 +1187,10 @@ function OrganizerPlanBody({ planId }: OrganizerPlanProps): ReactNode {
         return;
       }
       const parsed = parseError(payload);
+      if (response.status === 409 && parsed.reason === ATTEMPT_IN_PROGRESS) {
+        await loadPlan();
+        return;
+      }
       if (parsed.reason === "field_frozen") {
         restoreFromPlan();
         setRejectedFrozen(frozenPathSet(parsed.fields));
