@@ -695,7 +695,7 @@ describe("runProposalAttempt", () => {
       SELECT id, local_date, local_time FROM proposals WHERE plan_id = ${planId}
     `;
     expect(proposal).toHaveLength(1);
-    const localDate = proposal[0]?.local_date;
+    const localDate: unknown = proposal[0]?.local_date;
     const localDateText =
       localDate instanceof Date
         ? localDate.toISOString().slice(0, 10)

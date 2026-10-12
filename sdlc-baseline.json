@@ -528,15 +528,6 @@
       "T-001-30/AC-6: done but proof is none": 1,
       "T-001-30/AC-7: done but proof is none": 1,
       "T-001-30: done without passing build evidence": 1
-    },
-    "typecheck": {
-      "src/app/shell-tokens.test.ts: TS1501": 1,
-      "src/components/join-panel.test.tsx: TS2783": 1,
-      "src/server/db/client.test.ts: TS2339": 1,
-      "src/server/db/client.test.ts: TS5097": 1,
-      "src/server/db/schema.test.ts: TS2345": 3,
-      "src/server/plans/views.test.ts: TS2345": 1,
-      "src/server/proposal/attempt.test.ts: TS2358": 1
     }
   }
 }

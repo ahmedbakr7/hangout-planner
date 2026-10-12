@@ -134,10 +134,7 @@ function openingBody(kind: NonNullable<FetchConfig["opening"]>): {
   if (kind === "fail") {
     return {
       status: 500,
-      body: {
-        error: { code: "upstream", message: "fail", fields: [] },
-        ...leakedUnknown,
-      },
+      body: { ...leakedUnknown },
     };
   }
   if (kind === "join") {
