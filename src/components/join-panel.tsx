@@ -69,6 +69,8 @@ type Opening = {
 export type JoinPanelProps = {
   token?: string;
   planId?: string;
+  initialOpening?: unknown;
+  initialSignedIn?: boolean;
 };
 
 function isOpeningNext(value: unknown): value is OpeningNext {
@@ -377,7 +379,41 @@ function FieldBlock({
   );
 }
 
-function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
+type InitialJoin = {
+  session: SessionState;
+  load: LoadState;
+  preview: JoinPreview | null;
+  planId: string | null;
+};
+
+function initialJoin(props: JoinPanelProps): InitialJoin {
+  const { planId, initialOpening, initialSignedIn } = props;
+  if (initialOpening === undefined) {
+    return {
+      session: "checking",
+      load: "loading",
+      preview: null,
+      planId: planId ?? null,
+    };
+  }
+  const session: SessionState = initialSignedIn ? "signed_in" : "signed_out";
+  if (initialOpening === null) {
+    return { session, load: "unknown", preview: null, planId: planId ?? null };
+  }
+  const parsed = parseOpening(initialOpening);
+  if (parsed && parsed.next === "join") {
+    return {
+      session,
+      load: "loaded",
+      preview: parsed.preview,
+      planId: parsed.planId,
+    };
+  }
+  return { session, load: "error", preview: null, planId: planId ?? null };
+}
+
+function JoinPanelBody(props: JoinPanelProps): ReactNode {
+  const { token, planId, initialOpening } = props;
   const router = useRouter();
   const locale = useLocale();
   const t = useTranslations("join");
@@ -386,11 +422,12 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
   const tCode = useTranslations("errors.code");
   const tFields = useTranslations("errors.fields");
 
-  const [session, setSession] = useState<SessionState>("checking");
-  const [load, setLoad] = useState<LoadState>("loading");
-  const [preview, setPreview] = useState<JoinPreview | null>(null);
+  const [initial] = useState(() => initialJoin(props));
+  const [session, setSession] = useState<SessionState>(initial.session);
+  const [load, setLoad] = useState<LoadState>(initial.load);
+  const [preview, setPreview] = useState<JoinPreview | null>(initial.preview);
   const [resolvedPlanId, setResolvedPlanId] = useState<string | null>(
-    planId ?? null,
+    initial.planId,
   );
   const [displayName, setDisplayName] = useState("");
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
@@ -457,7 +494,12 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
     }
   }
 
+  const loadsOnMount = initialOpening === undefined;
+
   useEffect(() => {
+    if (!loadsOnMount) {
+      return;
+    }
     let cancelled = false;
 
     async function start(): Promise<void> {
@@ -522,7 +564,7 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [openingPath, router]);
+  }, [loadsOnMount, openingPath, router]);
 
   function fieldCode(path: string): string | undefined {
     return fieldErrors.find((field) => field.path === path)?.code;
@@ -791,7 +833,7 @@ function JoinPanelBody({ token, planId }: JoinPanelProps): ReactNode {
 export function JoinPanel(props: JoinPanelProps): ReactNode {
   return (
     <LanguageControl>
-      <JoinPanelBody token={props.token} planId={props.planId} />
+      <JoinPanelBody {...props} />
     </LanguageControl>
   );
 }
