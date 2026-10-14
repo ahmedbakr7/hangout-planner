@@ -9,6 +9,7 @@ files:
   - "src/server/auth/page-data.ts"
   - "src/server/auth/page-data.test.ts"
   - "src/app/api/v1/me/route.ts"
+  - "src/app/api/v1/me/route.test.ts"
   - "src/app/account/page.tsx"
   - "src/app/account/page.test.tsx"
   - "src/app/account/error.tsx"
