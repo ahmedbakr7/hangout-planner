@@ -344,11 +344,6 @@ export const REQUIRED_ACCOUNT_FIELDS: ErrorField[] = [
   { path: "display_name", code: "required" },
 ];
 
-const REQUIRED_SIGN_IN_FIELDS: ErrorField[] = [
-  { path: "email", code: "required" },
-  { path: "password", code: "required" },
-];
-
 export function accountResponse(
   account: AccountPublic,
   token: string,

@@ -53,6 +53,8 @@ describe("package.json", () => {
         "@types/react",
         "@types/react-dom",
         "drizzle-kit",
+        "eslint",
+        "eslint-config-next",
         "jsdom",
         "postcss",
         "tailwindcss",

@@ -14,8 +14,7 @@ import {
 type SessionState = "checking" | "signed_out" | "signed_in";
 type LoadState = "idle" | "loading" | "loaded" | "error";
 
-const PLAN_STATES = ["collecting", "blocked", "proposed", "locked"] as const;
-type PlanState = (typeof PLAN_STATES)[number];
+type PlanState = "collecting" | "blocked" | "proposed" | "locked";
 
 type HomePlan = {
   id: string;

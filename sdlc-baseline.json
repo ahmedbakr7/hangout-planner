@@ -277,7 +277,7 @@
       "src/app/shell-tokens.test.ts: test reads source text instead of exercising behaviour": 3,
       "src/app/theme-mapping.test.ts: test reads source text instead of exercising behaviour": 2,
       "src/components/account-gate.test.tsx: test reads source text instead of exercising behaviour": 2,
-      "src/components/confirmed-view.test.tsx: test reads source text instead of exercising behaviour": 6,
+      "src/components/confirmed-view.test.tsx: test reads source text instead of exercising behaviour": 5,
       "src/components/create-form.test.tsx: test reads source text instead of exercising behaviour": 1,
       "src/components/home-list.test.tsx: test reads source text instead of exercising behaviour": 1,
       "src/components/invite-panel.test.tsx: test reads source text instead of exercising behaviour": 3,

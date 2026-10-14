@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { createElement } from "react";
+import { type ComponentProps, createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountGate } from "@/components/account-gate";
 import ar from "../../messages/ar.json";
@@ -101,11 +101,13 @@ describe("Arabic chrome fallback", () => {
     document.documentElement.dir = "rtl";
 
     render(
-      createElement(NextIntlClientProvider, {
-        locale: "ar",
-        messages: messages as never,
-        children: createElement(AccountGate),
-      }),
+      createElement(
+        NextIntlClientProvider,
+        { locale: "ar", messages } as ComponentProps<
+          typeof NextIntlClientProvider
+        >,
+        createElement(AccountGate),
+      ),
     );
 
     expect(

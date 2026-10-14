@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
@@ -223,6 +224,8 @@ function AccountGateBody({
     return () => {
       cancelled = true;
     };
+    // Mount-only on purpose: initialAccount seeds the first render once (ADR-0007).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- first-load effect must run on mount only
   }, []);
 
   function fieldCode(path: string): string | undefined {
@@ -324,7 +327,7 @@ function AccountGateBody({
         </CardHeader>
         <CardFooter>
           <Button asChild className="bg-primary">
-            <a href="/">{t("goHome")}</a>
+            <Link href="/">{t("goHome")}</Link>
           </Button>
         </CardFooter>
       </GateShell>

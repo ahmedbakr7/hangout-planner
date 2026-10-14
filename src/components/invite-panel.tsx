@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
@@ -20,15 +21,12 @@ import { Label } from "@/components/ui/label";
 import { useSessionSlide } from "@/components/use-session-slide";
 import { planPath } from "@/lib/plan-paths";
 
-const OPENING_NEXTS = [
-  "organizer",
-  "respond",
-  "proposal",
-  "confirmed",
-  "join",
-] as const;
-
-type OpeningNext = (typeof OPENING_NEXTS)[number];
+type OpeningNext =
+  | "organizer"
+  | "respond"
+  | "proposal"
+  | "confirmed"
+  | "join";
 type InvitationStatus = "invited" | "joined" | "answered";
 type InviteLoadState = "loading" | "loaded" | "error" | "locked";
 type InboxLoadState = "idle" | "loading" | "loaded" | "error";
@@ -787,7 +785,7 @@ function InvitationsListBody({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <Button variant="link" asChild className="h-auto self-start p-0">
-          <a href="/">{t("goHome")}</a>
+          <Link href="/">{t("goHome")}</Link>
         </Button>
 
         {openError ? (
