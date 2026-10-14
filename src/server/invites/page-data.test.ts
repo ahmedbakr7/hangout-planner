@@ -401,6 +401,94 @@ describe("loadInvitationsPage", () => {
   });
 });
 
+describe("loadInvitationsPage list limit", () => {
+  const BASE = Date.UTC(2026, 0, 1);
+
+  /**
+   * Seed `count` plans for the organizer and one invitation to each for the invitee, in one
+   * insert per table. Invitation i is created i seconds after the base, except the two newest,
+   * which share one timestamp so only the invitation id breaks their tie. Returns the plan ids
+   * in the order the invitations list must answer them.
+   */
+  async function seedInvitations(
+    organizerId: string,
+    inviteeId: string,
+    count: number,
+  ): Promise<string[]> {
+    const rows = Array.from({ length: count }, (_, i) => ({
+      planId: generateId("pln_"),
+      invitationId: generateId("inv_"),
+      createdAt: new Date(BASE + Math.min(i, count - 2) * 1000),
+    }));
+    await sql`
+      INSERT INTO plans ${sql(
+        rows.map((row) => ({
+          id: row.planId,
+          organizer_account_id: organizerId,
+          title: "Seeded plan",
+          timezone: "Africa/Cairo",
+          budget_amount_minor: 50_000,
+          currency: "EGP",
+          threshold: 3,
+          state: "collecting",
+          join_token: `jt_${row.planId}`,
+        })),
+      )}
+    `;
+    await sql`
+      INSERT INTO invitations ${sql(
+        rows.map((row) => ({
+          id: row.invitationId,
+          plan_id: row.planId,
+          account_id: inviteeId,
+          distinguisher: "k7m2",
+          created_at: row.createdAt,
+        })),
+      )}
+    `;
+    return [...rows]
+      .sort(
+        (a, b) =>
+          b.createdAt.getTime() - a.createdAt.getTime() ||
+          (a.invitationId < b.invitationId ? 1 : -1),
+      )
+      .map((row) => row.planId);
+  }
+
+  it("T-001-49/AC-2 answers 100 rows and truncated true for 101 invitations, newest first with invitation id descending on a tie", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const expected = await seedInvitations(organizer.id, invitee.id, 101);
+
+    const result = await loadInvitationsPage(reader({ hp_session: invitee.token }));
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      return;
+    }
+    const planIds = result.view.invitations.map((row) => row.plan_id);
+    expect(result.view.truncated).toBe(true);
+    expect(planIds).toHaveLength(100);
+    expect(planIds).toEqual(expected.slice(0, 100));
+    expect(planIds).not.toContain(expected[100]);
+  });
+
+  it("T-001-49/AC-2 answers 100 rows and truncated false for exactly 100 invitations", async () => {
+    const organizer = await register(uniqueEmail("org"), "Omar");
+    const invitee = await register(uniqueEmail("invitee"), "Hana");
+    const expected = await seedInvitations(organizer.id, invitee.id, 100);
+
+    const result = await loadInvitationsPage(reader({ hp_session: invitee.token }));
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      return;
+    }
+    expect(result.view.truncated).toBe(false);
+    expect(result.view.invitations.map((row) => row.plan_id)).toEqual(expected);
+  });
+});
+
 describe("GET /api/v1/invitations", () => {
   async function get(cookie?: string): Promise<Response> {
     return getInvitations(
