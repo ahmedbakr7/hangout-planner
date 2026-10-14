@@ -39,8 +39,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
-      # No lockfile is committed yet, so this is `npm install`, not `npm ci`.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
 
       - name: Doctor (fails if any required check could pass vacuously)
         run: .sdlc/bin/sdlc doctor

@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-14. Main: `70a92f5`, kit pin `38f11c3` (tag v3.2.1).
+Date: 2026-10-14. Main: `805da9b`, kit pin `38f11c3` (tag v3.2.1).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -13,7 +13,7 @@ Date: 2026-10-14. Main: `70a92f5`, kit pin `38f11c3` (tag v3.2.1).
 |---|---|---|
 | `artifacts` | 14 | 14 |
 | `contracts` | 11 | 11 |
-| `test-quality` | 11 | 26 |
+| `test-quality` | 11 | 25 |
 | `ac-coverage` | 241 | 241 |
 | `trace` | 241 | 241 |
 
@@ -29,7 +29,7 @@ Date: 2026-10-14. Main: `70a92f5`, kit pin `38f11c3` (tag v3.2.1).
 |---|---|---|---|
 | 1 | Fix `e2e/ui-api-paths.e2e.ts` (from the #62 reviews) | New ticket (`type: test`) | Possible since kit v2.0.0 (pilot finding 19): a test ticket's build runs the real-stack suites and may write `e2e/**`, and may change nothing outside the test globs. Each test registers its own account and resets cookies; wait for loaded empty states; cover create form and join panel. Use `e2e/route-server.ts` (from #73), which already keeps a cookie jar per actor |
 | 2 | Done: the 9 test type errors, in T-001-35 (#88) | New ticket | `typecheck` baseline removed |
-| 3 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | 11 files, 26 hits; `test-quality` baseline |
+| 3 | Replace source-text tests (`readFileSync` / `read("src/...")`) with behaviour tests | New tickets | 11 files, 25 hits; `test-quality` baseline |
 | 4 | Declare the 11 pages in CONTRACTS | Lead | `contracts` baseline → 0 |
 | 5 | Add Playwright e2e against `next start`; then remove the temporary `tests.real_stack = ["integration"]` override in `sdlc.toml` | New ticket + lead | Needs Playwright in CI |
 | 6 | Tag shipped tests `T-001-xx/AC-n` | New tickets | Shrinks `ac-coverage` and `trace` (241 each) |
@@ -37,7 +37,7 @@ Date: 2026-10-14. Main: `70a92f5`, kit pin `38f11c3` (tag v3.2.1).
 | 8 | Done: ADR-0004 keeps fail-fast (409 `attempt_in_progress` at once); CONTRACTS § Proposal attempt now matches T-001-24 AC-4 | Lead | No code change |
 | 9 | Ticket: move the place-search limit from the in-process `Map` (`src/server/response/place-search.ts:9`) to the `place_searches` table, with its migration | New ticket | Decided in ADR-0005; the table is declared in CONTRACTS § Tables |
 | 10 | Remove duplicates: `planRoleFor` copies and the `db()` singletons in `plans/http.ts`, `auth/http.ts`, `proposal/attempt.ts`; the opening + me fetch pair in `join-panel.tsx`; the initial-load and retry-load pairs in the four plan views | New ticket | Then lower the jscpd threshold (10%) |
-| 11 | Commit a lockfile; add ESLint so `lint` means something | T-001-52 (lead approved `eslint` ^9.39.4 and `eslint-config-next` 16.4.0 after a dry run: 13 problems in 9 files) | `npm install` writes an untracked `package-lock.json`. Since kit v3.0.2 the test and review plays leave it out of their commits, but a build still commits it as an out-of-area file (pilot finding 20). Committing it in this ticket ends that; until then, the build must not commit it. T-001-52 adds the raw-hex and inline-style lint rules; the nine source-text guard tests (from item 20, `src/components/home-list.test.tsx` and eight more) stay until a lead decision after the rule has run in CI. Still open: make `e2e/` `afterAll` cleanup close its clients in `finally` |
+| 11 | Done: lockfile committed and ESLint in `lint` (T-001-52, #117); CI installs with `npm ci` (this lead PR) | T-001-52 (lead approved `eslint` ^9.39.4 and `eslint-config-next` 16.4.0 after a dry run: 13 problems in 9 files) | `package-lock.json` is committed, so builds no longer add it as an out-of-area file (pilot finding 20). The boundary rules also catch relative imports into a guarded folder (CodeRabbit on #117). T-001-52 adds the raw-hex and inline-style lint rules; the nine source-text guard tests (from item 20, `src/components/home-list.test.tsx` and eight more) stay until a lead decision after the rule has run in CI. Still open: make `e2e/` `afterAll` cleanup close its clients in `finally` |
 | 12 | Blocked: update the `/v1` paths in the AC text of T-001-06, 10, 15, 17 and 24 to `/api/v1` | Lead | From the #75 CodeRabbit review; #75 moved only the `contracts:` lines. The ACs are kit-guarded, so this needs the lead. Not possible: `gate pr` `immutable` fails any AC reword, even a path rename, unless the spec changes or a `strengthen` amendment is added (pilot finding 18). ADR-0003 governs the path; the AC text stays as is |
 | 13 | Tighten `e2e/plan-views-api-paths.e2e.ts` `fakeGoogle` (match the place-details URL, throw on any other) and check `isDirectory()` in `e2e/route-server.ts` | New ticket | From the #74 CodeRabbit review |
 | 14 | Replace `/v1` with `/api/v1` in `skills/backend-patterns/SKILL.md:14` and `skills/frontend-patterns/SKILL.md:16-17`; record the move in a new ADR, since ADR-0001 (lines 29, 46) and ADR-0002 (line 37) are accepted and immutable | Lead | From the post-merge review of #75. Agents read these files during build. Done in #79 (ADR-0003) |

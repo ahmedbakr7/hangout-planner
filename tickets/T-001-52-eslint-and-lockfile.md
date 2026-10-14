@@ -50,7 +50,7 @@ No other package. No ESLint plugin beyond these; the custom rules use ESLint's b
 
 - **`package.json`:** add the two devDependencies. `lint` becomes the current `tsc -p tsconfig.typecheck.json --noEmit` followed by `eslint . --max-warnings 0`. `typecheck` is unchanged.
 - **`package-lock.json`:** commit the lockfile that `npm install` writes with these dependencies. Do not upgrade any other package.
-- **`.github/workflows/sdlc.yml`:** install with `npm ci --no-audit --no-fund` and drop the comment that says no lockfile is committed.
+- **`.github/workflows/sdlc.yml`:** install with `npm ci --no-audit --no-fund` and drop the comment that says no lockfile is committed. (Lead note after merge: the kit makes `.github/workflows/**` lead-only, so no ticket PR can change it. The lead made this change in the follow-up lead PR after #117.)
 - **`eslint.config.mjs`** (flat config, `defineConfig` from `eslint/config`):
   - Spread `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`.
   - Ignore `.next/`, `node_modules/`, `.sdlc/`, `.sdlc-run/`, `skills/` and `next-env.d.ts`.
