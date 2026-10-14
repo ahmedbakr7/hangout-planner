@@ -8,6 +8,7 @@ depends_on: [T-001-45, T-001-46, T-001-47]
 files:
   - "src/server/plans/page-data.test.ts"
   - "src/server/invites/page-data.test.ts"
+  - "e2e/list-truncation.e2e.ts"
 skills:
   - test
 contracts: "arch/CONTRACTS.md#GET /api/v1/plans"
@@ -29,4 +30,5 @@ This ticket is test-only. It changes no product code. The reviews of #105 (T-001
 - Add the boundary cases to the existing loader test files, with the database helpers those files already use. The loaders order by `desc(plans.updatedAt), desc(plans.id)` and `desc(invitations.createdAt), desc(invitations.id)`. Seed rows with distinct `updated_at` or `created_at` values so the order is deterministic, and assert the first and last ids. In each 101-row case, give two rows inside the first 100 the same timestamp and assert they come back in descending id order, so the tie-break is tested too.
 - Seed in bulk with one insert per table, not 101 round trips.
 - Delete what each test seeds in that file's existing cleanup.
+- **Real-stack proof, in this build:** a `type: test` ticket's build must prove each AC with a passing integration test (the kit's `real_stack` rule, enforced by the `ac-coverage` check). Add `e2e/list-truncation.e2e.ts`, tagged `T-001-49/AC-1` and `T-001-49/AC-2`. It seeds the same 101-row and 100-row cases in the test database, signs in as the seeded account, and calls `GET /api/v1/plans` and `GET /api/v1/invitations` through the route handlers in-process with `createRouteServer` (`e2e/route-server.ts`), as the other `e2e/` files do: 100 rows and `truncated` true for 101, 100 rows and `truncated` false for 100, and the full list of returned ids equal to the expected sequence in the loaders' order. Copy the setup and `afterAll` cleanup of `e2e/home-server-load.e2e.ts` and `e2e/invitations-server-load.e2e.ts`. The unit tests above stay.
 - No assertion is weakened, no test is skipped, and no shared helper is added.
