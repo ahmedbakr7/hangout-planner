@@ -76,7 +76,12 @@ describe("T-001-52/AC-2 import boundaries", () => {
     ["react"],
     ["react/jsx-runtime"],
     ["react-dom"],
+    ["react-dom/client"],
     ["next/navigation"],
+    ["../components"],
+    ["../components/x"],
+    ["../../app"],
+    ["../app/layout"],
     ["@/components"],
     ["@/components/ui/button"],
     ["@/app"],
@@ -112,6 +117,12 @@ describe("T-001-52/AC-2 import boundaries", () => {
     ["@/components/ui/button"],
     ["@/app"],
     ["@/app/layout"],
+    ["../server"],
+    ["../server/clock"],
+    ["../components"],
+    ["../components/ui/button"],
+    ["../app"],
+    ["../app/layout"],
   ])("T-001-52/AC-2 src/lib rejects an import of %s", async (specifier) => {
     const ids = await ruleIds(
       `import * as x from "${specifier}";\nexport { x };\n`,
@@ -128,7 +139,12 @@ describe("T-001-52/AC-2 import boundaries", () => {
     expect(ids).not.toContain(RESTRICTED);
   });
 
-  it.each([["@/server"], ["@/server/clock"]])(
+  it.each([
+    ["@/server"],
+    ["@/server/clock"],
+    ["../server"],
+    ["../../server/clock"],
+  ])(
     "T-001-52/AC-2 src/components rejects an import of %s",
     async (specifier) => {
       const ids = await ruleIds(
@@ -143,6 +159,25 @@ describe("T-001-52/AC-2 import boundaries", () => {
     const ids = await ruleIds(
       `import * as x from "@/server/clock";\nexport { x };\n`,
       "src/components/example.test.tsx",
+    );
+    expect(ids).not.toContain(RESTRICTED);
+  });
+
+  it.each([["./format"], ["../../messages/en.json"], ["./ui/button"]])(
+    "T-001-52/AC-2 src/components allows the relative import %s",
+    async (specifier) => {
+      const ids = await ruleIds(
+        `import * as x from "${specifier}";\nexport { x };\n`,
+        "src/components/example.tsx",
+      );
+      expect(ids).not.toContain(RESTRICTED);
+    },
+  );
+
+  it("T-001-52/AC-2 src/server allows a relative components import in a test file", async () => {
+    const ids = await ruleIds(
+      `import * as x from "../components/x";\nexport { x };\n`,
+      "src/server/plans/example.test.ts",
     );
     expect(ids).not.toContain(RESTRICTED);
   });

@@ -7,12 +7,16 @@ const TEST_FILES = ["**/*.test.ts", "**/*.test.tsx"];
 function aliasPatterns(alias, message) {
   return [
     { group: [alias, `${alias}/*`], message },
+    {
+      regex: `^(\\.{1,2}/)+(.*/)?${alias.slice(2)}(/|$)`,
+      message: `${message} (relative path to the same folder)`,
+    },
   ];
 }
 
 const serverBoundary = [
   {
-    group: ["react", "react-dom", "react/*", "next/navigation"],
+    group: ["react", "react-dom", "react/*", "react-dom/*", "next/navigation"],
     message:
       "src/server has no React or next/navigation imports (frontend-patterns folder layout).",
   },
