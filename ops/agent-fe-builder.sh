@@ -18,14 +18,20 @@ fi
 setsid env -u AI_AGENT -u CLAUDECODE -u CLAUDE_CODE \
   npx --no-install next dev -H 127.0.0.1 -p "$PORT" > .sdlc-run/fe-builder-dev.log 2>&1 &
 DEV=$!
-stop() { kill -TERM -- "-$DEV" 2>/dev/null; wait "$DEV" 2>/dev/null; }
+stop() {
+  kill -TERM -- "-$DEV" 2>/dev/null
+  for _ in 1 2 3 4 5; do kill -0 -- "-$DEV" 2>/dev/null || break; sleep 1; done
+  kill -KILL -- "-$DEV" 2>/dev/null
+  wait "$DEV" 2>/dev/null
+}
 trap stop EXIT
 trap 'exit 143' TERM INT
+# Ready = any HTTP answer: `/` loads data on the server and may 500 without the database.
 for _ in $(seq 1 60); do
-  curl -sf -o /dev/null "http://127.0.0.1:$PORT/" && break
+  curl -s -o /dev/null "http://127.0.0.1:$PORT/" && break
   sleep 1
 done
-if ! curl -sf -o /dev/null "http://127.0.0.1:$PORT/"; then
+if ! curl -s -o /dev/null "http://127.0.0.1:$PORT/"; then
   echo "fe-builder: next dev not ready on $PORT after 60s; see .sdlc-run/fe-builder-dev.log" >&2
   exit 1
 fi
