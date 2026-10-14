@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { planPath } from "@/lib/plan-paths";
 
 const BUDGET_EXPONENT = 2;
 
@@ -330,22 +331,6 @@ function isOpeningNext(value: unknown): value is OpeningNext {
   );
 }
 
-function hrefForOpening(planId: string, next: OpeningNext): string | null {
-  if (next === "organizer") {
-    return `/plans/${planId}`;
-  }
-  if (next === "respond") {
-    return `/plans/${planId}/respond`;
-  }
-  if (next === "proposal") {
-    return `/plans/${planId}/proposal`;
-  }
-  if (next === "join") {
-    return `/plans/${planId}/join`;
-  }
-  return null;
-}
-
 function hrefFromOpeningBody(planId: string, body: unknown): string | null {
   if (typeof body !== "object" || body === null) {
     return null;
@@ -354,7 +339,10 @@ function hrefFromOpeningBody(planId: string, body: unknown): string | null {
   if (!isOpeningNext(next)) {
     return null;
   }
-  return hrefForOpening(planId, next);
+  if (next === "confirmed") {
+    return null;
+  }
+  return planPath(planId, next);
 }
 
 function durationBetween(

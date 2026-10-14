@@ -6,6 +6,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { ConfirmedView } from "@/components/confirmed-view";
+import { planPath } from "@/lib/plan-paths";
 
 const { router } = vi.hoisted(() => ({
   router: {
@@ -324,6 +325,27 @@ describe("ConfirmedView", () => {
     expect(screen.queryByText("Not a confirmed document")).toBeNull();
   });
 
+  it("T-001-50/AC-2 opening next join links to the in-app join path", async () => {
+    await renderErrorThenRetry({ get: "not_locked", opening: "join" });
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(planPath(PLAN_ID, "join"));
+    });
+  });
+
+  it("T-001-50/AC-2 opening next confirmed gives no link", async () => {
+    const fetchMock = await renderErrorThenRetry({
+      get: "not_locked",
+      opening: "confirmed",
+    });
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) => String(input) === OPENING_GET),
+      ).toBe(true);
+    });
+    await Promise.resolve();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it("before lock this surface is absent, and opening it shows the current surface for that person and state", async () => {
     await renderErrorThenRetry({ get: "not_locked", opening: "organizer" });
     await waitFor(() => {
@@ -430,7 +452,7 @@ describe("ConfirmedView", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
-  it("the share link and an invitations row for a locked plan land on this surface", () => {
+  it("T-001-50/AC-3 the share link and an invitations row for a locked plan land on this surface", () => {
     const root = process.cwd();
     const page = readFileSync(
       join(root, "src/app/plans/[planId]/confirmed/page.tsx"),
@@ -438,12 +460,6 @@ describe("ConfirmedView", () => {
     );
     expect(page).toContain("ConfirmedView");
     expect(page).toContain("planId");
-
-    const joinPanel = readFileSync(
-      join(root, "src/components/join-panel.tsx"),
-      "utf8",
-    );
-    expect(joinPanel).toContain("`/plans/${planId}/confirmed`");
 
     const invite = readFileSync(
       join(root, "src/components/invite-panel.tsx"),
