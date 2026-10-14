@@ -101,11 +101,11 @@ describe("Arabic chrome fallback", () => {
     document.documentElement.dir = "rtl";
 
     render(
-      createElement(NextIntlClientProvider, {
-        locale: "ar",
-        messages: messages as never,
-        children: createElement(AccountGate),
-      }),
+      createElement(
+        NextIntlClientProvider,
+        { locale: "ar", messages: messages as never },
+        createElement(AccountGate),
+      ),
     );
 
     expect(

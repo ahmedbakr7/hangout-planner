@@ -4,7 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import postgres from "postgres";
 import { generateCookieToken, hashCookieToken } from "@/server/auth/session";
 import { resetClock, setClock } from "@/server/clock";
-import { generateId, generateJoinToken, isId } from "@/server/ids";
+import { generateId, isId } from "@/server/ids";
 import {
   PLACES_SEARCH_TEXT_URL,
   type FetchFn,

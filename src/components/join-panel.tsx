@@ -23,15 +23,12 @@ import { planPath } from "@/lib/plan-paths";
 const DISPLAY_NAME_MAX = 40;
 const BUDGET_EXPONENT = 2;
 
-const OPENING_NEXTS = [
-  "organizer",
-  "respond",
-  "proposal",
-  "confirmed",
-  "join",
-] as const;
-
-type OpeningNext = (typeof OPENING_NEXTS)[number];
+type OpeningNext =
+  | "organizer"
+  | "respond"
+  | "proposal"
+  | "confirmed"
+  | "join";
 type ParticipantNext = "respond" | "proposal" | "confirmed";
 type SessionState = "checking" | "signed_out" | "signed_in";
 type LoadState = "loading" | "loaded" | "unknown" | "error" | "redirecting";

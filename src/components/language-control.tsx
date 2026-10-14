@@ -14,9 +14,7 @@ import { Label } from "@/components/ui/label";
 
 const LOCALE_COOKIE = "hp_locale";
 const LOCALE_MAX_AGE = 60 * 60 * 24 * 30;
-const LOCALES = ["en", "ar"] as const;
-
-type AppLocale = (typeof LOCALES)[number];
+type AppLocale = "en" | "ar";
 type MessageTree = { [key: string]: string | MessageTree };
 
 function isLocale(value: string): value is AppLocale {
