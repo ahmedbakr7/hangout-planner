@@ -9,9 +9,13 @@ files:
   - "src/lib/plan-paths.ts"
   - "src/lib/plan-paths.test.ts"
   - "src/app/plans/[planId]/confirmed/page.tsx"
+  - "src/app/plans/[planId]/confirmed/page.test.tsx"
   - "src/app/plans/[planId]/join/page.tsx"
+  - "src/app/plans/[planId]/join/page.test.tsx"
   - "src/components/join-panel.tsx"
+  - "src/components/join-panel.test.tsx"
   - "src/components/confirmed-view.tsx"
+  - "src/components/confirmed-view.test.tsx"
 skills:
   - build
   - frontend-patterns
