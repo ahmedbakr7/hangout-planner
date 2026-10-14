@@ -39,7 +39,7 @@ source_adr:
   - decisions/ADR-0006-patterns-rulebook.md
 ---
 
-Roadmap item 11. Hangout has no linter: its `lint` script runs `tsc` only, so the kit's lint gate checks types and nothing else. The folder rules in `skills/frontend-patterns/SKILL.md` (`src/server` has no React imports; `src/lib` does not import `src/server`) and ADR-0002's "hex only in the theme CSS, no inline styles" are enforced today only by review and by source-text tests in seven component test files. `npm install` also writes a `package-lock.json` that is never committed, so CI resolves dependency versions fresh on every run.
+Roadmap item 11. Hangout has no linter: its `lint` script runs `tsc` only, so the kit's lint gate checks types and nothing else. The folder rules in `skills/frontend-patterns/SKILL.md` (`src/server` has no React imports; `src/lib` does not import `src/server`) and ADR-0002's "hex only in the theme CSS, no inline styles" are enforced today only by review and by source-text tests in nine component test files. `npm install` also writes a `package-lock.json` that is never committed, so CI resolves dependency versions fresh on every run.
 
 The lead approved these two devDependencies on 2026-10-14, after a dry run in a scratch worktree:
 
@@ -71,6 +71,6 @@ No other package. No ESLint plugin beyond these; the custom rules use ESLint's b
   - AC-1: `lintFiles` on the repository reports zero errors and zero warnings (raise that test's timeout).
   - These tests lint snippets and the real tree. They never read a product file's source text.
 - **Out of scope:**
-  - The seven source-text "no raw hex" guard tests stay unchanged. Removing them is a lead decision once this rule has run in CI.
+  - The nine source-text "no raw hex, no inline style" guard tests stay unchanged. Removing them is a lead decision once this rule has run in CI.
   - The `try`/`finally` cleanup in `e2e/` `afterAll` blocks stays in roadmap item 11.
   - `sdlc.toml`'s comment that Hangout has no linter is updated by the lead after merge.
