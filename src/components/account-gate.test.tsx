@@ -23,6 +23,7 @@ const JOIN_PATH = `/join/${JOIN_TOKEN}`;
 
 const TICKET_FILES = [
   "src/app/account/page.tsx",
+  "src/app/account/error.tsx",
   "src/components/account-gate.tsx",
   "src/components/account-gate.test.tsx",
   "src/components/language-control.tsx",
@@ -110,6 +111,14 @@ function renderGate(next?: string) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
       <AccountGate next={next} />
+    </NextIntlClientProvider>,
+  );
+}
+
+function renderGateWith(props: { next?: string; initialAccount?: unknown }) {
+  return render(
+    <NextIntlClientProvider locale="en" messages={en}>
+      <AccountGate {...props} />
     </NextIntlClientProvider>,
   );
 }
@@ -412,6 +421,103 @@ describe("AccountGate", () => {
     expect(classTokens(home)).toContain("bg-primary");
     expect(screen.queryByText("An account is required to organize a plan.")).toBeNull();
     expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("T-001-48/AC-2 starts signed in from initial data and sends exactly one GET /api/v1/me, the slide", async () => {
+    const fetchMock = stubFetch({ me: "in" });
+    renderGateWith({ next: "/plans/new", initialAccount: nourAccount });
+    expect(screen.getByText("Signed in as Nour")).toBeTruthy();
+    expect(screen.queryByText("An account is required to organize a plan.")).toBeNull();
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/v1/me", { credentials: "same-origin" });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("T-001-48/AC-3 sends exactly one GET /api/v1/me after mount with initial data and none with null", async () => {
+    const withData = stubFetch({ me: "in" });
+    const view = renderGateWith({ initialAccount: nourAccount });
+    await waitFor(() => {
+      expect(withData).toHaveBeenCalledTimes(1);
+    });
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <AccountGate initialAccount={nourAccount} />
+      </NextIntlClientProvider>,
+    );
+    expect(withData).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    const withNull = stubFetch({ me: "out" });
+    renderGateWith({ initialAccount: null });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(withNull).not.toHaveBeenCalled();
+  });
+
+  it("T-001-48/AC-4 null initial data shows the sign-in form with no request and keeps the join link", () => {
+    const fetchMock = stubFetch({ me: "out" });
+    renderGateWith({ next: JOIN_PATH, initialAccount: null });
+    expect(screen.getByText("An account is required to organize a plan.")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Join without an account" }).getAttribute("href"),
+    ).toBe(JOIN_PATH);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-48/AC-4 initial data without a display name shows the sign-in form and sends no request", () => {
+    const fetchMock = stubFetch({ me: "in" });
+    renderGateWith({ initialAccount: { account: { id: "acc_1" } } });
+    expect(screen.getByText("An account is required to organize a plan.")).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-48/AC-5 with no initialAccount prop the gate makes its first-load GET /api/v1/me as before", async () => {
+    const signedOut = stubFetch({ me: "out" });
+    renderGate();
+    expect(screen.queryByText("An account is required to organize a plan.")).toBeNull();
+    await screen.findByText("An account is required to organize a plan.");
+    expect(fetchUrls(signedOut)).toEqual(["/api/v1/me"]);
+    cleanup();
+
+    // The contrast: the page's null starts signed out with no request at all.
+    const withNull = stubFetch({ me: "out" });
+    renderGateWith({ initialAccount: null });
+    expect(screen.getByText("An account is required to organize a plan.")).toBeTruthy();
+    expect(withNull).not.toHaveBeenCalled();
+    cleanup();
+
+    const signedIn = stubFetch({ me: "in" });
+    renderGate();
+    expect(await screen.findByText("Signed in as Nour")).toBeTruthy();
+    expect(fetchUrls(signedIn)).toEqual(["/api/v1/me"]);
+  });
+
+  it("T-001-48/AC-7 signing in from the account page with null initial data redirects to the allow-listed next", async () => {
+    const fetchMock = stubFetch({ me: "out" });
+    renderGateWith({ next: "/invitations", initialAccount: null });
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "nour@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith("/invitations");
+    });
+    expect(postCall(fetchMock, "/api/v1/sessions")?.method).toBe("POST");
+  });
+
+  it("T-001-48/AC-7 registering from the account page with null initial data redirects to the join next", async () => {
+    const fetchMock = stubFetch({ me: "out" });
+    renderGateWith({ next: JOIN_PATH, initialAccount: null });
+    fireEvent.click(screen.getByRole("tab", { name: "Create account" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "nour@example.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "password1" } });
+    fireEvent.change(screen.getByLabelText("Display name"), { target: { value: "Nour" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(JOIN_PATH);
+    });
+    expect(postCall(fetchMock, "/api/v1/accounts")?.method).toBe("POST");
   });
 
   it("keeps unsaved gate input when the language control updates hp_locale", async () => {

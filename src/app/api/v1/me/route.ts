@@ -3,20 +3,21 @@ import {
   accountResponse,
   logged,
   missingSessionResponse,
-  readAccountSession,
   readCookie,
   slideSession,
 } from "@/server/auth/http";
+import { loadAccountPage } from "@/server/auth/page-data";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<NextResponse> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
-  if (!session.ok) {
+  const page = await loadAccountPage((name) => readCookie(request, name));
+  if (page.kind === "signed_out") {
     return logged(request, missingSessionResponse());
   }
 
+  const { session } = page;
   const options = await slideSession(session.sessionId);
   return logged(
     request,
