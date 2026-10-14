@@ -73,6 +73,15 @@ max_attempts = 3
 command = "claude -p {instruction} ${SDLC_BUILD_MODEL:+--model \"$SDLC_BUILD_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
 timeout = 3600
 
+# fe-builder (lead decision of 2026-10-14): the builder's tools plus Next.js's built-in MCP
+# server (read-only diagnostics such as get_routes, get_errors, get_logs, compile_route).
+# ops/agent-fe-builder.sh starts `next dev` on 127.0.0.1:3210 for the run and stops it on exit;
+# nothing is downloaded (next is the locked devDependency). The launcher is in ops/, a lead-only
+# path, so no ticket PR can widen this agent. Use it for frontend tickets; review stays `reviewer`.
+[agents.fe-builder]
+command = "bash ops/agent-fe-builder.sh {instruction}"
+timeout = 3600
+
 [agents.tester]
 command = "claude -p {instruction} ${SDLC_TEST_MODEL:+--model \"$SDLC_TEST_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
 timeout = 3600
