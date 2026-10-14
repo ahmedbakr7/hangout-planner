@@ -198,8 +198,9 @@ describe("T-001-52/AC-3 chrome rules", () => {
     expect(ids).not.toContain(SYNTAX);
   });
 
-  it("T-001-52/AC-3 does not apply to the theme CSS folder", async () => {
-    const ids = await ruleIds(`export const c = "#0e6b4f";\n`, "design/example.ts");
-    expect(ids).not.toContain(SYNTAX);
+  it("T-001-52/AC-3 flags the same hex literal in a non-test file but not in a test file", async () => {
+    const code = `export const c = "#0e6b4f";\n`;
+    expect(await ruleIds(code, "src/lib/example.ts")).toContain(SYNTAX);
+    expect(await ruleIds(code, "src/lib/example.test.ts")).not.toContain(SYNTAX);
   });
 });
