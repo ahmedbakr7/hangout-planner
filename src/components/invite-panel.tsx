@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSessionSlide } from "@/components/use-session-slide";
+import { planPath } from "@/lib/plan-paths";
 
 const OPENING_NEXTS = [
   "organizer",
@@ -249,22 +250,6 @@ function parseOpening(
     return null;
   }
   return { planId: record.plan_id, next: record.next };
-}
-
-function hrefForInvitationNext(planId: string, next: OpeningNext): string {
-  if (next === "organizer") {
-    return `/plans/${planId}`;
-  }
-  if (next === "respond") {
-    return `/plans/${planId}/respond`;
-  }
-  if (next === "proposal") {
-    return `/plans/${planId}/proposal`;
-  }
-  if (next === "confirmed") {
-    return `/plans/${planId}/confirmed`;
-  }
-  return `/plans/${planId}/join`;
 }
 
 function shareUrlFromJoinPath(joinPath: string): string {
@@ -733,7 +718,7 @@ function InvitationsListBody({
   async function openInvitation(row: InboxInvitation): Promise<void> {
     setOpenError(null);
     if (row.next) {
-      router.push(hrefForInvitationNext(row.planId, row.next));
+      router.push(planPath(row.planId, row.next));
       return;
     }
     try {
@@ -750,7 +735,7 @@ function InvitationsListBody({
         setOpenError(t("loadError"));
         return;
       }
-      router.push(hrefForInvitationNext(parsed.planId, parsed.next));
+      router.push(planPath(parsed.planId, parsed.next));
     } catch {
       setOpenError(t("loadError"));
     }
