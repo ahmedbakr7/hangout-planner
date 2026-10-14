@@ -182,6 +182,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Any request the test did not serve fails it, as in e2e/confirmed-server-load.e2e.ts.
+  expect(server.unserved).toEqual([]);
   cleanup();
   vi.unstubAllGlobals();
   delete process.env.HP_HASH_TEST;
