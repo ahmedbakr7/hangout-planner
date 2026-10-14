@@ -151,11 +151,11 @@ describe("e2e rtl", () => {
   it("Arabic locale sets dir=rtl on create", async () => {
     stubCreateFetch();
     render(
-      createElement(NextIntlClientProvider, {
-        locale: "en",
-        messages: en,
-        children: createElement(CreateForm),
-      }),
+      createElement(
+        NextIntlClientProvider,
+        { locale: "en", messages: en },
+        createElement(CreateForm),
+      ),
     );
     expect(await screen.findByLabelText("Plan title")).toBeTruthy();
 
@@ -174,11 +174,11 @@ describe("e2e rtl", () => {
   it("Arabic locale sets dir=rtl on confirmed", async () => {
     stubConfirmedFetch();
     render(
-      createElement(NextIntlClientProvider, {
-        locale: "en",
-        messages: en,
-        children: createElement(ConfirmedView, { planId: PLAN_ID, initialDoc: lockedBody }),
-      }),
+      createElement(
+        NextIntlClientProvider,
+        { locale: "en", messages: en },
+        createElement(ConfirmedView, { planId: PLAN_ID, initialDoc: lockedBody }),
+      ),
     );
     expect(await screen.findByText("Abu Tarek")).toBeTruthy();
 
@@ -233,11 +233,11 @@ describe("e2e rtl", () => {
     document.documentElement.dir = "rtl";
 
     render(
-      createElement(NextIntlClientProvider, {
-        locale: "ar",
-        messages: messages as never,
-        children: createElement(AccountGate),
-      }),
+      createElement(
+        NextIntlClientProvider,
+        { locale: "ar", messages: messages as never },
+        createElement(AccountGate),
+      ),
     );
 
     expect(
