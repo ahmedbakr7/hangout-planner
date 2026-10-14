@@ -469,6 +469,73 @@ describe("loadHomePage", () => {
   });
 });
 
+describe("loadHomePage list limit", () => {
+  const BASE = Date.UTC(2026, 0, 1);
+
+  /**
+   * Seed `count` plans for the account in one insert. Plan i is updated i seconds after the
+   * base, except the two newest, which share one timestamp so only the id breaks their tie.
+   * Returns the ids in the order the home list must answer them.
+   */
+  async function seedPlans(accountId: string, count: number): Promise<string[]> {
+    const rows = Array.from({ length: count }, (_, i) => ({
+      id: generateId("pln_"),
+      updatedAt: new Date(BASE + Math.min(i, count - 2) * 1000),
+    }));
+    await sql`
+      INSERT INTO plans ${sql(
+        rows.map((row) => ({
+          id: row.id,
+          organizer_account_id: accountId,
+          title: "Seeded plan",
+          timezone: "Africa/Cairo",
+          budget_amount_minor: 50_000,
+          currency: "EGP",
+          threshold: 3,
+          state: "collecting",
+          join_token: `jt_${row.id}`,
+          updated_at: row.updatedAt,
+        })),
+      )}
+    `;
+    return [...rows]
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime() || (a.id < b.id ? 1 : -1))
+      .map((row) => row.id);
+  }
+
+  it("T-001-49/AC-1 answers 100 plans and truncated true for 101 plans, newest first with id descending on a tie", async () => {
+    const organizer = await register(uniqueEmail("many"), "Omar");
+    const expected = await seedPlans(organizer.id, 101);
+
+    const result = await loadHomePage(reader({ hp_session: organizer.token }));
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      return;
+    }
+    const ids = result.view.plans.map((row) => row.id);
+    expect(result.view.truncated).toBe(true);
+    expect(ids).toHaveLength(100);
+    expect(ids).toEqual(expected.slice(0, 100));
+    expect(ids[0]! > ids[1]!).toBe(true);
+    expect(ids).not.toContain(expected[100]);
+  });
+
+  it("T-001-49/AC-1 answers 100 plans and truncated false for exactly 100 plans", async () => {
+    const organizer = await register(uniqueEmail("exact"), "Omar");
+    const expected = await seedPlans(organizer.id, 100);
+
+    const result = await loadHomePage(reader({ hp_session: organizer.token }));
+
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") {
+      return;
+    }
+    expect(result.view.truncated).toBe(false);
+    expect(result.view.plans.map((row) => row.id)).toEqual(expected);
+  });
+});
+
 describe("loadCreatePlanPage", () => {
   const currencies = [
     { code: "EGP", exponent: 2 },
