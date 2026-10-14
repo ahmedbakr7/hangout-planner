@@ -55,9 +55,10 @@ No other package. No ESLint plugin beyond these; the custom rules use ESLint's b
   - Spread `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`.
   - Ignore `.next/`, `node_modules/`, `.sdlc/`, `.sdlc-run/`, `skills/` and `next-env.d.ts`.
   - Boundaries with `no-restricted-imports` `patterns`, each with a message naming the rule:
-    - `src/server/**`, test files excluded: `react`, `react-dom`, `react/*`, `next/navigation`, `@/components/*`, `@/app/*`.
-    - `src/lib/**`: `@/server/*`, `@/components/*`, `@/app/*`.
-    - `src/components/**`, test files excluded: `@/server/*`.
+    - `src/server/**`, test files excluded: `react`, `react-dom`, `react/*`, `next/navigation`, `@/components`, `@/components/*`, `@/app`, `@/app/*`.
+    - `src/lib/**`: `@/server`, `@/server/*`, `@/components`, `@/components/*`, `@/app`, `@/app/*`.
+    - `src/components/**`, test files excluded: `@/server`, `@/server/*`.
+    - Each alias is listed bare and with `/*`, because a `/*` pattern does not match the bare alias.
     - Test files are excluded because the database-backed tests under `src/server` and `src/components` render or call across these folders on purpose.
   - Chrome with `no-restricted-syntax` on `src/**/*.{ts,tsx}`, test files excluded: a `Literal` or `TemplateElement` matching `#[0-9a-fA-F]{3,8}\b`, and a `JSXAttribute` named `style`. Messages cite ADR-0002.
 - **Fix what the rule sets report today.** The dry run found 13 problems in 9 files, all listed in `files:`. Behaviour does not change:
@@ -67,7 +68,7 @@ No other package. No ESLint plugin beyond these; the custom rules use ESLint's b
   - `react-hooks/exhaustive-deps` in `account-gate.tsx`: the first-load effect reads `initialAccount` and must stay mount-only (it seeds once, ADR-0007). Keep that behaviour.
   - An `eslint-disable` comment is allowed only on a single line, for a single rule, with a `-- reason`. Name each one in the PR.
 - **`src/lint-rules.test.ts`:** unit tests through the `ESLint` class API, tagged `T-001-52/AC-n`:
-  - AC-2 and AC-3: `lintText` with a `filePath` inside each folder, asserting the expected rule fires, and that a test file path or the theme CSS's folder does not trigger it where the ticket excludes it.
+  - AC-2 and AC-3: `lintText` with a `filePath` inside each folder, asserting the expected rule fires for a bare alias and a subpath, and that a test file path or the theme CSS's folder does not trigger it where the ticket excludes it.
   - AC-1: `lintFiles` on the repository reports zero errors and zero warnings (raise that test's timeout).
   - These tests lint snippets and the real tree. They never read a product file's source text.
 - **Out of scope:**
