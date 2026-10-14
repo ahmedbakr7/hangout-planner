@@ -46,7 +46,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
-| Pure helper shared by pages and client components | `src/lib/<name>.ts` (no `"use client"`, no import from `src/server/`), test beside it as `<name>.test.ts` | `src/lib/plan-paths.ts` (from T-001-50) |
+| Pure helper shared by pages and client components | `src/lib/<name>.ts` (no `"use client"`, no import from `src/server/`), test beside it as `<name>.test.ts` | `src/lib/plan-paths.ts` once T-001-50 lands; until then the layout only, as `src/lib/utils.ts` |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
 
 Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: `/plans/{planId}` (T-001-36), the example to copy; `/plans/{planId}/confirmed` (T-001-38), `/plans/{planId}/proposal` (T-001-39), `/plans/{planId}/respond` (T-001-40), `/plans/{planId}/invite` (T-001-41), `/plans/{planId}/join` (T-001-42), `/` (T-001-45), `/plans/new` (T-001-46), `/invitations` (T-001-47). Exception: `/join/{token}` keeps client loading, because its `GET` sets the `hp_link` cookie, and needs no `error.tsx` (ADR-0008). A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.

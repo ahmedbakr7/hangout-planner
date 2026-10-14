@@ -4,7 +4,7 @@ title: "Account page loads the signed-in account on the server"
 type: fullstack
 status: ready
 risk: medium
-depends_on: [T-001-44, T-001-46, T-001-47]
+depends_on: [T-001-44, T-001-45, T-001-46, T-001-47]
 files:
   - "src/server/auth/page-data.ts"
   - "src/server/auth/page-data.test.ts"
@@ -26,7 +26,7 @@ requirements:
   - N-001-15
 acceptance_criteria:
   - "AC-1: GET /api/v1/me returns the same status, body and Set-Cookie as before: 200 with the account's id, email and display_name and a renewed hp_session cookie whose session row's expires_at moved later, and 401 missing_session with no valid hp_session, including a guest-only browser"
-  - "AC-2: the /account page, called with a signed-in account's cookie, renders AccountGate with initial data that holds that account, and AccountGate given that data shows the signed-in view with the account's display name and makes no first-load GET /api/v1/me request other than the one slide request"
+  - "AC-2: the /account page, called with a signed-in account's cookie, renders AccountGate with initial data that holds that account, and AccountGate given that data shows the signed-in view with the account's display name and sends exactly one GET /api/v1/me request, the slide (AC-3), and no other first-load request"
   - "AC-3: AccountGate given initial account data sends exactly one GET /api/v1/me after mount (ADR-0009); given null initial data it sends no request at all"
   - "AC-4: for no cookie or an invalid hp_session, the page renders AccountGate with null initial data, which shows the sign-in form, and keeps the next path handling it has today (allow-listed next, and the join-without-account link for a join next)"
   - "AC-5: AccountGate rendered with no initialAccount prop, as CreateForm and InvitationsList render it, keeps today's first-load GET /api/v1/me behaviour unchanged"
