@@ -6,6 +6,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { ConfirmedView } from "@/components/confirmed-view";
+import { planPath } from "@/lib/plan-paths";
 
 const { router } = vi.hoisted(() => ({
   router: {
@@ -327,7 +328,7 @@ describe("ConfirmedView", () => {
   it("T-001-50/AC-2 opening next join links to the in-app join path", async () => {
     await renderErrorThenRetry({ get: "not_locked", opening: "join" });
     await waitFor(() => {
-      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/join`);
+      expect(router.replace).toHaveBeenCalledWith(planPath(PLAN_ID, "join"));
     });
   });
 
@@ -451,7 +452,7 @@ describe("ConfirmedView", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
-  it("the share link and an invitations row for a locked plan land on this surface", () => {
+  it("T-001-50/AC-3 the share link and an invitations row for a locked plan land on this surface", () => {
     const root = process.cwd();
     const page = readFileSync(
       join(root, "src/app/plans/[planId]/confirmed/page.tsx"),
@@ -459,12 +460,6 @@ describe("ConfirmedView", () => {
     );
     expect(page).toContain("ConfirmedView");
     expect(page).toContain("planId");
-
-    const joinPanel = readFileSync(
-      join(root, "src/components/join-panel.tsx"),
-      "utf8",
-    );
-    expect(joinPanel).toContain("`/plans/${planId}/confirmed`");
 
     const invite = readFileSync(
       join(root, "src/components/invite-panel.tsx"),
