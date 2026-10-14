@@ -19,6 +19,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
+const { planPathSpy } = vi.hoisted(() => ({ planPathSpy: vi.fn() }));
+
+vi.mock("@/lib/plan-paths", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/plan-paths")>();
+  planPathSpy.mockImplementation(actual.planPath);
+  return { ...actual, planPath: planPathSpy };
+});
+
 const TICKET_FILES = [
   "src/app/plans/[planId]/invite/page.tsx",
   "src/app/invitations/page.tsx",
@@ -835,12 +843,14 @@ describe("InvitationsList", () => {
         invitations: [{ ...thursdayRow, next }],
         truncated: false,
       });
+      planPathSpy.mockClear();
       fireEvent.click(
         await screen.findByRole("button", { name: /Thursday in Maadi/ }),
       );
       await waitFor(() => {
         expect(router.push).toHaveBeenCalledWith(path);
       });
+      expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, next);
     },
   );
 
@@ -849,12 +859,14 @@ describe("InvitationsList", () => {
     async (next, path) => {
       stubInboxFetch({ me: "in", inbox: "list", opening: next });
       renderInbox();
+      planPathSpy.mockClear();
       fireEvent.click(
         await screen.findByRole("button", { name: /Thursday in Maadi/ }),
       );
       await waitFor(() => {
         expect(router.push).toHaveBeenCalledWith(path);
       });
+      expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, next);
     },
   );
 
@@ -863,6 +875,11 @@ describe("InvitationsList", () => {
     renderInbox();
     expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
     expect(screen.getByText("Organized by Omar")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Thursday in Maadi/ }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/plans/${PLAN_ID}/respond`);
+    });
+    expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, "respond");
   });
 
   it("signed-in empty copy uses text-muted-foreground and offers home", async () => {
