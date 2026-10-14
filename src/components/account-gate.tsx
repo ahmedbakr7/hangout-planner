@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useSessionSlide } from "@/components/use-session-slide";
 
 const JOIN_NEXT = /^\/join\/jt_[A-Za-z0-9-_]{43}$/;
 const FIXED_NEXT = new Set(["/", "/plans/new", "/invitations"]);
@@ -39,6 +40,7 @@ type ParsedError = {
 
 export type AccountGateProps = {
   next?: string;
+  initialAccount?: unknown;
 };
 
 export function allowedNextPath(value: string | undefined): string {
@@ -150,15 +152,26 @@ function FieldBlock({
   );
 }
 
-function AccountGateBody({ next }: AccountGateProps): ReactNode {
+function AccountGateBody({
+  next,
+  initialAccount,
+}: AccountGateProps): ReactNode {
   const router = useRouter();
   const t = useTranslations("Account");
   const tReason = useTranslations("errors.reason");
   const tCode = useTranslations("errors.code");
   const tFields = useTranslations("errors.fields");
 
-  const [session, setSession] = useState<SessionState>("checking");
-  const [displayName, setDisplayName] = useState("");
+  const [initialName] = useState(() =>
+    initialAccount === undefined ? null : readDisplayName(initialAccount),
+  );
+  const [session, setSession] = useState<SessionState>(() => {
+    if (initialAccount === undefined) {
+      return "checking";
+    }
+    return initialName ? "signed_in" : "signed_out";
+  });
+  const [displayName, setDisplayName] = useState(initialName ?? "");
   const [mode, setMode] = useState<Mode>("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -170,7 +183,12 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
   const destination = allowedNextPath(next);
   const joinPath = isJoinNextPath(next) ? next : null;
 
+  useSessionSlide(initialName !== null);
+
   useEffect(() => {
+    if (initialAccount !== undefined) {
+      return;
+    }
     let cancelled = false;
 
     async function loadMe(): Promise<void> {
@@ -443,10 +461,13 @@ function AccountGateBody({ next }: AccountGateProps): ReactNode {
   );
 }
 
-export function AccountGate({ next }: AccountGateProps): ReactNode {
+export function AccountGate({
+  next,
+  initialAccount,
+}: AccountGateProps): ReactNode {
   return (
     <LanguageControl>
-      <AccountGateBody next={next} />
+      <AccountGateBody next={next} initialAccount={initialAccount} />
     </LanguageControl>
   );
 }

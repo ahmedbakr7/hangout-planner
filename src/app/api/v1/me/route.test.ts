@@ -128,7 +128,7 @@ function meRequest(cookie?: string) {
 }
 
 describe("GET /v1/me", () => {
-  it("returns 200 with the account for a session", async () => {
+  it("T-001-48/AC-1 returns 200 with the account and a renewed hp_session cookie for a session", async () => {
     const email = track(uniqueEmail("me"));
     const created = await register(email);
     const response = await GET(
@@ -145,7 +145,7 @@ describe("GET /v1/me", () => {
     expect(cookieValue(line!)).toBe(created.token);
   });
 
-  it("returns 401 missing_session with no cookie, a guest-only browser, or an unknown token", async () => {
+  it("T-001-48/AC-1 returns 401 missing_session with no cookie, a guest-only browser, or an unknown token", async () => {
     const email = track(uniqueEmail("hidden"));
     await register(email);
 
@@ -195,7 +195,7 @@ describe("GET /v1/me", () => {
     expect(sessionSetCookie(response)).toBeNull();
   });
 
-  it("slides the session expiry on a signed-in read", async () => {
+  it("T-001-48/AC-1 slides the session expiry on a signed-in read", async () => {
     setClock(new Date("2026-04-01T00:00:00.000Z"));
     const email = track(uniqueEmail("slide"));
     const created = await register(email);
