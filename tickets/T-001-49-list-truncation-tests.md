@@ -26,7 +26,7 @@ source_adr:
 
 This ticket is test-only. It changes no product code. The reviews of #105 (T-001-45) and #107 (T-001-47) both noted that no test reaches the 100-row limit and the `truncated` flag that CONTRACTS sets for `GET /api/v1/plans` and `GET /api/v1/invitations`. The loaders now own that rule.
 
-- Add the boundary cases to the existing loader test files, with the database helpers those files already use. The loaders order by `desc(plans.updatedAt), desc(plans.id)` and `desc(invitations.createdAt), desc(invitations.id)`. Seed rows with distinct `updated_at` or `created_at` values so the order is deterministic, and assert the first and last ids.
+- Add the boundary cases to the existing loader test files, with the database helpers those files already use. The loaders order by `desc(plans.updatedAt), desc(plans.id)` and `desc(invitations.createdAt), desc(invitations.id)`. Seed rows with distinct `updated_at` or `created_at` values so the order is deterministic, and assert the first and last ids. In each 101-row case, give two rows inside the first 100 the same timestamp and assert they come back in descending id order, so the tie-break is tested too.
 - Seed in bulk with one insert per table, not 101 round trips.
 - Delete what each test seeds in that file's existing cleanup.
 - No assertion is weakened, no test is skipped, and no shared helper is added.

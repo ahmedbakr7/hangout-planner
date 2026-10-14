@@ -52,6 +52,6 @@ This ticket replaces the mapping with one pure function and leaves each caller's
   - Remove the five local functions (`pathForNext` in both pages, `hrefForOpening` in `JoinPanel` and `ConfirmedView`, `hrefForParticipant`). Review checks this in the diff; no test reads source text.
 - **Unit tests:**
   - `src/lib/plan-paths.test.ts`: one test per AC-1 case, tagged `T-001-50/AC-1`.
-  - AC-2, tagged `T-001-50/AC-2`, by behaviour: the confirmed page's `not_locked` `join` redirect target (exact match, as in `src/app/plans/[planId]/join/page.test.tsx`), and `ConfirmedView`'s link for `join` and none for `confirmed`. Add these beside the existing tests of each file; existing tests that already pin a case may carry the tag.
+  - AC-2, tagged `T-001-50/AC-2`, by behaviour: the confirmed page's `not_locked` `join` redirect target (exact match, as in `src/app/plans/[planId]/join/page.test.tsx`), `ConfirmedView`'s link for `join` and none for `confirmed`, and `JoinPanel` staying on screen for an opening `next` of `join` and navigating to `/plans/{planId}/confirmed` after a join whose participant `next` is `confirmed`. Add these beside the existing tests of each file; existing tests that already pin a case may carry the tag.
   - Every AC needs a passing tagged unit test in the build.
 - No new message key and no new dependency.
