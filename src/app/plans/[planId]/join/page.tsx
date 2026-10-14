@@ -2,18 +2,12 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactElement } from "react";
 import { JoinPanel } from "@/components/join-panel";
+import { planPath } from "@/lib/plan-paths";
 import { loadPlanJoinPage } from "@/server/join/page-data";
 
 type PlanJoinPageProps = {
   params: Promise<{ planId: string }>;
 };
-
-function pathForNext(planId: string, next: string): string {
-  if (next === "organizer") {
-    return `/plans/${planId}`;
-  }
-  return `/plans/${planId}/${next}`;
-}
 
 export default async function PlanJoinPage({
   params,
@@ -25,7 +19,7 @@ export default async function PlanJoinPage({
     (name) => jar.get(name)?.value ?? null,
   );
   if (page.kind === "ok" && page.opening.next !== "join") {
-    redirect(pathForNext(planId, page.opening.next));
+    redirect(planPath(planId, page.opening.next));
   }
   const initialOpening =
     page.kind === "ok" ? JSON.parse(JSON.stringify(page.opening)) : null;

@@ -6,6 +6,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { JoinPanel } from "@/components/join-panel";
+import { planPath } from "@/lib/plan-paths";
 
 const { router } = vi.hoisted(() => ({
   router: {
@@ -427,7 +428,26 @@ describe("JoinPanel", () => {
     expectForbiddenPreviewAbsent();
   });
 
-  it("a direct hit on the wrong path for this plan redirects to next", async () => {
+  it("T-001-50/AC-2 an opening next of join stays on the screen", async () => {
+    await renderLoaded({ planId: PLAN_ID }, { me: "in", opening: "join" });
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Join with an account" }),
+    ).toBeTruthy();
+  });
+
+  it("T-001-50/AC-2 a join whose participant next is confirmed navigates to the confirmed path", async () => {
+    await renderLoaded(
+      { planId: PLAN_ID },
+      { me: "in", joinNext: "confirmed" },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Join with an account" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(planPath(PLAN_ID, "confirmed"));
+    });
+  });
+
+  it("T-001-50/AC-3 a direct hit on the wrong path for this plan redirects to next", async () => {
     stubFetch({ me: "in", opening: "organizer" });
     renderJoin({ token: JOIN_TOKEN });
     await waitFor(() => {
@@ -452,6 +472,14 @@ describe("JoinPanel", () => {
       expect(router.replace).toHaveBeenCalledWith(
         `/plans/${PLAN_ID}/proposal`,
       );
+    });
+  });
+
+  it("T-001-50/AC-3 an opening next of respond redirects to the helper's path", async () => {
+    stubFetch({ me: "in", opening: "respond" });
+    renderJoin({ planId: PLAN_ID });
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(planPath(PLAN_ID, "respond"));
     });
   });
 
