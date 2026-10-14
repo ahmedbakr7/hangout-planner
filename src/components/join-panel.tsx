@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSessionSlide } from "@/components/use-session-slide";
+import { planPath } from "@/lib/plan-paths";
 
 const DISPLAY_NAME_MAX = 40;
 const BUDGET_EXPONENT = 2;
@@ -277,32 +278,6 @@ function parseJoinResult(
   return { next };
 }
 
-function hrefForOpening(planId: string, next: OpeningNext): string | null {
-  if (next === "organizer") {
-    return `/plans/${planId}`;
-  }
-  if (next === "respond") {
-    return `/plans/${planId}/respond`;
-  }
-  if (next === "proposal") {
-    return `/plans/${planId}/proposal`;
-  }
-  if (next === "confirmed") {
-    return `/plans/${planId}/confirmed`;
-  }
-  return null;
-}
-
-function hrefForParticipant(planId: string, next: ParticipantNext): string {
-  if (next === "respond") {
-    return `/plans/${planId}/respond`;
-  }
-  if (next === "proposal") {
-    return `/plans/${planId}/proposal`;
-  }
-  return `/plans/${planId}/confirmed`;
-}
-
 function amountMinorToDecimal(amountMinor: number, exponent: number): string {
   if (!Number.isInteger(amountMinor)) {
     return "";
@@ -474,15 +449,9 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
         return;
       }
       if (parsed.next !== "join") {
-        const href = hrefForOpening(parsed.planId, parsed.next);
-        if (href) {
-          setLoad("redirecting");
-          setPreview(null);
-          router.replace(href);
-          return;
-        }
-        setLoad("error");
+        setLoad("redirecting");
         setPreview(null);
+        router.replace(planPath(parsed.planId, parsed.next));
         return;
       }
       setResolvedPlanId(parsed.planId);
@@ -540,15 +509,9 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
           return;
         }
         if (parsed.next !== "join") {
-          const href = hrefForOpening(parsed.planId, parsed.next);
-          if (href) {
-            setLoad("redirecting");
-            setPreview(null);
-            router.replace(href);
-            return;
-          }
-          setLoad("error");
+          setLoad("redirecting");
           setPreview(null);
+          router.replace(planPath(parsed.planId, parsed.next));
           return;
         }
         setResolvedPlanId(parsed.planId);
@@ -615,7 +578,7 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
         const result = parseJoinResult(payload);
         const targetPlanId = resolvedPlanId ?? planId;
         if (result && targetPlanId) {
-          router.push(hrefForParticipant(targetPlanId, result.next));
+          router.push(planPath(targetPlanId, result.next));
           return;
         }
         setFormError(t("joinFailed"));

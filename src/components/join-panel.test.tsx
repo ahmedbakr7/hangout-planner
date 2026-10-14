@@ -427,6 +427,25 @@ describe("JoinPanel", () => {
     expectForbiddenPreviewAbsent();
   });
 
+  it("T-001-50/AC-2 an opening next of join stays on the screen", async () => {
+    await renderLoaded({ planId: PLAN_ID }, { me: "in", opening: "join" });
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Join with an account" }),
+    ).toBeTruthy();
+  });
+
+  it("T-001-50/AC-2 a join whose participant next is confirmed navigates to the confirmed path", async () => {
+    await renderLoaded(
+      { planId: PLAN_ID },
+      { me: "in", joinNext: "confirmed" },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Join with an account" }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
+    });
+  });
+
   it("a direct hit on the wrong path for this plan redirects to next", async () => {
     stubFetch({ me: "in", opening: "organizer" });
     renderJoin({ token: JOIN_TOKEN });

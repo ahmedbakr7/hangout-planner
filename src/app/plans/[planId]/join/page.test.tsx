@@ -61,6 +61,11 @@ describe("plan join page", () => {
     await expect(open(okPage(next))).rejects.toThrow(`NEXT_REDIRECT ${target}`);
   });
 
+  it("T-001-50/AC-2 does not redirect for next join", async () => {
+    const tree = await open(okPage("join"));
+    expect(tree.props.children.props.planId).toBe("pln_a");
+  });
+
   it("T-001-42/AC-2 passes the opening and the signed-in state to JoinPanel", async () => {
     const preview = { title: "Thursday in Maadi", organizer_display_name: "Omar" };
     const tree = await open(okPage("join", preview));
