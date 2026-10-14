@@ -19,6 +19,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
+const { planPathSpy } = vi.hoisted(() => ({ planPathSpy: vi.fn() }));
+
+vi.mock("@/lib/plan-paths", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/plan-paths")>();
+  planPathSpy.mockImplementation(actual.planPath);
+  return { ...actual, planPath: planPathSpy };
+});
+
 const TICKET_FILES = [
   "src/app/plans/[planId]/invite/page.tsx",
   "src/app/invitations/page.tsx",
@@ -153,7 +161,7 @@ type InviteConfig = {
 type InboxConfig = {
   me?: "in" | "out";
   inbox?: "empty" | "list" | "fail" | "withNext";
-  opening?: "join" | "respond" | "proposal" | "confirmed" | "fail";
+  opening?: "organizer" | "join" | "respond" | "proposal" | "confirmed" | "fail";
 };
 
 function inviteBody(kind: NonNullable<InviteConfig["invite"]>): {
@@ -817,6 +825,61 @@ describe("InvitationsList", () => {
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
     });
+  });
+
+  const NEXT_PATHS = [
+    ["organizer", `/plans/${PLAN_ID}`],
+    ["respond", `/plans/${PLAN_ID}/respond`],
+    ["proposal", `/plans/${PLAN_ID}/proposal`],
+    ["confirmed", `/plans/${PLAN_ID}/confirmed`],
+    ["join", `/plans/${PLAN_ID}/join`],
+  ] as const;
+
+  it.each(NEXT_PATHS)(
+    "T-001-51/AC-1 a row carrying next %s pushes %s",
+    async (next, path) => {
+      stubInboxFetch({ me: "in" });
+      renderInbox({
+        invitations: [{ ...thursdayRow, next }],
+        truncated: false,
+      });
+      planPathSpy.mockClear();
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Thursday in Maadi/ }),
+      );
+      await waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith(path);
+      });
+      expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, next);
+    },
+  );
+
+  it.each(NEXT_PATHS)(
+    "T-001-51/AC-1 next %s read from opening pushes %s",
+    async (next, path) => {
+      stubInboxFetch({ me: "in", inbox: "list", opening: next });
+      renderInbox();
+      planPathSpy.mockClear();
+      fireEvent.click(
+        await screen.findByRole("button", { name: /Thursday in Maadi/ }),
+      );
+      await waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith(path);
+      });
+      expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, next);
+    },
+  );
+
+  it("T-001-51/AC-2 the list still shows each invitation row with its title and organizer", async () => {
+    stubInboxFetch({ me: "in", inbox: "list" });
+    renderInbox();
+    expect(await screen.findByText("Thursday in Maadi")).toBeTruthy();
+    expect(screen.getByText("Organized by Omar")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Thursday in Maadi/ }));
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/plans/${PLAN_ID}/respond`);
+    });
+    expect(planPathSpy).toHaveBeenCalledWith(PLAN_ID, "respond");
   });
 
   it("signed-in empty copy uses text-muted-foreground and offers home", async () => {
