@@ -46,7 +46,32 @@ describe("T-001-52/AC-1 npm run lint", () => {
   });
 });
 
+async function realTreeErrors(globs: string[]): Promise<string[]> {
+  const results = await eslint.lintFiles(globs);
+  return results.flatMap((result) =>
+    result.messages
+      .filter((message) => message.severity === 2)
+      .map(
+        (message) =>
+          `${path.relative(ROOT, result.filePath)}:${message.line} ${message.ruleId}`,
+      ),
+  );
+}
+
 describe("T-001-52/AC-2 import boundaries", () => {
+  it(
+    "T-001-52/AC-2 the real src/server and src/components files have no ESLint errors",
+    async () => {
+      expect(
+        await realTreeErrors([
+          "src/server/**/*.ts",
+          "src/components/**/*.{ts,tsx}",
+        ]),
+      ).toEqual([]);
+    },
+    120_000,
+  );
+
   it.each([
     ["react"],
     ["react/jsx-runtime"],
@@ -132,6 +157,14 @@ describe("T-001-52/AC-2 import boundaries", () => {
 });
 
 describe("T-001-52/AC-3 chrome rules", () => {
+  it(
+    "T-001-52/AC-3 the real src tree has no raw hex colour or inline style errors",
+    async () => {
+      expect(await realTreeErrors(["src/**/*.{ts,tsx}"])).toEqual([]);
+    },
+    120_000,
+  );
+
   it.each([
     ["a string literal", `export const c = "#0e6b4f";\n`],
     ["a short hex string", `export const c = "#fff";\n`],
