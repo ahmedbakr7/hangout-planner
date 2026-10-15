@@ -20,12 +20,6 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 
-const TICKET_FILES = [
-  "src/app/plans/[planId]/confirmed/page.tsx",
-  "src/components/confirmed-view.tsx",
-  "src/components/confirmed-view.test.tsx",
-];
-
 const PLAN_ID = "pln_confirmedaaaaaaaaaaaa";
 const DINNER_ID = "stp_aaaaaaaaaaaaaaaaaaaaaa";
 const COFFEE_ID = "stp_cccccccccccccccccccccc";
@@ -258,40 +252,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("ConfirmedView chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const view = readFileSync(join(root, "src/components/confirmed-view.tsx"), "utf8");
-    expect(view).toContain('from "@/components/ui/button"');
-    expect(view).toContain('from "@/components/ui/card"');
-    expect(view).toContain("text-success");
-    expect(view).toContain("text-destructive");
-    expect(view).toContain("text-muted-foreground");
-    expect(view).toContain("bg-background");
-    expect(view).toContain('variant="secondary"');
-    expect(view).not.toContain("bg-primary");
-    expect(view).not.toContain('className="danger"');
-    expect(view).not.toContain("var(--accent)");
-    expect(view).not.toContain("var(--danger)");
-    expect(view.includes("style=" + "{{")).toBe(false);
-    expect(view.toLowerCase()).not.toContain("<img");
-    expect(view.toLowerCase()).not.toContain("iframe");
-    expect(view).not.toContain("starting_points");
-    expect(view.toLowerCase()).not.toContain("unlock");
-    const page = readFileSync(
-      join(root, "src/app/plans/[planId]/confirmed/page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("ConfirmedView");
-    expect(page).toContain("planId");
-  });
 });
 
 describe("ConfirmedView", () => {

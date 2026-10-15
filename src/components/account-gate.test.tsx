@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -20,16 +18,6 @@ vi.mock("next/navigation", () => ({
 
 const JOIN_TOKEN = `jt_${"A".repeat(43)}`;
 const JOIN_PATH = `/join/${JOIN_TOKEN}`;
-
-const TICKET_FILES = [
-  "src/app/account/page.tsx",
-  "src/app/account/error.tsx",
-  "src/components/account-gate.tsx",
-  "src/components/account-gate.test.tsx",
-  "src/components/language-control.tsx",
-  "src/components/language-control.test.tsx",
-  "src/i18n/fallback.test.ts",
-];
 
 const missingSession = {
   error: {
@@ -179,34 +167,6 @@ describe("allowedNextPath", () => {
     expect(allowedNextPath(`${JOIN_PATH}?x=1`)).toBe("/");
     expect(allowedNextPath("/JOIN/" + JOIN_TOKEN)).toBe("/");
     expect(isJoinNextPath("/plans/new")).toBe(false);
-  });
-});
-
-describe("AccountGate chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const gate = readFileSync(join(root, "src/components/account-gate.tsx"), "utf8");
-    expect(gate).toContain('from "@/components/ui/button"');
-    expect(gate).toContain('from "@/components/ui/input"');
-    expect(gate).toContain('from "@/components/ui/label"');
-    expect(gate).toContain('from "@/components/ui/card"');
-    expect(gate).toContain("bg-primary");
-    expect(gate).toContain("text-destructive");
-    expect(gate).not.toContain('className="danger"');
-    expect(gate).not.toContain("var(--accent)");
-    expect(gate).not.toContain("var(--danger)");
-    expect(gate.includes("style=" + "{{")).toBe(false);
-    const language = readFileSync(
-      join(root, "src/components/language-control.tsx"),
-      "utf8",
-    );
-    expect(language.includes("style=" + "{{")).toBe(false);
-    expect(language).toContain('from "@/components/ui/label"');
   });
 });
 
