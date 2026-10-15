@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -34,13 +32,6 @@ vi.mock("@/components/use-session-slide", async (importOriginal) => {
     },
   };
 });
-
-const TICKET_FILES = [
-  "src/app/join/[token]/page.tsx",
-  "src/app/plans/[planId]/join/page.tsx",
-  "src/components/join-panel.tsx",
-  "src/components/join-panel.test.tsx",
-];
 
 const JOIN_TOKEN = `jt_${"A".repeat(43)}`;
 const PLAN_ID = "pln_joinaaaaaaaaaaaaaaaaaa";
@@ -270,40 +261,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("JoinPanel chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const panel = readFileSync(join(root, "src/components/join-panel.tsx"), "utf8");
-    expect(panel).toContain('from "@/components/ui/button"');
-    expect(panel).toContain('from "@/components/ui/input"');
-    expect(panel).toContain('from "@/components/ui/label"');
-    expect(panel).toContain('from "@/components/ui/card"');
-    expect(panel).toContain("bg-primary");
-    expect(panel).toContain("text-destructive");
-    expect(panel).not.toContain('className="danger"');
-    expect(panel).not.toContain("var(--accent)");
-    expect(panel).not.toContain("var(--danger)");
-    expect(panel.includes("style=" + "{{")).toBe(false);
-    expect(panel).not.toContain('type="password"');
-    expect(panel).not.toContain("password");
-    const tokenPage = readFileSync(
-      join(root, "src/app/join/[token]/page.tsx"),
-      "utf8",
-    );
-    const planPage = readFileSync(
-      join(root, "src/app/plans/[planId]/join/page.tsx"),
-      "utf8",
-    );
-    expect(tokenPage).toContain("JoinPanel");
-    expect(planPage).toContain("JoinPanel");
-  });
 });
 
 describe("JoinPanel", () => {

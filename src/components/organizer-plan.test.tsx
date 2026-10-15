@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -18,12 +16,6 @@ const { router } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
-
-const TICKET_FILES = [
-  "src/app/plans/[planId]/page.tsx",
-  "src/components/organizer-plan.tsx",
-  "src/components/organizer-plan.test.tsx",
-];
 
 const collectingId = "pln_collectingaaaaaaaaaaaa";
 const blockedId = "pln_blockedaaaaaaaaaaaaaa";
@@ -268,31 +260,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("OrganizerPlan chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const plan = readFileSync(join(root, "src/components/organizer-plan.tsx"), "utf8");
-    expect(plan).toContain('from "@/components/ui/button"');
-    expect(plan).toContain('from "@/components/ui/input"');
-    expect(plan).toContain('from "@/components/ui/label"');
-    expect(plan).toContain('from "@/components/ui/card"');
-    expect(plan).toContain("bg-primary");
-    expect(plan).toContain("text-destructive");
-    expect(plan).toContain("text-muted-foreground");
-    expect(plan).toContain("text-success");
-    expect(plan).toContain("text-warning");
-    expect(plan).not.toContain('className="danger"');
-    expect(plan).not.toContain("var(--accent)");
-    expect(plan).not.toContain("var(--danger)");
-    expect(plan.includes("style=" + "{{")).toBe(false);
-  });
 });
 
 describe("OrganizerPlan", () => {

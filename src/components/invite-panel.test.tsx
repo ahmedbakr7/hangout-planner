@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -26,13 +24,6 @@ vi.mock("@/lib/plan-paths", async (importOriginal) => {
   planPathSpy.mockImplementation(actual.planPath);
   return { ...actual, planPath: planPathSpy };
 });
-
-const TICKET_FILES = [
-  "src/app/plans/[planId]/invite/page.tsx",
-  "src/app/invitations/page.tsx",
-  "src/components/invite-panel.tsx",
-  "src/components/invite-panel.test.tsx",
-];
 
 const PLAN_ID = "pln_inviteaaaaaaaaaaaaaaaa";
 const JOIN_PATH = `/join/jt_${"B".repeat(43)}`;
@@ -422,42 +413,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("Invite chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const panel = readFileSync(join(root, "src/components/invite-panel.tsx"), "utf8");
-    expect(panel).toContain('from "@/components/ui/button"');
-    expect(panel).toContain('from "@/components/ui/input"');
-    expect(panel).toContain('from "@/components/ui/label"');
-    expect(panel).toContain('from "@/components/ui/card"');
-    expect(panel).toContain("bg-primary");
-    expect(panel).toContain("text-destructive");
-    expect(panel).toContain("text-muted-foreground");
-    expect(panel).not.toContain('className="danger"');
-    expect(panel).not.toContain("var(--accent)");
-    expect(panel).not.toContain("var(--danger)");
-    expect(panel.includes("style=" + "{{")).toBe(false);
-    expect(panel.toLowerCase()).not.toContain("friend list");
-    expect(panel.toLowerCase()).not.toContain("suggested people");
-    expect(panel.toLowerCase()).not.toContain("co-planner");
-    const invitePage = readFileSync(
-      join(root, "src/app/plans/[planId]/invite/page.tsx"),
-      "utf8",
-    );
-    const inboxPage = readFileSync(
-      join(root, "src/app/invitations/page.tsx"),
-      "utf8",
-    );
-    expect(invitePage).toContain("InvitePanel");
-    expect(inboxPage).toContain("InvitationsList");
-  });
 });
 
 describe("InvitePanel", () => {

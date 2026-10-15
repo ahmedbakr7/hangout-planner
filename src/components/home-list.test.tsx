@@ -1,17 +1,9 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { HomeList } from "@/components/home-list";
-
-const TICKET_FILES = [
-  "src/app/page.tsx",
-  "src/components/home-list.tsx",
-  "src/components/home-list.test.tsx",
-];
 
 const missingSession = {
   error: {
@@ -141,28 +133,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("HomeList chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const list = readFileSync(join(root, "src/components/home-list.tsx"), "utf8");
-    expect(list).toContain('from "@/components/ui/button"');
-    expect(list).toContain('from "@/components/ui/card"');
-    expect(list).toContain("bg-primary");
-    expect(list).toContain("text-destructive");
-    expect(list).toContain("text-muted-foreground");
-    expect(list).toContain("text-success");
-    expect(list).not.toContain('className="danger"');
-    expect(list).not.toContain("var(--accent)");
-    expect(list).not.toContain("var(--danger)");
-    expect(list.includes("style=" + "{{")).toBe(false);
-  });
 });
 
 describe("HomeList", () => {

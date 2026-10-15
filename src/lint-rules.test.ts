@@ -233,6 +233,40 @@ describe("T-001-52/AC-3 chrome rules", () => {
     expect(ids).not.toContain(SYNTAX);
   });
 
+  it("T-001-53/AC-1 the nine chrome components resolve no-restricted-syntax as an error with the hex and style selectors", async () => {
+    const selectors = [
+      "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+      "TemplateElement[value.raw=/#[0-9a-fA-F]{3,8}\\b/]",
+      "JSXAttribute[name.name='style']",
+    ];
+    const components = [
+      "account-gate",
+      "confirmed-view",
+      "create-form",
+      "home-list",
+      "invite-panel",
+      "join-panel",
+      "organizer-plan",
+      "proposal-view",
+      "response-form",
+    ].map((name) => `src/components/${name}.tsx`);
+    for (const file of components) {
+      const config = await eslint.calculateConfigForFile(
+        path.join(ROOT, file),
+      );
+      const entry = config?.rules?.[SYNTAX] as unknown[] | undefined;
+      expect(entry, file).toBeDefined();
+      const [severity, ...options] = entry ?? [];
+      expect([2, "error"], file).toContain(severity);
+      const configured = options.map(
+        (option) => (option as { selector: string }).selector,
+      );
+      for (const selector of selectors) {
+        expect(configured, file).toContain(selector);
+      }
+    }
+  });
+
   it("T-001-52/AC-3 flags the same hex literal in a non-test file but not in a test file", async () => {
     const code = `export const c = "#0e6b4f";\n`;
     expect(await ruleIds(code, "src/lib/example.ts")).toContain(SYNTAX);

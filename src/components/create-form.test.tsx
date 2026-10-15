@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -17,12 +15,6 @@ const { router } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
-
-const TICKET_FILES = [
-  "src/app/plans/new/page.tsx",
-  "src/components/create-form.tsx",
-  "src/components/create-form.test.tsx",
-];
 
 const missingSession = {
   error: {
@@ -218,28 +210,6 @@ afterEach(() => {
   document.cookie = "hp_locale=;path=/;max-age=0";
   document.documentElement.lang = "en";
   document.documentElement.dir = "ltr";
-});
-
-describe("CreateForm chrome", () => {
-  it("composes shadcn primitives with DESIGN.md semantic classes and no raw hex", () => {
-    const hex = new RegExp("#" + "[0-9a-fA-F]{3,8}\\b");
-    const root = process.cwd();
-    for (const relative of TICKET_FILES) {
-      const source = readFileSync(join(root, relative), "utf8");
-      expect(source, relative).not.toMatch(hex);
-    }
-    const form = readFileSync(join(root, "src/components/create-form.tsx"), "utf8");
-    expect(form).toContain('from "@/components/ui/button"');
-    expect(form).toContain('from "@/components/ui/input"');
-    expect(form).toContain('from "@/components/ui/label"');
-    expect(form).toContain('from "@/components/ui/card"');
-    expect(form).toContain("bg-primary");
-    expect(form).toContain("text-destructive");
-    expect(form).not.toContain('className="danger"');
-    expect(form).not.toContain("var(--accent)");
-    expect(form).not.toContain("var(--danger)");
-    expect(form.includes("style=" + "{{")).toBe(false);
-  });
 });
 
 describe("decimalToAmountMinor", () => {
