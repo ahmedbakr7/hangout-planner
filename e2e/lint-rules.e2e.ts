@@ -143,3 +143,33 @@ describe("T-001-52/AC-3 chrome rules through the CLI", () => {
     expect(errorsFor(notColour, "no-restricted-syntax")).toEqual([]);
   });
 });
+
+describe("T-001-53/AC-1 chrome rules on the nine components through the CLI", () => {
+  const components = [
+    "account-gate",
+    "confirmed-view",
+    "create-form",
+    "home-list",
+    "invite-panel",
+    "join-panel",
+    "organizer-plan",
+    "proposal-view",
+    "response-form",
+  ].map((name) => `src/components/${name}.tsx`);
+
+  const snippets = [
+    ["a raw hex string", `export const c = "#0e6b4f";\n`],
+    ["a raw hex template literal", "export const c = `border: 1px solid #fff`;\n"],
+    ["a JSX style attribute", `export function X() {\n  return <div style={{ margin: 0 }} />;\n}\n`],
+  ] as const;
+
+  it.each(components)(
+    "T-001-53/AC-1 %s reports a hex string, a hex template and a style attribute as errors",
+    async (file) => {
+      for (const [what, code] of snippets) {
+        const messages = await lintStdin(file, code);
+        expect(errorsFor(messages, "no-restricted-syntax"), `${file}: ${what}`).toHaveLength(1);
+      }
+    },
+  );
+});
