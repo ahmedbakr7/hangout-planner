@@ -19,6 +19,7 @@ import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router, cookieJar } = vi.hoisted(() => ({
@@ -120,14 +121,24 @@ afterEach(() => {
   cookieJar.value = "";
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const email of emails) {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeJoin(), closeAttempt(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeJoin(),
+    () => closeAttempt(),
+    () => closeInbox(),
+  ),
+);
 
 describe("create page loads on the server", () => {
   it("T-001-46/AC-1 GET /api/v1/currencies answers the currency list for a signed-in account, and the missing-session response without a session", async () => {
