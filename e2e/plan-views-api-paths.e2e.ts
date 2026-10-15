@@ -26,6 +26,7 @@ import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router } = vi.hoisted(() => ({
@@ -198,7 +199,7 @@ afterEach(() => {
   router.replace.mockReset();
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const planId of planIds) {
     const proposals = sql`SELECT id FROM proposals WHERE plan_id = ${planId}`;
     const participants = sql`SELECT id FROM participants WHERE plan_id = ${planId}`;
@@ -240,9 +241,19 @@ afterAll(async () => {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeJoin(), closeAttempt(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeJoin(),
+    () => closeAttempt(),
+    () => closeInbox(),
+  ),
+);
 
 async function answerAsGuest(planId: string): Promise<void> {
   const initialResponse: unknown = await (await server.serve(`/api/v1/plans/${planId}/response`)).json();

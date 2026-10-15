@@ -23,6 +23,7 @@ import { ROUTES_MATRIX_URL } from "@/server/google/routes";
 import { setProposalAttemptGoogleOptions } from "@/server/proposal/trigger";
 import { setGoogleClientOptions as setResponseGoogle } from "@/server/response/google";
 import { setGoogleClientOptions as setSwapGoogle } from "@/server/proposal/swap-google";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router, cookieJar, redirectMock } = vi.hoisted(() => ({
@@ -257,7 +258,7 @@ afterEach(() => {
   cookieJar.value = "";
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const planId of planIds) {
     const participants = sql`SELECT id FROM participants WHERE plan_id = ${planId}`;
     const proposalIds = sql`SELECT id FROM proposals WHERE plan_id = ${planId}`;
@@ -301,9 +302,19 @@ afterAll(async () => {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeJoin(), closeAttempt(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeJoin(),
+    () => closeAttempt(),
+    () => closeInbox(),
+  ),
+);
 
 describe("proposal page loads on the server", () => {
   it("T-001-39/AC-1 GET /api/v1/plans/{planId}/proposal answers each caller as the contract says", async () => {

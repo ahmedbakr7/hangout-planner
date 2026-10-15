@@ -17,6 +17,7 @@ import { InvitationsList } from "@/components/invite-panel";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { cleanupThenClose } from "./db-cleanup";
 import { routeFor } from "./route-server";
 
 vi.mock("next/navigation", () => ({
@@ -87,12 +88,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
   await sql`DELETE FROM accounts WHERE email = ${email}`;
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeInbox(),
+  ),
+);
 
 describe("UI requests against the real route handlers", () => {
   it("T-001-32/AC-2 the account gate shows sign-in on a real 401 from GET /api/v1/me", async () => {

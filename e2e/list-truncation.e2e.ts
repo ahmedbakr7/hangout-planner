@@ -13,6 +13,7 @@ import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -119,7 +120,7 @@ beforeEach(() => {
   };
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const planId of planIds) {
     const participants = sql`SELECT id FROM participants WHERE plan_id = ${planId}`;
     await sql`DELETE FROM proposal_runs WHERE plan_id = ${planId}`;
@@ -138,9 +139,19 @@ afterAll(async () => {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeJoin(), closeAttempt(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeJoin(),
+    () => closeAttempt(),
+    () => closeInbox(),
+  ),
+);
 
 describe("lists stop at 100 rows and say so", () => {
   it("T-001-49/AC-1 GET /api/v1/plans answers 100 plans and truncated true for 101 plans, in updated_at then id descending order", async () => {

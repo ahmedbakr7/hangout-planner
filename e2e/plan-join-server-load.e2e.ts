@@ -18,6 +18,7 @@ import { closeDatabase as closePlans } from "@/server/plans/http";
 import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router, cookieJar, redirectMock } = vi.hoisted(() => ({
@@ -186,7 +187,7 @@ afterEach(() => {
   cookieJar.value = "";
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const planId of planIds) {
     const participants = sql`SELECT id FROM participants WHERE plan_id = ${planId}`;
     const guests = await sql<{ id: string }[]>`
@@ -222,9 +223,19 @@ afterAll(async () => {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await Promise.all([closeAccounts(), closePlans(), closeJoin(), closeAttempt(), closeInbox()]);
-});
+}
+
+afterAll(() =>
+  cleanupThenClose(
+    deleteSeededRows,
+    () => sql.end(),
+    () => closeAccounts(),
+    () => closePlans(),
+    () => closeJoin(),
+    () => closeAttempt(),
+    () => closeInbox(),
+  ),
+);
 
 describe("plan join page loads on the server", () => {
   it("T-001-42/AC-1 GET /api/v1/plans/{planId}/opening answers 200 with next and the preview, and 404, as before", async () => {

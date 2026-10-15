@@ -15,6 +15,7 @@ import { AccountGate } from "@/components/account-gate";
 import AccountPage from "@/app/account/page";
 import { hashCookieToken } from "@/server/auth/session";
 import { closeDatabase as closeAccounts } from "@/server/auth/http";
+import { cleanupThenClose } from "./db-cleanup";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router, cookieJar } = vi.hoisted(() => ({
@@ -138,14 +139,14 @@ afterEach(() => {
   cookieJar.value = "";
 });
 
-afterAll(async () => {
+async function deleteSeededRows(): Promise<void> {
   for (const email of emails) {
     await sql`DELETE FROM sessions WHERE account_id IN (SELECT id FROM accounts WHERE email = ${email})`;
     await sql`DELETE FROM accounts WHERE email = ${email}`;
   }
-  await sql.end();
-  await closeAccounts();
-});
+}
+
+afterAll(() => cleanupThenClose(deleteSeededRows, () => sql.end(), () => closeAccounts()));
 
 describe("account page loads on the server", () => {
   it("T-001-48/AC-1 GET /api/v1/me answers the account and a renewed hp_session cookie that moves expires_at later, and the missing-session response without a session", async () => {

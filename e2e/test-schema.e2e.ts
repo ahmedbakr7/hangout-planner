@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import setup from "../vitest.global-setup";
+import { cleanupThenClose } from "./db-cleanup";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -27,10 +28,14 @@ beforeAll(async () => {
   await admin.unsafe(`CREATE DATABASE "${name}"`);
 });
 
-afterAll(async () => {
-  await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-  await admin.end();
-});
+afterAll(() =>
+  cleanupThenClose(
+    async () => {
+      await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+    },
+    () => admin.end(),
+  ),
+);
 
 describe("Vitest global setup on a fresh database", () => {
   it("T-001-31/AC-1 five concurrent runs create every migration table once and none fails", async () => {
