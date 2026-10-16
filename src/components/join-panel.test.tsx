@@ -331,6 +331,82 @@ describe("JoinPanel", () => {
     expect(getCall(fetchMock, "/api/v1/me")?.credentials).toBe("same-origin");
   });
 
+  it("T-001-56/AC-3 a retry that resolves after unmount does not navigate", async () => {
+    stubFetch({ me: "out", opening: "fail" });
+    const view = renderJoin({ token: JOIN_TOKEN });
+    const retry = await screen.findByRole("button", { name: "Retry" });
+
+    let resolveOpening: (response: Response) => void = () => {};
+    const pendingOpening = new Promise<Response>((resolve) => {
+      resolveOpening = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === JOIN_GET) {
+        return pendingOpening;
+      }
+      if (url === "/api/v1/me") {
+        return jsonResponse(200, nourAccount);
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.map((call) => String(call[0]))).toContain(
+        JOIN_GET,
+      );
+    });
+    view.unmount();
+    resolveOpening(jsonResponse(200, openingBody("respond").body));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("unmounting before the first load resolves does not navigate", async () => {
+    let resolveOpening: (response: Response) => void = () => {};
+    const pendingOpening = new Promise<Response>((resolve) => {
+      resolveOpening = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === JOIN_GET) {
+        return pendingOpening;
+      }
+      return jsonResponse(200, nourAccount);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const view = renderJoin({ token: JOIN_TOKEN });
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.map((call) => String(call[0]))).toContain(
+        JOIN_GET,
+      );
+    });
+    view.unmount();
+    resolveOpening(jsonResponse(200, openingBody("respond").body));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("a retry after a failed load sends exactly one opening request and one me request", async () => {
+    stubFetch({ me: "out", opening: "fail" });
+    renderJoin({ token: JOIN_TOKEN });
+    const retry = await screen.findByRole("button", { name: "Retry" });
+
+    const fetchMock = stubFetch({ me: "in", opening: "join" });
+    fireEvent.click(retry);
+    await screen.findByRole("heading", { name: "Thursday in Maadi" });
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls.filter((url) => url === JOIN_GET)).toHaveLength(1);
+    expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
+  });
+
   it("a failed account join stays here and still is not a participant", async () => {
     const fetchMock = await renderLoaded(
       { token: JOIN_TOKEN },

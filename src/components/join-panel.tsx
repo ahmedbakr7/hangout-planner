@@ -406,6 +406,7 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
   const [fieldErrors, setFieldErrors] = useState<FieldError[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const openingPath =
     typeof token === "string" && token.length > 0
@@ -417,56 +418,12 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
       : `/api/v1/plans/${planId}/join`;
   const accountHref = `/account?next=${accountNextPath(token)}`;
 
-  async function loadOpening(): Promise<void> {
-    setLoad("loading");
-    setPreview(null);
-    setFormError(null);
-    setFieldErrors([]);
-    try {
-      const [openingResponse, meResponse] = await Promise.all([
-        fetch(openingPath, { credentials: "same-origin" }),
-        fetch("/api/v1/me", { credentials: "same-origin" }),
-      ]);
-      setSession(meResponse.ok ? "signed_in" : "signed_out");
-      if (openingResponse.status === 404) {
-        setLoad("unknown");
-        setPreview(null);
-        return;
-      }
-      if (!openingResponse.ok) {
-        setLoad("error");
-        setPreview(null);
-        return;
-      }
-      const body = await readJson(openingResponse);
-      const parsed = parseOpening(body);
-      if (!parsed) {
-        setLoad("error");
-        setPreview(null);
-        return;
-      }
-      if (parsed.next !== "join") {
-        setLoad("redirecting");
-        setPreview(null);
-        router.replace(planPath(parsed.planId, parsed.next));
-        return;
-      }
-      setResolvedPlanId(parsed.planId);
-      setPreview(parsed.preview);
-      setLoad("loaded");
-    } catch {
-      setSession("signed_out");
-      setLoad("error");
-      setPreview(null);
-    }
-  }
-
   const loadsOnMount = initialOpening === undefined;
 
   useSessionSlide(!loadsOnMount && initialSignedIn === true);
 
   useEffect(() => {
-    if (!loadsOnMount) {
+    if (!loadsOnMount && reloadKey === 0) {
       return;
     }
     let cancelled = false;
@@ -527,7 +484,11 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
     return () => {
       cancelled = true;
     };
-  }, [loadsOnMount, openingPath, router]);
+  }, [loadsOnMount, reloadKey, openingPath, router]);
+
+  function onRetry(): void {
+    setReloadKey((key) => key + 1);
+  }
 
   function fieldCode(path: string): string | undefined {
     return fieldErrors.find((field) => field.path === path)?.code;
@@ -634,7 +595,7 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
             type="button"
             variant="secondary"
             className="self-start"
-            onClick={() => void loadOpening()}
+            onClick={onRetry}
           >
             {tCommon("retry")}
           </Button>
@@ -659,7 +620,7 @@ function JoinPanelBody(props: JoinPanelProps): ReactNode {
             type="button"
             variant="secondary"
             className="self-start"
-            onClick={() => void loadOpening()}
+            onClick={onRetry}
           >
             {tCommon("retry")}
           </Button>
