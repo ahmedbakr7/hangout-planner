@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import React from "react";
@@ -410,25 +408,6 @@ describe("ConfirmedView", () => {
     expect(screen.queryByLabelText(/window/i)).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("spinbutton")).toBeNull();
-  });
-
-  it("T-001-50/AC-3 the share link and an invitations row for a locked plan land on this surface", () => {
-    const root = process.cwd();
-    const page = readFileSync(
-      join(root, "src/app/plans/[planId]/confirmed/page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("ConfirmedView");
-    expect(page).toContain("planId");
-
-    const invite = readFileSync(
-      join(root, "src/components/invite-panel.tsx"),
-      "utf8",
-    );
-    expect(invite).toContain("`/plans/${planId}/confirmed`");
-
-    const opening = readFileSync(join(root, "src/server/join/open.ts"), "utf8");
-    expect(opening).toContain('state === "locked" ? "confirmed"');
   });
 
   it("chrome may name Google Places and Google Maps routing, and there is no map image and no native-app install step", async () => {

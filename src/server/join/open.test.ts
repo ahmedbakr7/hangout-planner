@@ -42,7 +42,7 @@ describe("asPlanState", () => {
 });
 
 describe("openingNext", () => {
-  it("follows the opening table for organizer, participant, invited, and link reader", () => {
+  it("T-001-55/AC-3 follows the opening table for organizer, participant, invited, and link reader", () => {
     const expected: Record<JoinCaller, Record<PlanState, OpeningNext>> = {
       organizer: {
         collecting: "organizer",

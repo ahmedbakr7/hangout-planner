@@ -575,7 +575,7 @@ describe("InvitePanel", () => {
     expect(sentItems()).toHaveLength(2);
   });
 
-  it("T-001-41/AC-6 while locked this surface is absent", async () => {
+  it("T-001-41/AC-6 T-001-55/AC-2 while locked this surface is absent", async () => {
     await renderLoadedInvite({ invite: "ok", send: "locked" });
     fireEvent.change(screen.getByLabelText("Invitee email"), {
       target: { value: "hana@example.com" },
@@ -764,7 +764,7 @@ describe("InvitationsList", () => {
     expect(urls.some((url) => url === OPENING_GET)).toBe(false);
   });
 
-  it("opening follows join and confirmed next from opening", async () => {
+  it("T-001-55/AC-2 opening follows join and confirmed next from opening", async () => {
     stubInboxFetch({ me: "in", inbox: "list", opening: "join" });
     renderInbox();
     fireEvent.click(await screen.findByRole("button", { name: /Thursday in Maadi/ }));
