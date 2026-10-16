@@ -17,6 +17,7 @@ vi.mock("@/components/confirmed-view", () => ({
   ConfirmedView: () => null,
 }));
 
+import { ConfirmedView } from "@/components/confirmed-view";
 import ConfirmedPage from "./page";
 
 async function open(page: unknown): Promise<unknown> {
@@ -27,6 +28,15 @@ async function open(page: unknown): Promise<unknown> {
 describe("confirmed page", () => {
   afterEach(() => {
     loadConfirmedPage.mockReset();
+  });
+
+  it("T-001-55/AC-1 renders ConfirmedView for the planId", async () => {
+    const element = (await open({ kind: "ok", doc: { steps: [] } })) as {
+      props: { children: { type: unknown; props: Record<string, unknown> } };
+    };
+    const view = element.props.children;
+    expect(view.type).toBe(ConfirmedView);
+    expect(view.props.planId).toBe("pln_a");
   });
 
   it.each([

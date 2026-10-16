@@ -275,8 +275,7 @@
     },
     "test-quality": {
       "src/app/shell-tokens.test.ts: test reads source text instead of exercising behaviour": 3,
-      "src/app/theme-mapping.test.ts: test reads source text instead of exercising behaviour": 2,
-      "src/components/confirmed-view.test.tsx: test reads source text instead of exercising behaviour": 3
+      "src/app/theme-mapping.test.ts: test reads source text instead of exercising behaviour": 2
     },
     "trace": {
       "T-001-01/AC-1: done but proof is none": 1,
