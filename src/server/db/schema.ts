@@ -5,6 +5,7 @@ import {
   check,
   date,
   doublePrecision,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -223,13 +224,22 @@ export const linkSessionPlans = pgTable(
   ],
 );
 
-export const placeSearches = pgTable("place_searches", {
-  id: text("id").primaryKey(),
-  participantId: text("participant_id")
-    .notNull()
-    .references(() => participants.id),
-  searchedAt: timestamptz("searched_at").notNull(),
-});
+export const placeSearches = pgTable(
+  "place_searches",
+  {
+    id: text("id").primaryKey(),
+    participantId: text("participant_id")
+      .notNull()
+      .references(() => participants.id),
+    searchedAt: timestamptz("searched_at").notNull(),
+  },
+  (t) => [
+    index("place_searches_participant_id_searched_at_idx").on(
+      t.participantId,
+      t.searchedAt,
+    ),
+  ],
+);
 
 export const proposalRuns = pgTable("proposal_runs", {
   id: text("id").primaryKey(),
