@@ -1,12 +1,15 @@
+import { randomBytes } from "node:crypto";
+import { and, count, eq, lte, sql } from "drizzle-orm";
 import { now } from "@/server/clock";
+import { placeSearches } from "@/server/db/schema";
 import type { GoogleClientOptions } from "@/server/google/places";
+import { db } from "@/server/plans/http";
 import {
   PLACE_SEARCH_LIMIT,
   PLACE_SEARCH_WINDOW_MS,
 } from "@/server/response/save";
 
 let googleClientOptions: GoogleClientOptions | undefined;
-const placeSearchLog = new Map<string, number[]>();
 
 export function setGoogleClientOptions(
   options: GoogleClientOptions | undefined,
@@ -14,23 +17,37 @@ export function setGoogleClientOptions(
   googleClientOptions = options;
 }
 
-export function resetPlaceSearchLog(): void {
-  placeSearchLog.clear();
-}
-
-export function allowPlaceSearch(participantId: string): boolean {
-  const ts = now().getTime();
-  const cutoff = ts - PLACE_SEARCH_WINDOW_MS;
-  const kept = (placeSearchLog.get(participantId) ?? []).filter(
-    (stamp) => stamp > cutoff,
-  );
-  if (kept.length >= PLACE_SEARCH_LIMIT) {
-    placeSearchLog.set(participantId, kept);
-    return false;
-  }
-  kept.push(ts);
-  placeSearchLog.set(participantId, kept);
-  return true;
+export async function allowPlaceSearch(
+  participantId: string,
+): Promise<boolean> {
+  return db().transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtext(${participantId}))`,
+    );
+    const at = now();
+    const cutoff = new Date(at.getTime() - PLACE_SEARCH_WINDOW_MS);
+    await tx
+      .delete(placeSearches)
+      .where(
+        and(
+          eq(placeSearches.participantId, participantId),
+          lte(placeSearches.searchedAt, cutoff),
+        ),
+      );
+    const [counted] = await tx
+      .select({ total: count() })
+      .from(placeSearches)
+      .where(eq(placeSearches.participantId, participantId));
+    if ((counted?.total ?? 0) >= PLACE_SEARCH_LIMIT) {
+      return false;
+    }
+    await tx.insert(placeSearches).values({
+      id: `pse_${randomBytes(16).toString("hex")}`,
+      participantId,
+      searchedAt: at,
+    });
+    return true;
+  });
 }
 
 export function placeSearchGoogleOptions(): GoogleClientOptions | undefined {

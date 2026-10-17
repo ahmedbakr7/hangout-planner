@@ -15,10 +15,7 @@ import { closeDatabase as closeAccounts } from "@/server/auth/http";
 import { POST as createPlan } from "../../route";
 import { closeDatabase as closePlans } from "@/server/plans/http";
 import { GET } from "./route";
-import {
-  resetPlaceSearchLog,
-  setGoogleClientOptions,
-} from "@/server/response/place-search";
+import { setGoogleClientOptions } from "@/server/response/place-search";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -69,6 +66,7 @@ async function wipePlan(planId: string): Promise<void> {
   await sql`DELETE FROM response_picks WHERE participant_id IN (SELECT id FROM participants WHERE plan_id = ${planId})`;
   await sql`DELETE FROM response_windows WHERE participant_id IN (SELECT id FROM participants WHERE plan_id = ${planId})`;
   await sql`DELETE FROM responses WHERE participant_id IN (SELECT id FROM participants WHERE plan_id = ${planId})`;
+  await sql`DELETE FROM place_searches WHERE participant_id IN (SELECT id FROM participants WHERE plan_id = ${planId})`;
   await sql`DELETE FROM participants WHERE plan_id = ${planId}`;
   await sql`DELETE FROM invitations WHERE plan_id = ${planId}`;
   await sql`DELETE FROM link_session_plans WHERE plan_id = ${planId}`;
@@ -93,6 +91,7 @@ async function forget(email: string): Promise<void> {
       await wipePlan(plan.id);
     }
     await sql`DELETE FROM invitations WHERE account_id = ${account.id}`;
+    await sql`DELETE FROM place_searches WHERE participant_id IN (SELECT id FROM participants WHERE account_id = ${account.id})`;
     await sql`DELETE FROM participants WHERE account_id = ${account.id}`;
     await sql`DELETE FROM sessions WHERE account_id = ${account.id}`;
     await sql`DELETE FROM accounts WHERE id = ${account.id}`;
@@ -122,7 +121,6 @@ beforeEach(() => {
   vi.stubGlobal("fetch", async () => {
     throw new Error("unit tests must not call the network");
   });
-  resetPlaceSearchLog();
   setGoogleClientOptions({
     apiKey: "test-places-key",
     fetch: searchFetch([startCafe]),
@@ -131,7 +129,6 @@ beforeEach(() => {
 
 afterEach(async () => {
   resetClock();
-  resetPlaceSearchLog();
   setGoogleClientOptions(undefined);
   delete process.env.HP_HASH_TEST;
   vi.unstubAllGlobals();
@@ -141,6 +138,7 @@ afterEach(async () => {
   }
   const guests = extraGuestIds.splice(0, extraGuestIds.length);
   for (const id of guests) {
+    await sql`DELETE FROM place_searches WHERE participant_id IN (SELECT id FROM participants WHERE guest_session_id = ${id})`;
     await sql`DELETE FROM participants WHERE guest_session_id = ${id}`;
     await sql`DELETE FROM guest_sessions WHERE id = ${id}`;
   }
@@ -304,6 +302,19 @@ async function seedAccountParticipant(
     )
   `;
   return participantId;
+}
+
+async function seedSearchRows(
+  participantId: string,
+  total: number,
+  searchedAt: Date,
+): Promise<void> {
+  for (let i = 0; i < total; i += 1) {
+    await sql`
+      INSERT INTO place_searches (id, participant_id, searched_at)
+      VALUES (${`pse_${randomBytes(16).toString("hex")}`},${participantId}, ${searchedAt})
+    `;
+  }
 }
 
 async function seedGuestParticipant(
@@ -493,6 +504,59 @@ describe("GET /v1/plans/{planId}/place-searches", () => {
         fields: [],
       },
     });
+  });
+
+  it("T-001-57/AC-1 returns 429 when 30 rows newer than one hour exist, even though this instance served none of them", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const plan = await openPlan(organizer.token);
+    const participantId = await seedAccountParticipant(
+      plan.id,
+      member.account.id,
+      "Nour",
+    );
+    setClock(new Date("2026-04-10T12:00:00.000Z"));
+    await seedSearchRows(participantId, 30, new Date("2026-04-10T11:30:00.000Z"));
+
+    const limited = await searchGet(plan.id, "Maadi", {
+      cookie: `hp_session=${member.token}`,
+    });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toMatchObject({
+      error: { code: "rate_limited", fields: [] },
+    });
+  });
+
+  it("T-001-57/AC-2 an allowed search inserts one row stamped with the clock's now, and a refused search inserts none", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const plan = await openPlan(organizer.token);
+    const participantId = await seedAccountParticipant(
+      plan.id,
+      member.account.id,
+      "Nour",
+    );
+    const cookie = `hp_session=${member.token}`;
+    const stamp = new Date("2026-04-10T12:00:00.000Z");
+    setClock(stamp);
+
+    const allowed = await searchGet(plan.id, "Maadi", { cookie });
+    expect(allowed.status).toBe(200);
+    await allowed.json();
+    const rows = await sql<{ searched_at: Date }[]>`
+      SELECT searched_at FROM place_searches WHERE participant_id = ${participantId}
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.searched_at.getTime()).toBe(stamp.getTime());
+
+    await seedSearchRows(participantId, 29, new Date("2026-04-10T11:45:00.000Z"));
+    const refused = await searchGet(plan.id, "Maadi", { cookie });
+    expect(refused.status).toBe(429);
+    await refused.json();
+    const after = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM place_searches WHERE participant_id = ${participantId}
+    `;
+    expect(after[0]?.n).toBe(30);
   });
 
   it("while proposed returns 409 responses_closed, while locked returns 409 plan_locked, and a stranger gets 404 with the envelope only; unset locale is en", async () => {
