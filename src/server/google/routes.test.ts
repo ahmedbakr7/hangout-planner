@@ -75,12 +75,14 @@ beforeEach(() => {
   vi.stubGlobal("fetch", async () => {
     throw new Error("unit tests must not call the network");
   });
+  vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "");
   delete process.env.GOOGLE_MAPS_API_KEY;
   delete process.env.GOOGLE_API_KEY;
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   if (originalMapsKey === undefined) {
     delete process.env.GOOGLE_MAPS_API_KEY;
   } else {
@@ -248,4 +250,74 @@ describe("parseDurationSeconds", () => {
     expect(parseDurationSeconds("0.5s")).toBe(0);
     expect(parseDurationSeconds({ seconds: "12" })).toBe(12);
   });
+});
+
+describe("Google origin override", () => {
+  const input = {
+    origins: [{ latitude: 29.96, longitude: 31.25 }],
+    destinations: [{ latitude: 30.0444, longitude: 31.2357 }],
+  };
+  const row = [
+    {
+      originIndex: 0,
+      destinationIndex: 0,
+      status: {},
+      condition: "ROUTE_EXISTS",
+      duration: "60s",
+    },
+  ];
+
+  it("T-001-60/AC-1 Route Matrix goes to routes.googleapis.com when the variable is empty", async () => {
+    const captured: Captured[] = [];
+    await computeRouteMatrix(input, {
+      apiKey: "k",
+      fetch: captureFetch(row, captured),
+    });
+    expect(captured[0]?.url).toBe(ROUTES_MATRIX_URL);
+    expect(captured[0]?.url).toBe(
+      "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix",
+    );
+  });
+
+  it("T-001-60/AC-2 Route Matrix goes to the loopback origin with the same method, headers, and body", async () => {
+    const unset: Captured[] = [];
+    await computeRouteMatrix(input, {
+      apiKey: "k",
+      fetch: captureFetch(row, unset),
+    });
+    vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "http://localhost:4010");
+    const set: Captured[] = [];
+    await computeRouteMatrix(input, {
+      apiKey: "k",
+      fetch: captureFetch(row, set),
+    });
+    expect(set[0]?.url).toBe(
+      "http://localhost:4010/distanceMatrix/v2:computeRouteMatrix",
+    );
+    expect(set[0]?.method).toBe(unset[0]?.method);
+    expect(set[0]?.headers).toEqual(unset[0]?.headers);
+    expect(set[0]?.body).toEqual(unset[0]?.body);
+  });
+
+  it.each([
+    "https://127.0.0.1:4010",
+    "http://example.com:4010",
+    "http://localhost",
+    "http://localhost:4010/",
+  ])(
+    "T-001-60/AC-3 %s rejects Route Matrix without sending or echoing",
+    async (value) => {
+      vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", value);
+      const captured: Captured[] = [];
+      const error = await computeRouteMatrix(input, {
+        fetch: captureFetch(row, captured),
+      }).then(
+        () => null,
+        (reason: unknown) => reason as Error,
+      );
+      expect(error?.message).toContain("HP_E2E_GOOGLE_BASE_URL");
+      expect(error?.message).not.toContain(value);
+      expect(captured).toEqual([]);
+    },
+  );
 });

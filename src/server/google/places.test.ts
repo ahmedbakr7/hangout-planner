@@ -85,12 +85,14 @@ beforeEach(() => {
   vi.stubGlobal("fetch", async () => {
     throw new Error("unit tests must not call the network");
   });
+  vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "");
   delete process.env.GOOGLE_MAPS_API_KEY;
   delete process.env.GOOGLE_API_KEY;
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   if (originalMapsKey === undefined) {
     delete process.env.GOOGLE_MAPS_API_KEY;
   } else {
@@ -439,5 +441,115 @@ describe("place details", () => {
       ),
     });
     expect(result).toBeNull();
+  });
+});
+
+describe("Google origin override", () => {
+  const places = [startCafe];
+  const venueInput = {
+    textQuery: "Koshary",
+    languageCode: "en",
+    planCurrency: "EGP",
+    locationBias: { latitude: 30, longitude: 31, radiusMeters: 15000 },
+  };
+  const calls: Array<[string, (fetch: FetchFn) => Promise<unknown>, string]> = [
+    [
+      "Text Search",
+      (fetch) =>
+        searchStartPlaces(
+          { textQuery: "Maadi", languageCode: "en" },
+          { apiKey: "k", fetch },
+        ),
+      "/v1/places:searchText",
+    ],
+    [
+      "Place Details",
+      (fetch) => getStartPlaceDetails("ChIJ-start", { apiKey: "k", fetch }),
+      "/v1/places/ChIJ-start",
+    ],
+  ];
+
+  it.each(calls)(
+    "T-001-60/AC-1 %s goes to places.googleapis.com when the variable is unset",
+    async (_name, call, path) => {
+      const captured: Captured[] = [];
+      await call(captureFetch({ places, ...startCafe }, captured));
+      expect(captured[0]?.url).toBe(`https://places.googleapis.com${path}`);
+    },
+  );
+
+  it("T-001-60/AC-1 venue Text Search uses PLACES_SEARCH_TEXT_URL when the variable is empty", async () => {
+    const captured: Captured[] = [];
+    await searchVenuePlaces(venueInput, {
+      apiKey: "k",
+      fetch: captureFetch({ places: [] }, captured),
+    });
+    expect(captured[0]?.url).toBe(PLACES_SEARCH_TEXT_URL);
+  });
+
+  it.each(calls)(
+    "T-001-60/AC-2 %s goes to the loopback origin with the same method, headers, and body",
+    async (_name, call, path) => {
+      const unset: Captured[] = [];
+      await call(captureFetch({ places, ...startCafe }, unset));
+      vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "http://127.0.0.1:4010");
+      const set: Captured[] = [];
+      await call(captureFetch({ places, ...startCafe }, set));
+      expect(set[0]?.url).toBe(`http://127.0.0.1:4010${path}`);
+      expect(set[0]?.method).toBe(unset[0]?.method);
+      expect(set[0]?.headers).toEqual(unset[0]?.headers);
+      expect(set[0]?.body).toEqual(unset[0]?.body);
+    },
+  );
+
+  it("T-001-60/AC-2 venue Text Search and venue details go to a localhost origin", async () => {
+    vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "http://localhost:4010");
+    const captured: Captured[] = [];
+    await searchVenuePlaces(venueInput, {
+      apiKey: "k",
+      fetch: captureFetch({ places: [] }, captured),
+    });
+    await getVenuePlaceDetails("places/ChIJ-koshary", "EGP", {
+      apiKey: "k",
+      fetch: captureFetch(startCafe, captured),
+    });
+    expect(captured.map((c) => c.url)).toEqual([
+      "http://localhost:4010/v1/places:searchText",
+      "http://localhost:4010/v1/places/ChIJ-koshary",
+    ]);
+  });
+
+  it.each([
+    "https://127.0.0.1:4010",
+    "http://example.com:4010",
+    "http://127.0.0.1",
+    "http://127.0.0.1:4010/",
+  ])(
+    "T-001-60/AC-3 %s rejects Text Search and Place Details without sending or echoing",
+    async (value) => {
+      vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", value);
+      const captured: Captured[] = [];
+      for (const [, call] of calls) {
+        const error = await call(captureFetch({ places }, captured)).then(
+          () => null,
+          (reason: unknown) => reason as Error,
+        );
+        expect(error?.message).toContain("HP_E2E_GOOGLE_BASE_URL");
+        expect(error?.message).not.toContain(value);
+      }
+      expect(captured).toEqual([]);
+    },
+  );
+
+  it("T-001-60/AC-3 a bad origin is the error raised when the API key is also missing", async () => {
+    vi.stubEnv("HP_E2E_GOOGLE_BASE_URL", "https://example.com");
+    const captured: Captured[] = [];
+    await expect(
+      searchStartPlaces(
+        { textQuery: "Maadi", languageCode: "en" },
+        { fetch: captureFetch({ places }, captured) },
+      ),
+    ).rejects.toThrow("HP_E2E_GOOGLE_BASE_URL");
+    expect(captured).toEqual([]);
   });
 });
