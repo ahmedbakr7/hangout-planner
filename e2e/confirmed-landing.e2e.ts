@@ -20,6 +20,7 @@ import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
 import { cleanupThenClose } from "./db-cleanup";
+import { teardownThenAssertServed } from "./teardown";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router, cookieJar } = vi.hoisted(() => ({
@@ -165,11 +166,17 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  expect(server.unserved).toEqual([]);
-  cleanup();
-  vi.unstubAllGlobals();
-  delete process.env.HP_HASH_TEST;
-  cookieJar.value = "";
+  teardownThenAssertServed(
+    server.unserved,
+    () => cleanup(),
+    () => vi.unstubAllGlobals(),
+    () => {
+      delete process.env.HP_HASH_TEST;
+    },
+    () => {
+      cookieJar.value = "";
+    },
+  );
 });
 
 async function deleteSeededRows(): Promise<void> {
