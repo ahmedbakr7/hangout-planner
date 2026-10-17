@@ -3,6 +3,7 @@ import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTableColumns, getTableName, isTable } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -324,6 +325,19 @@ describe("migration on Postgres", () => {
     expect(def).toContain("on " + schemaName.toLowerCase() + ".place_searches");
     expect(def).toContain("using btree");
     expect(def).toMatch(/\(participant_id, searched_at\)/);
+
+    const declared = getTableConfig(schema.placeSearches).indexes.map((i) => ({
+      name: i.config.name,
+      unique: i.config.unique,
+      columns: i.config.columns.map((c) => (c as { name: string }).name),
+    }));
+    expect(declared).toEqual([
+      {
+        name: "place_searches_participant_id_searched_at_idx",
+        unique: false,
+        columns: ["participant_id", "searched_at"],
+      },
+    ]);
   });
 
   it("enforces unique (plan_id, account_id) on invitations", async () => {
