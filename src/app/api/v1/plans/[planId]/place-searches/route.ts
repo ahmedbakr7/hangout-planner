@@ -75,7 +75,7 @@ export async function GET(
       errorResponse(responseValidationFailed(parsed.fields)),
     );
   }
-  if (!allowPlaceSearch(participant.id)) {
+  if (!(await allowPlaceSearch(participant.id))) {
     return logged(request, errorResponse(placeSearchRateLimitedError()));
   }
 

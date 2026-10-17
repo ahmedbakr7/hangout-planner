@@ -124,6 +124,12 @@ CREATE TABLE "proposal_legs" (
 	CONSTRAINT "proposal_legs_pk" PRIMARY KEY("proposal_id","from_step_id","to_step_id")
 );
 --> statement-breakpoint
+CREATE TABLE "place_searches" (
+	"id" text PRIMARY KEY NOT NULL,
+	"participant_id" text NOT NULL,
+	"searched_at" timestamp with time zone NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "proposal_runs" (
 	"id" text PRIMARY KEY NOT NULL,
 	"plan_id" text NOT NULL,
@@ -208,6 +214,7 @@ ALTER TABLE "participants" ADD CONSTRAINT "participants_guest_session_id_guest_s
 ALTER TABLE "plan_options" ADD CONSTRAINT "plan_options_step_id_plan_steps_id_fk" FOREIGN KEY ("step_id") REFERENCES "plan_steps"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan_steps" ADD CONSTRAINT "plan_steps_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan_windows" ADD CONSTRAINT "plan_windows_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "plans"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "place_searches" ADD CONSTRAINT "place_searches_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plans" ADD CONSTRAINT "plans_organizer_account_id_accounts_id_fk" FOREIGN KEY ("organizer_account_id") REFERENCES "accounts"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposal_alternatives" ADD CONSTRAINT "proposal_alternatives_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "proposals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "proposal_alternatives" ADD CONSTRAINT "proposal_alternatives_step_id_plan_steps_id_fk" FOREIGN KEY ("step_id") REFERENCES "plan_steps"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

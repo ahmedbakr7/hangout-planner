@@ -223,6 +223,14 @@ export const linkSessionPlans = pgTable(
   ],
 );
 
+export const placeSearches = pgTable("place_searches", {
+  id: text("id").primaryKey(),
+  participantId: text("participant_id")
+    .notNull()
+    .references(() => participants.id),
+  searchedAt: timestamptz("searched_at").notNull(),
+});
+
 export const proposalRuns = pgTable("proposal_runs", {
   id: text("id").primaryKey(),
   planId: text("plan_id")

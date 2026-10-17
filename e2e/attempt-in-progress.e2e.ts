@@ -167,6 +167,7 @@ async function deleteSeededRows(): Promise<void> {
     await sql`DELETE FROM response_picks WHERE participant_id IN (${participants})`;
     await sql`DELETE FROM response_windows WHERE participant_id IN (${participants})`;
     await sql`DELETE FROM responses WHERE participant_id IN (${participants})`;
+    await sql`DELETE FROM place_searches WHERE participant_id IN (${participants})`;
     await sql`DELETE FROM participants WHERE plan_id = ${planId}`;
     await sql`DELETE FROM link_session_plans WHERE plan_id = ${planId}`;
     await sql`DELETE FROM plan_options WHERE step_id IN (SELECT id FROM plan_steps WHERE plan_id = ${planId})`;

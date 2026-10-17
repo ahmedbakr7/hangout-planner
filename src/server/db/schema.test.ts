@@ -69,6 +69,7 @@ const CONTRACT_COLUMNS: Record<string, string[]> = {
   invitations: ["id", "plan_id", "account_id", "distinguisher", "created_at"],
   link_sessions: ["id", "token_hash", "expires_at"],
   link_session_plans: ["link_session_id", "plan_id"],
+  place_searches: ["id", "participant_id", "searched_at"],
   proposal_runs: [
     "id",
     "plan_id",
