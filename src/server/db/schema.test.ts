@@ -3,6 +3,7 @@ import { readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTableColumns, getTableName, isTable } from "drizzle-orm";
+import { getTableConfig } from "drizzle-orm/pg-core";
 import postgres from "postgres";
 import * as schema from "./schema";
 
@@ -308,6 +309,35 @@ describe("migration on Postgres", () => {
         'prt_gst_2', 'pln_1', NULL, 'gst_2', 'Other guest', 'gggg'
       )
     `);
+  });
+
+  it("T-001-58/AC-1 indexes place_searches by (participant_id, searched_at)", async () => {
+    const indexes = await sql<{ indexname: string; indexdef: string }[]>`
+      SELECT indexname, indexdef
+      FROM pg_indexes
+      WHERE schemaname = ${schemaName}
+        AND tablename = 'place_searches'
+        AND indexname = 'place_searches_participant_id_searched_at_idx'
+    `;
+    expect(indexes).toHaveLength(1);
+    const def = indexes[0].indexdef.toLowerCase();
+    expect(def).not.toContain("unique");
+    expect(def).toContain("on " + schemaName.toLowerCase() + ".place_searches");
+    expect(def).toContain("using btree");
+    expect(def).toMatch(/\(participant_id, searched_at\)/);
+
+    const declared = getTableConfig(schema.placeSearches).indexes.map((i) => ({
+      name: i.config.name,
+      unique: i.config.unique,
+      columns: i.config.columns.map((c) => (c as { name: string }).name),
+    }));
+    expect(declared).toEqual([
+      {
+        name: "place_searches_participant_id_searched_at_idx",
+        unique: false,
+        columns: ["participant_id", "searched_at"],
+      },
+    ]);
   });
 
   it("enforces unique (plan_id, account_id) on invitations", async () => {

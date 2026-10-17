@@ -240,4 +240,5 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_account_id_accounts_id_fk" FOREI
 ALTER TABLE "step_signals" ADD CONSTRAINT "step_signals_proposal_id_proposals_id_fk" FOREIGN KEY ("proposal_id") REFERENCES "proposals"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "step_signals" ADD CONSTRAINT "step_signals_step_id_plan_steps_id_fk" FOREIGN KEY ("step_id") REFERENCES "plan_steps"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "step_signals" ADD CONSTRAINT "step_signals_participant_id_participants_id_fk" FOREIGN KEY ("participant_id") REFERENCES "participants"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-CREATE UNIQUE INDEX "participants_plan_id_account_id_uidx" ON "participants" USING btree ("plan_id","account_id") WHERE account_id IS NOT NULL;
+CREATE UNIQUE INDEX "participants_plan_id_account_id_uidx" ON "participants" USING btree ("plan_id","account_id") WHERE account_id IS NOT NULL;--> statement-breakpoint
+CREATE INDEX "place_searches_participant_id_searched_at_idx" ON "place_searches" USING btree ("participant_id","searched_at");
