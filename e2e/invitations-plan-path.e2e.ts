@@ -17,6 +17,7 @@ import { closeDatabase as closeJoin } from "@/server/join/db";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
 import { closeDatabase as closeInbox } from "@/server/invites/inbox";
 import { cleanupThenClose } from "./db-cleanup";
+import { teardownThenAssertServed } from "./teardown";
 import { createRouteServer, type RouteServer } from "./route-server";
 
 const { router } = vi.hoisted(() => ({
@@ -127,10 +128,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  expect(server.unserved).toEqual([]);
-  cleanup();
-  vi.unstubAllGlobals();
-  delete process.env.HP_HASH_TEST;
+  teardownThenAssertServed(
+    server.unserved,
+    () => cleanup(),
+    () => vi.unstubAllGlobals(),
+    () => {
+      delete process.env.HP_HASH_TEST;
+    },
+  );
 });
 
 async function deleteSeededRows(): Promise<void> {
