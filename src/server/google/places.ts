@@ -1,5 +1,8 @@
-export const PLACES_SEARCH_TEXT_URL =
-  "https://places.googleapis.com/v1/places:searchText";
+import { googleOrigin } from "./origin";
+
+const PLACES_ORIGIN = "https://places.googleapis.com";
+
+export const PLACES_SEARCH_TEXT_URL = `${PLACES_ORIGIN}/v1/places:searchText`;
 
 export const START_SEARCH_FIELD_MASK =
   "places.id,places.displayName,places.location";
@@ -270,7 +273,8 @@ async function postSearchText(
   options: GoogleClientOptions | undefined,
   operation: string,
 ): Promise<unknown> {
-  const response = await readFetch(options)(PLACES_SEARCH_TEXT_URL, {
+  const url = `${googleOrigin(PLACES_ORIGIN)}/v1/places:searchText`;
+  const response = await readFetch(options)(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -290,7 +294,7 @@ async function getPlaceDetails(
   if (typeof placeId !== "string" || placeId.length === 0) {
     throw new Error("place id is required");
   }
-  const url = `https://places.googleapis.com/v1/places/${encodeURIComponent(
+  const url = `${googleOrigin(PLACES_ORIGIN)}/v1/places/${encodeURIComponent(
     detailsPlaceId(placeId),
   )}`;
   const response = await readFetch(options)(url, {

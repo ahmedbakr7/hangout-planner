@@ -1,5 +1,8 @@
-export const ROUTES_MATRIX_URL =
-  "https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix";
+import { googleOrigin } from "./origin";
+
+const ROUTES_ORIGIN = "https://routes.googleapis.com";
+
+export const ROUTES_MATRIX_URL = `${ROUTES_ORIGIN}/distanceMatrix/v2:computeRouteMatrix`;
 
 export const ROUTES_FIELD_MASK =
   "originIndex,destinationIndex,status,condition,duration";
@@ -194,7 +197,8 @@ export async function computeRouteMatrix(
     travelMode: ROUTES_TRAVEL_MODE,
     routingPreference: ROUTES_ROUTING_PREFERENCE,
   };
-  const response = await readFetch(options)(ROUTES_MATRIX_URL, {
+  const url = `${googleOrigin(ROUTES_ORIGIN)}/distanceMatrix/v2:computeRouteMatrix`;
+  const response = await readFetch(options)(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
