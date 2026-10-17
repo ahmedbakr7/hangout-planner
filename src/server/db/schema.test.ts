@@ -310,6 +310,22 @@ describe("migration on Postgres", () => {
     `);
   });
 
+  it("T-001-58/AC-1 indexes place_searches by (participant_id, searched_at)", async () => {
+    const indexes = await sql<{ indexname: string; indexdef: string }[]>`
+      SELECT indexname, indexdef
+      FROM pg_indexes
+      WHERE schemaname = ${schemaName}
+        AND tablename = 'place_searches'
+        AND indexname = 'place_searches_participant_id_searched_at_idx'
+    `;
+    expect(indexes).toHaveLength(1);
+    const def = indexes[0].indexdef.toLowerCase();
+    expect(def).not.toContain("unique");
+    expect(def).toContain("on " + schemaName.toLowerCase() + ".place_searches");
+    expect(def).toContain("using btree");
+    expect(def).toMatch(/\(participant_id, searched_at\)/);
+  });
+
   it("enforces unique (plan_id, account_id) on invitations", async () => {
     const constraints = await sql<{ conname: string; def: string }[]>`
       SELECT c.conname, pg_get_constraintdef(c.oid) AS def
