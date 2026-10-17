@@ -119,10 +119,16 @@ describe("Google clients over a loopback origin", () => {
     ["credentials", "http://user:pw@127.0.0.1:4010"],
   ])("T-001-60/AC-3 a bad value (%s) rejects without echoing it and sends nothing", async (_label, value) => {
     vi.stubEnv(ORIGIN_VARIABLE, value);
+    const noNetwork = {
+      ...OPTIONS,
+      fetch: async (): Promise<Response> => {
+        throw new Error("unexpected network access");
+      },
+    };
     const calls = [
-      () => searchStartPlaces({ textQuery: "Maadi", languageCode: "en" }, OPTIONS),
-      () => getStartPlaceDetails("ChIJabc", OPTIONS),
-      () => computeRouteMatrix(MATRIX_INPUT, OPTIONS),
+      () => searchStartPlaces({ textQuery: "Maadi", languageCode: "en" }, noNetwork),
+      () => getStartPlaceDetails("ChIJabc", noNetwork),
+      () => computeRouteMatrix(MATRIX_INPUT, noNetwork),
     ];
     for (const call of calls) {
       const error = await call().then(
