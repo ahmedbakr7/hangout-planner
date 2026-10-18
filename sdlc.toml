@@ -30,8 +30,10 @@ duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore -
 # directly and cannot catch routing bugs (they missed /v1 vs /api/v1). Remove once
 # commands.e2e runs Playwright against `start`.
 real_stack = ["integration"]
-# globs = []                 # which files are tests
-# integration_globs = []     # what the test play may write
+# ADR-0010: browser/ holds the Playwright specs and their support files. The nextjs profile
+# defaults are listed in full because a key set here replaces the profile value.
+globs = ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "e2e/**", "browser/**"]   # which files are tests
+integration_globs = ["e2e/**", "tests/**", "**/*.int.test.ts", "**/*.int.test.tsx", "browser/**"]   # what the test play may write
 # forbid = [ { regex = "", message = "" } ]
 
 [approval]
