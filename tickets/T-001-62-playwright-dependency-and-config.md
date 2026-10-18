@@ -25,8 +25,6 @@ acceptance_criteria:
   - "AC-1: package.json lists @playwright/test at exactly 1.56.1 in devDependencies, and package-lock.json resolves node_modules/@playwright/test to 1.56.1"
   - "AC-2: the Vitest config's test.exclude is Vitest's default exclude list plus browser/**, and tsconfig.json's include adds browser/**/*.ts and playwright.config.ts"
   - "AC-3: playwright.config.ts has testDir browser, globalSetup browser/global-setup.ts, use.baseURL http://127.0.0.1:3124, one chromium project and no other, and a webServer list of exactly two entries in order: command node browser/google-stub.mjs with port 3125 and timeout 10000, then command npx --no-install next build && npx --no-install next start -p 3124 with url http://127.0.0.1:3124 and timeout 300000, both with reuseExistingServer false; only the app entry has env, and its keys are exactly GOOGLE_MAPS_API_KEY and GOOGLE_API_KEY (a dummy value), HP_E2E_GOOGLE_BASE_URL=http://127.0.0.1:3125, HP_COOKIE_SECURE=0 and HP_HASH_TEST=1"
-  - "AC-4: npx --no-install playwright test --list, run from the repository root, exits 0 and lists exactly one test, in the chromium project: browser/smoke.spec.ts \"T-001-62/AC-4 signed-out home page shows the Home heading\""
-  - "AC-5: browser/global-setup.ts applies the schema to DATABASE_URL with applySchemaOnce and does nothing else; on a fresh database it creates the schema, and a second run changes nothing"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
@@ -63,3 +61,8 @@ The lead approved `@playwright/test` 1.56.1 in ADR-0010 (2026-10-17). No other p
 - **Requirements:** none. This is test tooling with no product feature.
 
 **Agent:** build with `builder`.
+
+## Amendments
+
+- split AC-4 -> T-001-63: the build play cannot write browser/** (integration_globs), which AC-4 lists
+- split AC-5 -> T-001-63: browser/global-setup.ts and its e2e test are integration_globs files, the test play's
