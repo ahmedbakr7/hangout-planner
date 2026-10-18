@@ -47,6 +47,7 @@ describe("package.json", () => {
     );
     expect(Object.keys(pkg.devDependencies ?? {}).sort()).toEqual(
       [
+        "@playwright/test",
         "@tailwindcss/postcss",
         "@testing-library/react",
         "@types/node",
