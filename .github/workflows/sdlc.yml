@@ -41,6 +41,14 @@ jobs:
         with: { node-version: 22 }
       - run: npm ci --no-audit --no-fund
 
+      # ADR-0010: Chromium for the browser suite (commands.e2e). The cache key carries the
+      # pinned @playwright/test version; a version bump changes the pin and this key together.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-1.56.1-chromium-${{ runner.os }}
+      - run: npx --no-install playwright install --with-deps chromium
+
       - name: Doctor (fails if any required check could pass vacuously)
         run: .sdlc/bin/sdlc doctor
 

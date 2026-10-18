@@ -56,6 +56,7 @@ claude -p "$1" ${SDLC_BUILD_MODEL:+--model "$SDLC_BUILD_MODEL"} \
   --allowedTools Read Edit Write Glob Grep mcp__next \
     'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' \
     'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' \
+    'Bash(npx --no-install playwright test:*)' \
     'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)' \
   < /dev/null > "$TRANSCRIPT"
 rc=$?
