@@ -4,7 +4,7 @@ title: "Playwright dependency, config, global setup and a smoke spec"
 type: chore
 status: ready
 risk: medium
-depends_on: [T-001-61]
+depends_on: [T-001-35, T-001-52, T-001-61]
 files:
   - "package.json"
   - "package-lock.json"
