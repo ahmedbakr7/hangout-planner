@@ -3,7 +3,7 @@
  * fixture places, EGP start prices and a usable route element per pair, and refuses what Google
  * would refuse. No request leaves the machine.
  */
-import type http from "node:http";
+import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { startGoogleStub } from "../browser/google-stub.mjs";
@@ -120,5 +120,31 @@ describe("Google stub", () => {
     expect((await send("GET", "/v1/places/ChIJunknown")).status).toBe(404);
     expect((await send("GET", "/v1/places/%E0%A4%A")).status).toBe(404);
     expect((await send("GET", "/v1/places/ChIJstubmaadi1")).status).toBe(200);
+  });
+
+  it("T-001-61/AC-2 keeps serving after a null or malformed matrix body and an unparseable target", async () => {
+    const validBody = JSON.stringify({ origins: [{}], destinations: [{}] });
+    const matrix = (body: string) =>
+      fetch(`${origin}/distanceMatrix/v2:computeRouteMatrix`, { method: "POST", headers: HEADERS, body });
+
+    expect((await matrix("null")).status).toBe(200);
+    expect((await matrix("{not json")).status).toBe(200);
+    const valid = await matrix(validBody);
+    expect(valid.status).toBe(200);
+    expect(await valid.json()).toHaveLength(1);
+
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request(
+        { host: "127.0.0.1", port: new URL(origin).port, method: "GET", path: "//[" },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        },
+      );
+      req.on("error", reject);
+      req.end();
+    });
+    expect(status).toBe(404);
+    expect((await matrix(validBody)).status).toBe(200);
   });
 });

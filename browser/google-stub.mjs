@@ -52,6 +52,9 @@ function routeMatrix(body) {
   } catch {
     parsed = {};
   }
+  if (parsed === null || typeof parsed !== "object") {
+    parsed = {};
+  }
   const origins = Array.isArray(parsed.origins) ? parsed.origins.length : 0;
   const destinations = Array.isArray(parsed.destinations) ? parsed.destinations.length : 0;
   const elements = [];
@@ -70,7 +73,13 @@ function routeMatrix(body) {
 }
 
 function handle(req, res, body) {
-  const { pathname } = new URL(req.url ?? "/", `http://${HOST}`);
+  let pathname;
+  try {
+    ({ pathname } = new URL(req.url ?? "/", `http://${HOST}`));
+  } catch {
+    sendError(res, 404);
+    return;
+  }
   const method = req.method ?? "";
   const isSearch = method === "POST" && pathname === "/v1/places:searchText";
   const isMatrix = method === "POST" && pathname === "/distanceMatrix/v2:computeRouteMatrix";
@@ -103,7 +112,17 @@ export function startGoogleStub(port) {
   const server = http.createServer((req, res) => {
     const chunks = [];
     req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => handle(req, res, Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => {
+      try {
+        handle(req, res, Buffer.concat(chunks).toString("utf8"));
+      } catch {
+        if (res.headersSent) {
+          res.end();
+        } else {
+          sendError(res, 500);
+        }
+      }
+    });
   });
   return new Promise((resolve, reject) => {
     server.once("error", reject);
