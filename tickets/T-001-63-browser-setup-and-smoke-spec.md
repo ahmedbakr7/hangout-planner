@@ -14,7 +14,7 @@ files:
 skills:
   - test
 contracts: []
-requirements: []
+requirements: [F-001-1]
 acceptance_criteria:
   - "AC-1: npx --no-install playwright test --list, run from the repository root, exits 0 and lists exactly one test, in the chromium project: browser/smoke.spec.ts \"T-001-62/AC-4 signed-out home page shows the Home heading\""
   - "AC-2: browser/global-setup.ts applies the schema to DATABASE_URL with applySchemaOnce and does nothing else; on a fresh database it creates the schema, and a second run changes nothing"
@@ -27,4 +27,4 @@ source_adr:
   - decisions/ADR-0011-browser-work-order.md
 ---
 
-This ticket holds T-001-62's AC-4 and AC-5, split off because they need `browser/**` and `e2e/**` files, which the build play cannot write. The lead finishes the ticket before it is ready.
+This ticket holds T-001-62's AC-4 and AC-5, split off because they need `browser/**` and `e2e/**` files, which the build play cannot write. The lead finishes the ticket before it is ready. F-001-1 (English chrome on every surface) is the feature the smoke spec's heading check touches; the citation does not claim this ticket proves it.
