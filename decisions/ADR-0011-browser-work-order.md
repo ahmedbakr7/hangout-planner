@@ -26,12 +26,12 @@ Two kit rules make that ticket unprovable as written:
 ADR-0010's items 3 and 4 become these four steps. Items 1, 2 and 5, and every other decision in ADR-0010, are unchanged.
 
 1. **3a. Ticket (`type: test`):** `browser/google-stub.mjs` and its integration test against the real clients (T-001-61).
-2. **3b. Ticket (`type: chore`, on the T-001-52 pattern):** the `@playwright/test` dependency, `playwright.config.ts`, `browser/global-setup.ts`, and the `vitest.config.ts`, `tsconfig.json` and `eslint.config.mjs` changes, each proved by a Vitest test that loads the config.
+2. **3b. Ticket (`type: chore`, on the T-001-52 pattern):** the `@playwright/test` dependency, `playwright.config.ts`, `browser/global-setup.ts`, and the `vitest.config.ts`, `tsconfig.json` and `eslint.config.mjs` changes, each proved by a Vitest test that loads the config. It also adds one smoke spec, `browser/smoke.spec.ts` (the home page answers and renders its heading), run by hand with `npx playwright test` in the build and review. That spec gives step 4 a suite to run.
 3. **4. Lead PR:** the CI step and browser cache in `.github/workflows/sdlc.yml`, `commands.e2e`, and agent access, as ADR-0010 item 4.
 4. **4a. Ticket:** the first journey spec (create an account, create a plan, open its invite page), proved by the gate through `commands.e2e`.
 
 ## Consequences
 
 - Every browser spec's ACs are proved by a gate run in Chromium, not by review alone.
-- The suite is wired before it has a spec. Step 4's lead PR must show `commands.e2e` passes with no spec, or carry a placeholder the kit accepts; that PR decides which.
+- The kit fails a JUnit check that ran 0 tests, and a lead PR may not add a spec. So the smoke spec lands in 3b, and step 4 wires `commands.e2e` against it. The smoke spec is proved by a gate only from step 4 onward; before that, by the hand runs recorded in 3b's review.
 - One more ticket and one more review round than ADR-0010's order.
