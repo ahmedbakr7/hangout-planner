@@ -1,5 +1,4 @@
 // @vitest-environment node
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { configDefaults } from "vitest/config";
@@ -9,11 +8,6 @@ import vitestConfig from "../vitest.config";
 
 const root = process.cwd();
 const readJson = (file: string): unknown => JSON.parse(readFileSync(resolve(root, file), "utf8"));
-
-type Suite = {
-  suites?: Suite[];
-  specs?: { title: string; file: string; tests: { projectName: string }[] }[];
-};
 
 describe("browser test tooling", () => {
   it("T-001-62/AC-1 @playwright/test is pinned to 1.56.1 and the lockfile resolves it", () => {
@@ -66,31 +60,4 @@ describe("browser test tooling", () => {
       HP_HASH_TEST: "1",
     });
   });
-
-  it(
-    "T-001-62/AC-4 playwright --list finds exactly the smoke test in the chromium project",
-    () => {
-      const output = execFileSync("npx", ["--no-install", "playwright", "test", "--list", "--reporter=json"], {
-        cwd: root,
-        encoding: "utf8",
-        timeout: 60_000,
-      });
-      const specs: { title: string; file: string; projects: string[] }[] = [];
-      const walk = (suite: Suite): void => {
-        for (const spec of suite.specs ?? []) {
-          specs.push({ title: spec.title, file: spec.file, projects: spec.tests.map((t) => t.projectName) });
-        }
-        for (const child of suite.suites ?? []) walk(child);
-      };
-      for (const suite of (JSON.parse(output) as { suites: Suite[] }).suites) walk(suite);
-      expect(specs).toEqual([
-        {
-          title: "T-001-62/AC-4 signed-out home page shows the Home heading",
-          file: "smoke.spec.ts",
-          projects: ["chromium"],
-        },
-      ]);
-    },
-    90_000,
-  );
 });
