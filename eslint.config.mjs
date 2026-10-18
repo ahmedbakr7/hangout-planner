@@ -2,7 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
-const TEST_FILES = ["**/*.test.ts", "**/*.test.tsx"];
+const TEST_FILES = ["**/*.test.ts", "**/*.test.tsx", "browser/**/*.ts"];
 
 function aliasPatterns(alias, message) {
   return [
