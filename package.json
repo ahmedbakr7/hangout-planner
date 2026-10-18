@@ -28,6 +28,7 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/react": "^16.0.0",
     "@types/node": "^22.0.0",
