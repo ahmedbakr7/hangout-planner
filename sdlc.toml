@@ -17,7 +17,7 @@ integration = "npx --no-install vitest run --config vitest.e2e.config.mts --repo
 # ADR-0010: the Playwright browser suite (browser/*.spec.ts) over HTTP against `next start` on 3124,
 # with the Google stub on 3125 (playwright.config.ts starts both). Browsers come from
 # PLAYWRIGHT_BROWSERS_PATH in agent containers and `playwright install` in CI.
-e2e = "PLAYWRIGHT_JUNIT_OUTPUT_NAME={junit} npx --no-install playwright test --reporter=list,junit"
+e2e = "PLAYWRIGHT_JUNIT_OUTPUT_NAME={junit} npx --no-install playwright test --reporter=junit"
 # jscpd is not a devDependency; pinned here until it is. Threshold = the 2026-10-02 baseline
 # (9.7% of production code duplicated): new copies fail; lower it as clones are removed.
 duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore --ignore \"**/*.test.*,**/*.spec.*\" src"
