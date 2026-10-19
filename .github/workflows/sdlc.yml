@@ -51,6 +51,18 @@ jobs:
           git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
+      - name: DIAG install git call logger
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/gitwrap"
+          cat > "$RUNNER_TEMP/gitwrap/git" <<'SH'
+          #!/bin/bash
+          { printf '%s pid=%s ppid=%s cwd=%s parent=[%s] :: git' "$(date +%T.%N)" "$$" "$PPID" "$PWD" "$(tr '\0' ' ' < /proc/$PPID/cmdline 2>/dev/null | cut -c1-300)"; printf ' %q' "$@"; echo; } >> "$RUNNER_TEMP/gitcalls.log"
+          exec /usr/bin/git "$@"
+          SH
+          chmod +x "$RUNNER_TEMP/gitwrap/git"
+          echo "$RUNNER_TEMP/gitwrap" >> "$GITHUB_PATH"
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -248,6 +260,16 @@ jobs:
           ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
           git commit-graph verify; echo "cg rc=$?"
           git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
+          true
+
+      - name: DIAG git calls that can make the repo shallow
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          wc -l "$RUNNER_TEMP/gitcalls.log"
+          grep -n -E 'fetch|clone|shallow|depth|deepen|graft|replace|pull|submodule|gc|maintenance|commit-graph|repack|prune' "$RUNNER_TEMP/gitcalls.log" | cut -c1-600 | head -80
+          echo "--- distinct parents"; sed -E 's/.*parent=\[([^]]*)\].*/\1/' "$RUNNER_TEMP/gitcalls.log" | cut -c1-160 | sort | uniq -c | sort -rn | head -40
           true
 
       - uses: actions/upload-artifact@v4
