@@ -29,11 +29,9 @@ duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore -
 # patterns = [] ; globs = [] ; prefix = "/"   (calls from UI code that must hit a contract route)
 
 [tests]
-# TEMPORARY: the nextjs profile proves tickets with e2e (Playwright over HTTP). Hangout has no
-# Playwright yet, so its in-process Vitest e2e/ suite stands in. These tests call handlers
-# directly and cannot catch routing bugs (they missed /v1 vs /api/v1). Remove once
-# commands.e2e runs Playwright against `start`.
-real_stack = ["integration"]
+# ADR-0010: a ticket is proven through the real stack by the in-process Vitest suite (integration)
+# or by the Playwright browser suite over HTTP against `next start` (e2e).
+real_stack = ["integration", "e2e"]
 # ADR-0010: browser/ holds the Playwright specs and their support files. The nextjs profile
 # defaults are listed in full because a key set here replaces the profile value.
 globs = ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "e2e/**", "browser/**"]   # which files are tests

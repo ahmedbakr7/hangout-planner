@@ -2,7 +2,7 @@
 id: T-001-64
 title: "Browser journey: create an account, create a plan, open its invite page"
 type: test
-status: draft
+status: ready
 risk: low
 depends_on: [T-001-63]
 files:
@@ -24,7 +24,7 @@ source_adr:
   - decisions/ADR-0011-browser-work-order.md
 ---
 
-Step 4a of ADR-0011: the first journey spec, proved by the gate in Chromium through `commands.e2e`. It stays `status: draft` until its ACs can be proved. The lead PR that sets `commands.e2e` (with the CI step and agent access) and adds `e2e` to `tests.real_stack` marks it ready. Before that, no gate runs a browser spec.
+Step 4a of ADR-0011: the first journey spec, proved by the gate in Chromium through `commands.e2e`. `commands.e2e` (#146) runs the browser suite in every gate and in CI, and `e2e` is in `tests.real_stack`, so the gate proves these ACs in Chromium. The tester and reviewer may run `npx --no-install playwright test`.
 
 - **`browser/create-and-invite.spec.ts`:** one `test.describe` in serial mode (`test.describe.configure({ mode: "serial" })`) sharing one page, with one test per AC, each titled with its `T-001-64/AC-n` tag.
   - It drives the app only through the browser, by role and accessible name, using the English strings in `messages/en.json` (`Home.create`, `Account.*`, `Create.*`, `plans.invite`, `invite.*`). It imports nothing from `src/`; its only other imports are the cleanup ones below.
