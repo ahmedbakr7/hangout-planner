@@ -33,6 +33,23 @@ jobs:
           token: ${{ secrets.SDLC_KIT_TOKEN || github.token }}
           persist-credentials: false   # do not leave the token in .git/config for later steps
 
+      - name: DIAG git view (after checkout)
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          git version
+          git rev-parse HEAD origin/main
+          git rev-parse --verify -q main; echo "main rc=$?"
+          git rev-parse --verify -q origin/main; echo "origin/main rc=$?"
+          git merge-base HEAD origin/main
+          git log --format='%h %(trailers:key=Sdlc-Ticket,valueonly,separator=%x2C)' origin/main | grep -c T-001; echo "log rc=${PIPESTATUS[0]}"
+          git log -1 --format=%B a11821e
+          git log -1 --format='[%(trailers:key=Sdlc-Ticket,valueonly)]' a11821e
+          git for-each-ref refs/remotes/origin/HEAD refs/heads refs/tags | head
+          python3 -c "import sys; sys.path.insert(0,'.sdlc'); from sdlc.config import load; from sdlc.artifacts import Repo; r=Repo(load()); print(r.bases(), sorted(r.delivered()))"
+          true
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -66,6 +83,23 @@ jobs:
       # that moves no ticket is a lead PR: files beyond lead artifacts (specs, plans,
       # CONTRACTS, tickets, ADRs, sdlc.toml, scope.lead_allowed) are reported, and fail
       # only with scope.lead_code = "fail".
+      - name: DIAG git view (before gate pr)
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          git version
+          git rev-parse HEAD origin/main
+          git rev-parse --verify -q main; echo "main rc=$?"
+          git rev-parse --verify -q origin/main; echo "origin/main rc=$?"
+          git merge-base HEAD origin/main
+          git log --format='%h %(trailers:key=Sdlc-Ticket,valueonly,separator=%x2C)' origin/main | grep -c T-001; echo "log rc=${PIPESTATUS[0]}"
+          git log -1 --format=%B a11821e
+          git log -1 --format='[%(trailers:key=Sdlc-Ticket,valueonly)]' a11821e
+          git for-each-ref refs/remotes/origin/HEAD refs/heads refs/tags | head
+          python3 -c "import sys; sys.path.insert(0,'.sdlc'); from sdlc.config import load; from sdlc.artifacts import Repo; r=Repo(load()); print(r.bases(), sorted(r.delivered()))"
+          true
+
       - name: PR gate (the ticket this PR moves, or lead scope)
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}
         run: .sdlc/bin/sdlc gate pr --base origin/${{ github.base_ref }}
