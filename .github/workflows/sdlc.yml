@@ -33,44 +33,115 @@ jobs:
           token: ${{ secrets.SDLC_KIT_TOKEN || github.token }}
           persist-credentials: false   # do not leave the token in .git/config for later steps
 
-      - name: DIAG git view (after checkout)
+      - name: DIAG after actions/checkout@v4
         if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
-          git version
-          git rev-parse HEAD origin/main
-          git rev-parse --verify -q main; echo "main rc=$?"
-          git rev-parse --verify -q origin/main; echo "origin/main rc=$?"
-          git merge-base HEAD origin/main
-          git log --format='%h %(trailers:key=Sdlc-Ticket,valueonly,separator=%x2C)' origin/main | grep -c T-001; echo "log rc=${PIPESTATUS[0]}"
-          git log -1 --format=%B a11821e
-          git log -1 --format='[%(trailers:key=Sdlc-Ticket,valueonly)]' a11821e
-          git for-each-ref refs/remotes/origin/HEAD refs/heads refs/tags | head
-          python3 -c "import sys; sys.path.insert(0,'.sdlc'); from sdlc.config import load; from sdlc.artifacts import Repo; r=Repo(load()); print(r.bases(), sorted(r.delivered()))"
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
           true
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: DIAG after actions/setup-python@v5
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
+
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
+      - name: DIAG after actions/setup-node@v4
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
+
       - run: npm ci --no-audit --no-fund
 
       # ADR-0010: Chromium for the browser suite (commands.e2e). The cache key carries the
       # pinned @playwright/test version; a version bump changes the pin and this key together.
+      - name: DIAG after npm ci --no-audit --no-fund
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
+
       - uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-1.56.1-chromium-${{ runner.os }}
+      - name: DIAG after actions/cache@v4
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
+
       - run: npx --no-install playwright install --with-deps chromium
+
+      - name: DIAG after npx --no-install playwright install --wi
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
 
       - name: Doctor (fails if any required check could pass vacuously)
         run: .sdlc/bin/sdlc doctor
 
+      - name: DIAG after Doctor (fails if any required check coul
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
+
       - name: Gate (ci)
         run: .sdlc/bin/sdlc gate ci --base origin/${{ github.base_ref || 'main' }}
+
+      - name: DIAG after Gate (ci)
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
 
       - name: Trace (requirements -> tickets -> proven AC)
         if: ${{ !cancelled() }}   # still report the trace when gate ci is red
@@ -83,26 +154,31 @@ jobs:
       # that moves no ticket is a lead PR: files beyond lead artifacts (specs, plans,
       # CONTRACTS, tickets, ADRs, sdlc.toml, scope.lead_allowed) are reported, and fail
       # only with scope.lead_code = "fail".
-      - name: DIAG git view (before gate pr)
+      - name: DIAG after Trace (requirements -> tickets -> proven
         if: ${{ !cancelled() }}
         shell: bash
         run: |
           set +e
-          git version
-          git rev-parse HEAD origin/main
-          git rev-parse --verify -q main; echo "main rc=$?"
-          git rev-parse --verify -q origin/main; echo "origin/main rc=$?"
-          git merge-base HEAD origin/main
-          git log --format='%h %(trailers:key=Sdlc-Ticket,valueonly,separator=%x2C)' origin/main | grep -c T-001; echo "log rc=${PIPESTATUS[0]}"
-          git log -1 --format=%B a11821e
-          git log -1 --format='[%(trailers:key=Sdlc-Ticket,valueonly)]' a11821e
-          git for-each-ref refs/remotes/origin/HEAD refs/heads refs/tags | head
-          python3 -c "import sys; sys.path.insert(0,'.sdlc'); from sdlc.config import load; from sdlc.artifacts import Repo; r=Repo(load()); print(r.bases(), sorted(r.delivered()))"
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
           true
 
       - name: PR gate (the ticket this PR moves, or lead scope)
         if: ${{ github.event_name == 'pull_request' && !cancelled() }}
         run: .sdlc/bin/sdlc gate pr --base origin/${{ github.base_ref }}
+
+      - name: DIAG after PR gate (the ticket this PR moves, or le
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          set +e
+          echo "commits=$(git rev-list --count origin/main) trailers=$(git log --format='%(trailers:key=Sdlc-Ticket,valueonly)' origin/main | grep -c T-001)"
+          ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
+          git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
+          env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          true
 
       - uses: actions/upload-artifact@v4
         if: always()
