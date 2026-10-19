@@ -14,6 +14,10 @@ lint = "npm run --silent lint"
 # e2e/*.e2e.ts call route handlers in-process under jsdom (no HTTP); the test:e2e script cannot take
 # reporter flags, so the gate runs them through vitest.e2e.config.mts (same settings as test:e2e).
 integration = "npx --no-install vitest run --config vitest.e2e.config.mts --reporter=default --reporter=junit --outputFile.junit={junit}"
+# ADR-0010: the Playwright browser suite (browser/*.spec.ts) over HTTP against `next start` on 3124,
+# with the Google stub on 3125 (playwright.config.ts starts both). Browsers come from
+# PLAYWRIGHT_BROWSERS_PATH in agent containers and `playwright install` in CI.
+e2e = "PLAYWRIGHT_JUNIT_OUTPUT_NAME={junit} npx --no-install playwright test --reporter=junit"
 # jscpd is not a devDependency; pinned here until it is. Threshold = the 2026-10-02 baseline
 # (9.7% of production code duplicated): new copies fail; lower it as clones are removed.
 duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore --ignore \"**/*.test.*,**/*.spec.*\" src"
@@ -85,9 +89,9 @@ command = "bash ops/agent-fe-builder.sh {instruction}"
 timeout = 3600
 
 [agents.tester]
-command = "claude -p {instruction} ${SDLC_TEST_MODEL:+--model \"$SDLC_TEST_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
+command = "claude -p {instruction} ${SDLC_TEST_MODEL:+--model \"$SDLC_TEST_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Edit Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npm run --silent lint)' 'Bash(npm run typecheck)' 'Bash(npx --no-install vitest:*)' 'Bash(npx --no-install tsc:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)' 'Bash(npx --no-install playwright test:*)'"
 timeout = 3600
 
 [agents.reviewer]
-command = "claude -p {instruction} ${SDLC_REVIEW_MODEL:+--model \"$SDLC_REVIEW_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npx --no-install vitest:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)'"
+command = "claude -p {instruction} ${SDLC_REVIEW_MODEL:+--model \"$SDLC_REVIEW_MODEL\"} --permission-mode acceptEdits --strict-mcp-config --no-session-persistence --allowedTools Read Write Glob Grep 'Bash(.sdlc/bin/sdlc:*)' 'Bash(npm test:*)' 'Bash(npx --no-install vitest:*)' 'Bash(git status:*)' 'Bash(git diff:*)' 'Bash(git log:*)' 'Bash(git show:*)' 'Bash(npx --no-install playwright test:*)'"
 timeout = 1800
