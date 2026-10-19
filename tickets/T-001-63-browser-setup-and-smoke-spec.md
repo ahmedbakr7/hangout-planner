@@ -16,7 +16,7 @@ skills:
 contracts: []
 requirements: [F-001-1]
 acceptance_criteria:
-  - "AC-1: npx --no-install playwright test --list, run from the repository root, exits 0 and lists exactly one test, in the chromium project: browser/smoke.spec.ts \"T-001-63/AC-1 signed-out home page shows the Home heading\""
+  - "AC-1: npx --no-install playwright test --list, run from the repository root, exits 0 and lists browser/smoke.spec.ts \"T-001-63/AC-1 signed-out home page shows the Home heading\" in the chromium project, and no test in any other project"
   - "AC-2: browser/global-setup.ts applies the schema to DATABASE_URL with applySchemaOnce and does nothing else; on a fresh database it creates the schema, and a second run changes nothing"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
@@ -36,3 +36,7 @@ The lead marked it ready with one change from the split text: AC-1 quotes the sm
 - **`e2e/playwright-list.e2e.ts`**, tagged `T-001-63/AC-1`: runs `npx --no-install playwright test --list` from the repository root with `node:child_process` and checks the exit status and that the output lists exactly that one test under the `chromium` project. `--list` starts no server and opens no browser.
 - **`e2e/browser-global-setup.e2e.ts`**, tagged `T-001-63/AC-2`: creates a throwaway database on the test Postgres, runs the default export with `DATABASE_URL` stubbed to it, checks that a known table exists, runs it again, then drops the database. Copy the inline `CREATE DATABASE` / `DROP DATABASE ... WITH (FORCE)` code and URL rewrite in `e2e/test-schema.e2e.ts`, and close connections with `cleanupThenClose` from `e2e/db-cleanup.ts`. One more untagged test checks the `DATABASE_URL is required` rejection.
 - **Agent rule (from T-001-62, until the step 4 lead PR):** agents may run `playwright test --list` only inside a test. No agent runs the smoke spec in a browser. The lead runs `npx --no-install playwright test` by hand on the reviewed commit and posts the command, exit status, commit and `1 passed` on the PR.
+
+## Amendments
+
+- weaken AC-1: "exactly one test" fails as soon as any other browser spec exists (T-001-64 adds three); AC-1 now requires the smoke test listed in the chromium project and no test in any other project. Lead approval in session on 2026-10-19 (standing approval: "you have my approval for auto approving").
