@@ -42,6 +42,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - uses: actions/setup-python@v5
@@ -57,6 +64,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - uses: actions/setup-node@v4
@@ -70,6 +84,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - run: npm ci --no-audit --no-fund
@@ -85,6 +106,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - uses: actions/cache@v4
@@ -100,6 +128,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - run: npx --no-install playwright install --with-deps chromium
@@ -113,6 +148,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - name: Doctor (fails if any required check could pass vacuously)
@@ -127,6 +169,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - name: Gate (ci)
@@ -141,6 +190,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - name: Trace (requirements -> tickets -> proven AC)
@@ -163,6 +219,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - name: PR gate (the ticket this PR moves, or lead scope)
@@ -178,6 +241,13 @@ jobs:
           ls -la .git/shallow .git/info/grafts 2>&1 | head -3; git replace -l | head -3
           git config --show-origin -l | grep -v -i 'token\|extraheader\|url\.' | head -40
           env | grep -i '^GIT_' | sed 's/=.*/=…/'
+          git rev-parse --is-shallow-repository
+          git -c core.commitGraph=false rev-list --count origin/main
+          git --no-replace-objects rev-list --count origin/main
+          git cat-file -p be646ff | grep ^parent
+          ls -la .git/objects/info .git/objects/info/commit-graphs 2>/dev/null
+          git commit-graph verify; echo "cg rc=$?"
+          git config --show-origin --get-all core.commitGraph; git config --show-origin --get-regexp '^(gc|maintenance|fetch)\.'
           true
 
       - uses: actions/upload-artifact@v4
