@@ -9,7 +9,7 @@ import {
   type AuthCookieOptions,
 } from "@/server/auth/session";
 import { now } from "@/server/clock";
-import { createDb } from "@/server/db/client";
+import { closeDatabase, db } from "@/server/db/client";
 import { accounts, sessions } from "@/server/db/schema";
 import {
   httpError,
@@ -31,8 +31,6 @@ export type AccountPublic = {
   email: string;
   display_name: string;
 };
-
-type Database = ReturnType<typeof createDb>;
 
 type Registration =
   | {
@@ -62,7 +60,6 @@ type CreatedSession = {
   options: AuthCookieOptions;
 };
 
-let database: Database | undefined;
 let dummyHash: Promise<string> | undefined;
 
 class EmailTaken extends Error {
@@ -72,20 +69,7 @@ class EmailTaken extends Error {
   }
 }
 
-function db(): Database {
-  if (!database) {
-    database = createDb();
-  }
-  return database;
-}
-
-export async function closeDatabase(): Promise<void> {
-  if (!database) {
-    return;
-  }
-  await database.$client.end({ timeout: 5 });
-  database = undefined;
-}
+export { closeDatabase };
 
 function newSessionId(): string {
   return `ses_${randomBytes(16).toString("hex")}`;

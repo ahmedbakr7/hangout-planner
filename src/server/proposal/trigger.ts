@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { and, count, eq, gt, inArray } from "drizzle-orm";
 import { errorResponse } from "@/server/auth/http";
@@ -16,6 +15,7 @@ import {
 } from "@/server/db/schema";
 import type { GoogleClientOptions } from "@/server/google/places";
 import { httpError } from "@/server/http/errors";
+import { generateOpaqueId } from "@/server/ids";
 import { db } from "@/server/plans/http";
 import {
   runProposalAttempt,
@@ -39,10 +39,6 @@ export function setProposalAttemptGoogleOptions(
 export type TriggeredAttemptResult =
   | ProposalAttemptResult
   | { status: "hour_full" };
-
-function newOpaqueId(prefix: string): string {
-  return `${prefix}${randomBytes(16).toString("hex")}`;
-}
 
 export function attemptInProgressResponse(): NextResponse {
   return errorResponse(
@@ -119,7 +115,7 @@ export async function applyHourFullVenueData(planId: string): Promise<void> {
     }
     await deleteProposalsTx(tx, planId);
     await tx.insert(proposalRuns).values({
-      id: newOpaqueId("prn_"),
+      id: generateOpaqueId("prn_"),
       planId,
       startedAt: instant,
       outcome: "blocked",

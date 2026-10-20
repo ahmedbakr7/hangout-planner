@@ -12,6 +12,10 @@ export const ID_PREFIXES = [
 
 export type IdPrefix = (typeof ID_PREFIXES)[number];
 
+export const OPAQUE_ID_PREFIXES = ["prp_", "prn_"] as const;
+
+export type OpaqueIdPrefix = (typeof OPAQUE_ID_PREFIXES)[number];
+
 /** RFC 4648 base32 alphabet, lowercase. */
 export const ID_BODY_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
 export const ID_BODY_LENGTH = 22;
@@ -85,6 +89,10 @@ export function isId(value: unknown, prefix?: IdPrefix): boolean {
 
 export function generateJoinToken(): string {
   return JOIN_TOKEN_PREFIX + randomBytes(32).toString("base64url");
+}
+
+export function generateOpaqueId(prefix: OpaqueIdPrefix): string {
+  return prefix + randomBytes(16).toString("hex");
 }
 
 export function isJoinToken(value: unknown): boolean {

@@ -10,6 +10,7 @@ import {
   generateDistinguisher,
   generateId,
   generateJoinToken,
+  generateOpaqueId,
   isDistinguisher,
   isId,
   isIdPrefix,
@@ -70,6 +71,17 @@ describe("generateId / isId", () => {
     expect(() => generateId("foo_" as (typeof ID_PREFIXES)[number])).toThrow(
       /unknown id prefix/,
     );
+  });
+});
+
+describe("generateOpaqueId", () => {
+  it("is the prefix plus 32 lowercase hex characters", () => {
+    expect(generateOpaqueId("prp_")).toMatch(/^prp_[0-9a-f]{32}$/);
+    expect(generateOpaqueId("prn_")).toMatch(/^prn_[0-9a-f]{32}$/);
+  });
+
+  it("differs between calls", () => {
+    expect(generateOpaqueId("prn_")).not.toBe(generateOpaqueId("prn_"));
   });
 });
 
