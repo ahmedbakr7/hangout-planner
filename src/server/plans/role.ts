@@ -115,6 +115,7 @@ export async function planRoleFor(
 export async function planRoleForCookies(
   readCookieValue: CookieReader,
   plan: PlanRow,
+  requestJoinToken: string | null = null,
 ): Promise<PlanRole | null> {
   const session = await readAccountSession(readCookieValue("hp_session"));
   const sessionAccountId = session.ok ? session.account.id : null;
@@ -133,7 +134,7 @@ export async function planRoleForCookies(
     guestOwnsParticipant: await guestOwnsParticipant(readCookieValue, plan.id),
     accountHasInvitation,
     linkIncludesPlan: await linkIncludesPlan(readCookieValue, plan.id),
-    requestJoinToken: null,
+    requestJoinToken,
     planJoinToken: plan.joinToken,
   });
 }

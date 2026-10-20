@@ -394,7 +394,7 @@ describe("GET /v1/join/{token}", () => {
     expect(logs.join("\n")).not.toContain(linkToken);
   });
 
-  it("when next is join, preview has title, organizer display name, timezone, windows, budget, and step names, and omits option labels, counts, threshold, statuses, starting points, and any itinerary", async () => {
+  it("T-001-71/AC-1 when next is join, preview has title, organizer display name, timezone, windows, budget, and step names, and omits option labels, counts, threshold, statuses, starting points, and any itinerary", async () => {
     const email = track(uniqueEmail("preview"));
     const organizer = await register(email, "Omar");
     const plan = await openPlan(organizer.token, {
@@ -447,7 +447,7 @@ describe("GET /v1/join/{token}", () => {
     expect(json).not.toContain(email);
   });
 
-  it("gives the organizer next organizer or confirmed and does not insert a participant; an existing account or guest participant is returned without a second participant", async () => {
+  it("T-001-71/AC-1 T-001-71/AC-2 T-001-71/AC-3 T-001-71/AC-4 gives the organizer next organizer or confirmed and does not insert a participant; an existing account or guest participant is returned without a second participant", async () => {
     const orgEmail = track(uniqueEmail("host"));
     const memberEmail = track(uniqueEmail("member"));
     const organizer = await register(orgEmail, "Omar");
@@ -508,6 +508,75 @@ describe("GET /v1/join/{token}", () => {
       next: "confirmed",
       preview: null,
     });
+  });
+
+  it("T-001-71/AC-3 answers next proposal to the account that has a participant once the plan is proposed", async () => {
+    const orgEmail = track(uniqueEmail("host"));
+    const memberEmail = track(uniqueEmail("member"));
+    const organizer = await register(orgEmail, "Omar");
+    const member = await register(memberEmail, "Nour");
+    const plan = await openPlan(organizer.token);
+    await sql`
+      INSERT INTO participants (
+        id, plan_id, account_id, guest_session_id, display_name, distinguisher
+      ) VALUES (
+        ${generateId("prt_")}, ${plan.id}, ${member.account.id}, NULL, 'Nour', 'a3k9'
+      )
+    `;
+    await sql`UPDATE plans SET state = 'proposed' WHERE id = ${plan.id}`;
+
+    const response = await joinGet(plan.token, `hp_session=${member.token}`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      plan_id: plan.id,
+      next: "proposal",
+      preview: null,
+    });
+    expect(await participantCount(plan.id)).toBe(1);
+  });
+
+  it("T-001-71/AC-4 an hp_guest cookie whose guest session has expired no longer owns the participant and answers next join", async () => {
+    const email = track(uniqueEmail("expired"));
+    const organizer = await register(email, "Omar");
+    const plan = await openPlan(organizer.token);
+    const guest = await seedGuestParticipant(plan.id, "Hana", "k7m2");
+
+    const live = await joinGet(plan.token, `hp_guest=${guest.token}`);
+    expect(live.status).toBe(200);
+    expect(await live.json()).toMatchObject({ next: "respond", preview: null });
+
+    await sql`
+      UPDATE guest_sessions
+      SET expires_at = ${new Date("2020-01-01T00:00:00.000Z")}
+      WHERE id = ${guest.guestId}
+    `;
+    const expired = await joinGet(plan.token, `hp_guest=${guest.token}`);
+    expect(expired.status).toBe(200);
+    const body = (await expired.json()) as OpeningBody;
+    expect(body.next).toBe("join");
+    expect(body.preview).not.toBeNull();
+  });
+
+  it("T-001-71/AC-5 an account that has an invitation and no participant answers next join with a preview", async () => {
+    const orgEmail = track(uniqueEmail("host"));
+    const invitedEmail = track(uniqueEmail("invited"));
+    const organizer = await register(orgEmail, "Omar");
+    const invited = await register(invitedEmail, "Hana");
+    const plan = await openPlan(organizer.token);
+    await sql`
+      INSERT INTO invitations (id, plan_id, account_id, distinguisher)
+      VALUES (${generateId("inv_")}, ${plan.id}, ${invited.account.id}, 'a3k9')
+    `;
+
+    const response = await joinGet(plan.token, `hp_session=${invited.token}`);
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as OpeningBody;
+    expect(body.next).toBe("join");
+    expect(body.preview).toMatchObject({
+      title: plan.title,
+      organizer_display_name: "Omar",
+    });
+    expect(await participantCount(plan.id)).toBe(0);
   });
 });
 
@@ -595,7 +664,7 @@ describe("POST /v1/join/{token}", () => {
     expect(cookieValue(otherGuest!, "hp_guest")).not.toBe(guestToken);
   });
 
-  it("account join requires hp_session, uses the account display name, returns 401 missing_session without a session, and returns an existing participant with 200 instead of creating another", async () => {
+  it("T-001-71/AC-6 account join requires hp_session, uses the account display name, returns 401 missing_session without a session, and returns an existing participant with 200 instead of creating another", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const memberEmail = track(uniqueEmail("acc"));
     const organizer = await register(orgEmail, "Omar");
@@ -637,7 +706,7 @@ describe("POST /v1/join/{token}", () => {
     expect(await participantCount(plan.id)).toBe(1);
   });
 
-  it("locked, organizer, and full return 409 plan_locked, organizer_cannot_join, or plan_full and create no participant; POST without X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
+  it("T-001-71/AC-6 locked, organizer, and full return 409 plan_locked, organizer_cannot_join, or plan_full and create no participant; POST without X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
     const orgEmail = track(uniqueEmail("lock"));
     const memberEmail = track(uniqueEmail("full"));
     const organizer = await register(orgEmail, "Omar");
