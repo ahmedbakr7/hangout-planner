@@ -125,7 +125,7 @@ function notFoundResponse(): NextResponse {
 }
 
 function loggedJoin(request: Request, response: NextResponse): NextResponse {
-  return logged(new Request("http://localhost/v1/join", { method: request.method }), response);
+  return logged(new Request("http://localhost/api/v1/join", { method: request.method }), response);
 }
 
 function setAuthCookie(
