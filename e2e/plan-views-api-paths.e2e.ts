@@ -109,7 +109,10 @@ const fakeGoogle: FetchFn = async (request, init) => {
     });
     return json(elements);
   }
-  return json(startPlace);
+  if (url === "https://places.googleapis.com/v1/places/ChIJ-start") {
+    return json(startPlace);
+  }
+  throw new Error(`unexpected Google URL: ${url}`);
 };
 
 const unavailableGoogle: FetchFn = async () => {
@@ -383,5 +386,26 @@ describe("plan views against the real route handlers", () => {
         "POST /api/v1/plans/{planId}/lock",
       ]),
     );
+  });
+});
+
+describe("fakeGoogle", () => {
+  it("T-001-67/AC-1 answers the start place details lookup with status 200 and the start place", async () => {
+    const response = await fakeGoogle("https://places.googleapis.com/v1/places/ChIJ-start");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      id: "ChIJ-start",
+      displayName: { text: "Maadi, Cairo" },
+      location: { latitude: 29.96, longitude: 31.25 },
+    });
+  });
+
+  it.each([
+    "https://places.googleapis.com/v1/places/ChIJ-other",
+    "https://places.googleapis.com/v1/places:autocomplete",
+    "https://routes.googleapis.com/directions/v2:computeRoutes",
+  ])("T-001-67/AC-2 rejects %s naming the URL", async (url) => {
+    await expect(fakeGoogle(url)).rejects.toThrow(url);
   });
 });
