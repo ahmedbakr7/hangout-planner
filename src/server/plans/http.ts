@@ -4,7 +4,7 @@ import {
   eq,
   inArray,
 } from "drizzle-orm";
-import { createDb } from "@/server/db/client";
+import { closeDatabase, createDb, db } from "@/server/db/client";
 import {
   planOptions,
   planSteps,
@@ -97,23 +97,9 @@ export type ParsePlanResult =
   | { ok: true; value: ParsedPatch }
   | { ok: false; fields: ErrorField[] };
 
-let database: Database | undefined;
 let timeZones: ReadonlySet<string> | undefined;
 
-export function db(): Database {
-  if (!database) {
-    database = createDb();
-  }
-  return database;
-}
-
-export async function closeDatabase(): Promise<void> {
-  if (!database) {
-    return;
-  }
-  await database.$client.end({ timeout: 5 });
-  database = undefined;
-}
+export { closeDatabase, db };
 
 function ianaTimeZones(): ReadonlySet<string> {
   if (!timeZones) {

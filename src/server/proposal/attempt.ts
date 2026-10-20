@@ -1,7 +1,6 @@
-import { randomBytes } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { now } from "@/server/clock";
-import { createDb } from "@/server/db/client";
+import { closeDatabase, createDb, db } from "@/server/db/client";
 import {
   participants,
   planOptions,
@@ -31,6 +30,7 @@ import {
   computeRouteMatrix,
   isUsableRouteMatrixElement,
 } from "@/server/google/routes";
+import { generateOpaqueId } from "@/server/ids";
 import { AMOUNT_MINOR_MAX, isAmountMinor } from "@/server/money";
 import { asPlanState } from "@/server/join/open";
 import { isChainFair, maxTripMinusMedian } from "./fairness";
@@ -117,29 +117,10 @@ type ChosenChain = {
   fairnessWarning: boolean;
 };
 
-let database: Database | undefined;
-
-function db(): Database {
-  if (!database) {
-    database = createDb();
-  }
-  return database;
-}
-
-export async function closeDatabase(): Promise<void> {
-  if (!database) {
-    return;
-  }
-  await database.$client.end({ timeout: 5 });
-  database = undefined;
-}
+export { closeDatabase };
 
 export function isProposalGoogleEnabled(): boolean {
   return process.env.HP_PROPOSAL_ENABLED !== "0";
-}
-
-function newOpaqueId(prefix: string): string {
-  return `${prefix}${randomBytes(16).toString("hex")}`;
 }
 
 function blockFlags(
@@ -475,7 +456,7 @@ async function finishRun(input: {
   await db().transaction(async (tx) => {
     await deleteProposalTx(tx, input.planId);
     if (input.outcome === "proposed" && input.proposal) {
-      const proposalId = newOpaqueId("prp_");
+      const proposalId = generateOpaqueId("prp_");
       await tx.insert(proposals).values({
         id: proposalId,
         planId: input.planId,
@@ -552,7 +533,7 @@ async function finishRun(input: {
       }
     }
     await tx.insert(proposalRuns).values({
-      id: newOpaqueId("prn_"),
+      id: generateOpaqueId("prn_"),
       planId: input.planId,
       startedAt: input.startedAt,
       outcome: input.outcome,

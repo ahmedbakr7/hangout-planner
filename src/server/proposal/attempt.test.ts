@@ -674,6 +674,29 @@ describe("runProposalAttempt", () => {
     expect(legs.some((row) => row.duration_seconds < 1)).toBe(false);
   });
 
+  it("T-001-68/AC-5 a proposed run stores a prp_ proposal id and a prn_ run id of 32 hex characters", async () => {
+    const { planId } = await seedTwoMemberPlan();
+    const captured: string[] = [];
+    const fetch = googleFetch(captured, {
+      byQuery: defaultPlaces,
+      durationSeconds: defaultDuration,
+    });
+
+    const result = await runProposalAttempt(planId, attemptDeps(fetch));
+    expect(result).toEqual({ status: "proposed" });
+
+    const proposal = await sql<{ id: string }[]>`
+      SELECT id FROM proposals WHERE plan_id = ${planId}
+    `;
+    expect(proposal).toHaveLength(1);
+    expect(proposal[0]?.id).toMatch(/^prp_[0-9a-f]{32}$/);
+    const runs = await sql<{ id: string }[]>`
+      SELECT id FROM proposal_runs WHERE plan_id = ${planId}
+    `;
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.id).toMatch(/^prn_[0-9a-f]{32}$/);
+  });
+
   it("writes proposed for a full chain and stores the cohort and the pool", async () => {
     const { planId, nourId, ziadId, shape } = await seedTwoMemberPlan();
     const captured: string[] = [];
