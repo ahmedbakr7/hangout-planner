@@ -4,7 +4,7 @@
  * (src/app/<path>/route.ts, [param] directories as dynamic segments). A request to a path
  * no route serves answers 404 and is recorded in `unserved`.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const APP_DIR = resolve(process.cwd(), "src/app");
@@ -19,7 +19,7 @@ export function routeFor(pathname: string): { file: string; params: Record<strin
   let dir = APP_DIR;
   const params: Record<string, string> = {};
   for (const segment of pathname.split("/").filter(Boolean)) {
-    if (existsSync(join(dir, segment))) {
+    if (existsSync(join(dir, segment)) && statSync(join(dir, segment)).isDirectory()) {
       dir = join(dir, segment);
       continue;
     }
