@@ -21,7 +21,6 @@ skills:
 contracts: []
 requirements: [F-001-1, F-001-2]
 acceptance_criteria:
-  - "AC-1: ESLint reports a no-restricted-imports error whose message names next/font/local for an import from next/font/google in any .ts or .tsx file under src/, test files included"
   - "AC-2: npm run lint passes on the repository, and src/app/layout.tsx imports no module from next/font/google"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
