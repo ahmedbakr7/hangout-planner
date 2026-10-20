@@ -273,3 +273,36 @@ describe("T-001-52/AC-3 chrome rules", () => {
     expect(await ruleIds(code, "src/lib/example.test.ts")).not.toContain(SYNTAX);
   });
 });
+
+describe("T-001-74/AC-2 the layout loads fonts locally", () => {
+  it(
+    "T-001-74/AC-2 src/app/layout.tsx imports nothing from next/font/google",
+    async () => {
+      const withRule = new ESLint({
+        cwd: ROOT,
+        overrideConfig: {
+          files: ["src/**/*.{ts,tsx}"],
+          rules: {
+            [RESTRICTED]: [
+              "error",
+              {
+                paths: [
+                  {
+                    name: "next/font/google",
+                    message: "Load fonts with next/font/local (T-001-74).",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      const [result] = await withRule.lintFiles(["src/app/layout.tsx"]);
+      const errors = result.messages
+        .filter((message) => message.severity === 2)
+        .map((message) => `${message.ruleId}: ${message.message}`);
+      expect(errors).toEqual([]);
+    },
+    120_000,
+  );
+});
