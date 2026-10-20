@@ -1,7 +1,10 @@
 import http from "node:http";
 
 const HOST = "127.0.0.1";
-const SCRIPT_PORT = 3125;
+const PORT_VARIABLE = "HP_E2E_GOOGLE_STUB_PORT";
+const DEFAULT_SCRIPT_PORT = 3125;
+const PORT_PATTERN = /^[1-9][0-9]{0,4}$/;
+const MAX_PORT = 65535;
 const PLACE_PATH_PREFIX = "/v1/places/";
 
 const FIXTURE_PLACES = [
@@ -108,6 +111,18 @@ function handle(req, res, body) {
   }
 }
 
+/** Port for the script entry. Read on every call so tests can set and clear the variable. */
+export function scriptPort() {
+  const value = process.env[PORT_VARIABLE];
+  if (value === undefined || value === "") {
+    return DEFAULT_SCRIPT_PORT;
+  }
+  if (!PORT_PATTERN.test(value) || Number(value) > MAX_PORT) {
+    throw new Error(`${PORT_VARIABLE} must be a decimal integer from 1 to 65535`);
+  }
+  return Number(value);
+}
+
 export function startGoogleStub(port) {
   const server = http.createServer((req, res) => {
     const chunks = [];
@@ -131,5 +146,5 @@ export function startGoogleStub(port) {
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file:").href) {
-  await startGoogleStub(SCRIPT_PORT);
+  await startGoogleStub(scriptPort());
 }
