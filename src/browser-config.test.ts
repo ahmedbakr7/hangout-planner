@@ -60,4 +60,8 @@ describe("browser test tooling", () => {
       HP_HASH_TEST: "1",
     });
   });
+
+  it("T-001-65/AC-1 the Playwright config turns off git commit and diff capture", () => {
+    expect(playwrightConfig.captureGitInfo).toEqual({ commit: false, diff: false });
+  });
 });

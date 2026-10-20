@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "browser",
+  captureGitInfo: { commit: false, diff: false },
   globalSetup: "./browser/global-setup.ts",
   use: { baseURL: "http://127.0.0.1:3124" },
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
