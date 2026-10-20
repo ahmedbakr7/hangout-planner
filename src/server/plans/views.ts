@@ -237,7 +237,7 @@ function copyPicks(
   }));
 }
 
-/** Organizer GET /v1/plans/{planId}: no starting points, step picks, or itinerary. */
+/** Organizer GET /api/v1/plans/{planId}: no starting points, step picks, or itinerary. */
 export function organizerPlanView(plan: OrganizerPlanInput): OrganizerPlanView {
   const participants = copyParticipants(plan.participants);
   return {
@@ -257,7 +257,7 @@ export function organizerPlanView(plan: OrganizerPlanInput): OrganizerPlanView {
 }
 
 /**
- * Participant GET /v1/plans/{planId}/response: omits other participants,
+ * Participant GET /api/v1/plans/{planId}/response: omits other participants,
  * other starting points, answered_count, and threshold.
  */
 export function participantResponseView(
