@@ -45,8 +45,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Loading and assembling for handlers | `src/server/<area>/http.ts` | `assembleOrganizerPlan` in `src/server/plans/http.ts` |
 | Page loader (ADR-0007): lookup, role and view for one surface, returning a `kind` union; the `GET` handler and the page both call it | `src/server/<area>/page-data.ts` | `loadOrganizerPlanPage` in `src/server/plans/page-data.ts` |
 | Plan role | `src/server/plans/role.ts`: `planRoleFor(request, plan)` in a handler, `planRoleForCookies(readCookie, plan)` in a page loader | import them; never copy the role helpers into a route file |
-| Database client | `db()` and `closeDatabase()` in `src/server/db/client.ts`: one lazy client per process; a module that exposes them re-exports them (`import { closeDatabase, db } from "@/server/db/client"; export { closeDatabase, db };`) | `src/server/join/db.ts` |
-| Ids | `src/server/ids.ts`: `generateId(prefix)` for the 22-character ids in CONTRACTS § Identifiers; `generateOpaqueId("prp_" \| "prn_")` for proposal and run ids (32 hex) | import them; never add a private `randomBytes` id helper |
+| Database client | `db()` and `closeDatabase()` in `src/server/db/client.ts`: one lazy client per process; a module that exposes them re-exports what it needs (`import { closeDatabase, db } from "@/server/db/client"; export { closeDatabase, db };`) | `src/server/join/db.ts` |
+| Ids | `src/server/ids.ts`: `generateId(prefix)` for the 22-character ids in CONTRACTS § Identifiers; `generateOpaqueId("prp_" \| "prn_")` for proposal and run ids (32 hex) | import them; new code adds no private `randomBytes` id helper (older `ses_`, `pse_`, `gst_`, `lnk_` copies remain; do not copy them) |
 | Schema / migration | `src/server/db/schema.ts` and a new file in `drizzle/` | `drizzle/0001_init.sql` |
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
 | Handler-level test | `e2e/<name>.e2e.ts` (test agent only) | `e2e/attempt-in-progress.e2e.ts` |
