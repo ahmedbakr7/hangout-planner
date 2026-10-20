@@ -7,6 +7,7 @@ risk: low
 depends_on: [T-001-63]
 files:
   - "browser/create-and-invite.spec.ts"
+  - "e2e/playwright-list.e2e.ts"
 skills:
   - test
 contracts: []
@@ -31,4 +32,5 @@ Step 4a of ADR-0011: the first journey spec, proved by the gate in Chromium thro
   - The account's email is unique per run (for example, a timestamp and random suffix at `example.test`), so reruns never collide.
   - The journey touches no Google path, so the stub only has to be running, which `playwright.config.ts` already does.
   - **Cleanup:** `afterAll` deletes every row the run created (the plan and its child rows, then the account and its sessions, in foreign-key order), found through the run's unique email. ADR-0010 asks for this "in the style of `e2e/db-cleanup.ts`", and the public API has no delete route. So it opens its own `postgres` client on `DATABASE_URL`, takes the child-table delete order from the foreign keys in `src/server/db/schema.ts` (read, not imported; `deleteSeededRows` in `e2e/plan-join-server-load.e2e.ts` shows the style), and closes the client through `cleanupThenClose` from `e2e/db-cleanup.ts`. Those two are its only imports outside `@playwright/test`; nothing comes from `src/`.
+- **`e2e/playwright-list.e2e.ts`:** its `T-001-63/AC-1` test asserts the old "exactly one test" wording, so it fails once this spec exists. Update it to T-001-63's amended AC-1 (the smoke test is listed in the `chromium` project, and no line names another project), keeping its `T-001-63/AC-1` tag. Do not assert a total count.
 - **Proof:** the gate's `e2e` suite (Playwright JUnit) proves each AC. The tester and reviewer may run `npx --no-install playwright test`; they never run `playwright install`.
