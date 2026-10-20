@@ -30,7 +30,7 @@ The ticket text built on ADR-0010 says the same: T-001-61's stub "reads no envir
 - If both variables give the same port, loading the config throws an `Error` that names both.
 - The app entry's `HP_E2E_GOOGLE_BASE_URL` is `http://127.0.0.1:<stub port>`. `use.baseURL`, the app entry's `url` and its `next start -p` use the app port. Nothing else in the config changes. The app entry's `env` keeps exactly its five keys, and the stub entry keeps no `env`. The stub gets its variable through Playwright's default inheritance of `process.env`.
 - These two variables are the one exception to ADR-0010's "never in the shell". They are set in the shell, by a person or a parallel-run script, and only to choose ports. CI, `sdlc.toml` and `.env` files set neither, so CI runs on 3124 and 3125 as now. ADR-0010's five app variables stay where ADR-0010 puts them.
-- A parallel run sets all three ports: `SDLC_APP_PORT` (kit smoke), `HP_E2E_APP_PORT` and `HP_E2E_GOOGLE_STUB_PORT`. It also uses its own database (`DATABASE_URL`).
+- A parallel run sets four ports: `SDLC_APP_PORT` (kit smoke, default 3123), `HP_E2E_APP_PORT`, `HP_E2E_GOOGLE_STUB_PORT`, and `FE_BUILDER_PORT` (`fe-builder`'s `next dev`, default 3210, already read by `ops/agent-fe-builder.sh`). All four must differ from each other and from every other run's. The config checks only the app and stub pair; the person or script choosing the ports owns the rest. The run also uses its own database (`DATABASE_URL`).
 - Work, in order:
   1. **Ticket (`type: test`):** the stub script reads `HP_E2E_GOOGLE_STUB_PORT` (T-001-72). Only the test play may write `browser/**`.
   2. **Ticket (`type: chore`):** the config reads both variables (T-001-73). It comes second, so the stub already listens on the port the config waits for.
@@ -40,6 +40,5 @@ The ticket text built on ADR-0010 says the same: T-001-61's stub "reads no envir
 
 - Two full gates can run at once on one machine, each in its own checkout with its own ports and database.
 - ADR-0010's `.next` rule still holds: the build, smoke and browser steps share `.next`. Two runs in the same checkout still conflict, so the variables only help across checkouts.
-- A git worktree with `node_modules` symlinked to the main checkout cannot run `next build` under Turbopack. A parallel checkout runs its own `npm ci`.
-- `fe-builder`'s `next dev` port (3210, `ops/agent-fe-builder.sh`) stays fixed, so two `fe-builder` builds still cannot run at once. Making it configurable is a later lead PR to `ops/`.
+- In this pilot (2026-10-20, a worktree for T-001-68), `next build` under Turbopack failed in a git worktree whose `node_modules` was a symlink to the main checkout's. A parallel checkout should run its own `npm ci`.
 - A malformed port fails the run at once, with the variable's name, instead of silently testing on the default port.
