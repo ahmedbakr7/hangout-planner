@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-19. Main: `dec2e2d`, kit pin `648328c` (tag v3.4.1).
+Date: 2026-10-20. Main: `41b27a8`, kit pin `9c71b1c` (tag v4.0.0).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -55,9 +55,11 @@ Date: 2026-10-19. Main: `dec2e2d`, kit pin `648328c` (tag v3.4.1).
 ## Running it
 
 - Local Postgres for gates: start Postgres 16 on port 5433, and check it is still up before each run (an idle cloud container stops it). Point `DATABASE_URL` at `postgres://postgres:postgres@127.0.0.1:5433/<db>` and use a fresh database per full run.
+- Full history first: kit v4.0.0 fails every gate (`history` check) and refuses `gate pr` and `trace` in a shallow clone, and `sdlc status/next/run` offer merged tickets as ready there. Cloud sandboxes clone shallow: run `git fetch --unshallow` once per sandbox before any `sdlc` command.
+- One app port per machine: `SDLC_APP_PORT` overrides `app.port` (smoke, the app's `PORT`, `{port}`, `{base_url}`); `sdlc doctor` prints the value in effect.
 - The runner drives every ticket play. Four agents are configured in `sdlc.toml`, all headless `claude -p`: `builder`, `fe-builder`, `tester` and `reviewer`. `fe-builder` is `builder` plus Next.js's built-in MCP server: `ops/agent-fe-builder.sh` starts `next dev` on 127.0.0.1:3210 for the run (with the agent variables cleared, so it does not write its block into `AGENTS.md`) and stops it on exit. It writes the agent's full transcript (every tool call and result) to `.sdlc-run/logs/fe-builder-<time>-<pid>.jsonl`; the runner's agent log gets the final message and one `fe-builder: denied` line per refused tool call. Its `get_errors` needs a browser session, so it reports nothing in a headless run; `get_routes`, `get_logs`, `get_compilation_issues` and `compile_route` work. Each run is a fresh process with no prior context. Permissions are file tools, the kit CLI, the test commands, and read-only git; the builder and tester also get the type-check commands. The reviewer has no Edit tool, but keeps Write for its review record. There are no MCP servers except `fe-builder`'s Next.js one, and no git writes. Pick models with `SDLC_BUILD_MODEL`, `SDLC_TEST_MODEL` and `SDLC_REVIEW_MODEL`, and give the reviewer a different model from the builder. Per ticket:
   1. `sdlc run build <id> --agent builder`. The runner branches `build/<id>`, runs the agent, gates each attempt (up to `[gate] max_attempts`), feeds failures back, and commits with the `Sdlc-*` trailers.
-  2. `sdlc run test <id> --agent tester`, on the same branch.
+  2. `sdlc run test <id> --agent tester`, on the same branch. Skip it for `type: test` tickets (`sdlc run test` refuses them) and for the mechanical and refactor lanes (`gate test` refuses those), and since v4.0.0 they owe no separate real-stack proof (their AC still need a passing tagged test in some suite).
   3. `sdlc run review <id> --agent reviewer --extra .sdlc-run/review-extra.md`. `--extra` takes a **file path**, not text; a sentence crashes the runner. The file says: set `reviewer: reviewer` in the record and write no model name (T-001-34's reviewer wrote its model id there). Since kit v3.2.1 the review skill exempts `test: none`, `type: test`, spike and mechanical builds from test evidence; before it, T-001-35's reviewer asked for evidence the kit refuses to produce. The kit refuses a reviewer with build or test commits on the branch. Publish its record with `sdlc review publish <id> --pr <n>`, or post `.sdlc-run/review-<id>.md` unchanged.
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. The lead approves in chat with "approve #<n>"; the lead's agent posts the `role: lead` record on the head the lead saw, naming the instruction (who, when, PR, commit). A new head needs a new approval.
