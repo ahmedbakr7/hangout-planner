@@ -75,7 +75,7 @@ describe("Arabic chrome fallback", () => {
     );
   });
 
-  it("keeps the gate usable in an RTL layout when an Arabic key is missing", async () => {
+  it("T-001-66/AC-8 keeps the gate usable in an RTL layout when an Arabic key is missing", async () => {
     const overlay = structuredClone(ar) as MessageTree;
     const account = overlay.Account;
     if (typeof account !== "object" || account === null) {
@@ -84,18 +84,19 @@ describe("Arabic chrome fallback", () => {
     delete account.requiredToOrganize;
     const messages = mergeMessages(en as MessageTree, overlay);
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input) === "/v1/me") {
-          return new Response(JSON.stringify(missingSession), {
-            status: 401,
-            headers: { "Content-Type": "application/json" },
-          });
-        }
-        throw new Error(`unexpected fetch ${String(input)}`);
-      }),
-    );
+    // AccountGate's catch turns a throw into the signed-out state, so record other URLs first.
+    const unexpected: string[] = [];
+    const fetchStub = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === "/api/v1/me") {
+        return new Response(JSON.stringify(missingSession), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      unexpected.push(String(input));
+      throw new Error(`unexpected fetch ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetchStub);
 
     document.documentElement.lang = "ar";
     document.documentElement.dir = "rtl";
@@ -113,6 +114,8 @@ describe("Arabic chrome fallback", () => {
     expect(
       await screen.findByText("An account is required to organize a plan."),
     ).toBeTruthy();
+    expect(unexpected).toEqual([]);
+    expect(fetchStub.mock.calls.map((call) => String(call[0]))).toContain("/api/v1/me");
     expect(document.documentElement.dir).toBe("rtl");
     expect(document.documentElement.lang).toBe("ar");
 
