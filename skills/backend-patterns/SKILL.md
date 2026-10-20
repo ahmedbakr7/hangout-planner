@@ -45,6 +45,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Loading and assembling for handlers | `src/server/<area>/http.ts` | `assembleOrganizerPlan` in `src/server/plans/http.ts` |
 | Page loader (ADR-0007): lookup, role and view for one surface, returning a `kind` union; the `GET` handler and the page both call it | `src/server/<area>/page-data.ts` | `loadOrganizerPlanPage` in `src/server/plans/page-data.ts` |
 | Plan role | `src/server/plans/role.ts`: `planRoleFor(request, plan)` in a handler, `planRoleForCookies(readCookie, plan)` in a page loader | import them; never copy the role helpers into a route file |
+| Database client | `db()` and `closeDatabase()` in `src/server/db/client.ts`: one lazy client per process; a module that exposes them re-exports them (`import { closeDatabase, db } from "@/server/db/client"; export { closeDatabase, db };`) | `src/server/join/db.ts` |
+| Ids | `src/server/ids.ts`: `generateId(prefix)` for the 22-character ids in CONTRACTS § Identifiers; `generateOpaqueId("prp_" \| "prn_")` for proposal and run ids (32 hex) | import them; never add a private `randomBytes` id helper |
 | Schema / migration | `src/server/db/schema.ts` and a new file in `drizzle/` | `drizzle/0001_init.sql` |
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
 | Handler-level test | `e2e/<name>.e2e.ts` (test agent only) | `e2e/attempt-in-progress.e2e.ts` |
@@ -54,7 +56,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 Rules for new and changed code. Some older files still break them (ADR-0006); never copy those parts.
 
 - `now()` from `src/server/clock.ts`, not `new Date()` or `Date.now()`.
-- Database through an existing `db()` (the one in your module, else `db()` from `src/server/plans/http.ts`; each wraps `createDb()` from `src/server/db/client.ts`) and Drizzle. Not a new `createDb()` singleton, a raw `postgres(...)` client or a second ORM (tests excepted).
+- Database through `db()` from `src/server/db/client.ts` (or the same `db()` re-exported by your module) and Drizzle. Not a new `createDb()` singleton or lazy client, a raw `postgres(...)` client or a second ORM (tests excepted).
 - `authorize()` before any read or write, not inline role checks.
 - `httpError` / `errorResponse` and the codes in `errors.ts`, not ad hoc `NextResponse.json({ error })`.
 - Google calls through `src/server/google/places.ts` / `routes.ts`, not `fetch` to Google.
