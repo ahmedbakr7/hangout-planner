@@ -40,6 +40,7 @@ POST, PUT, PATCH, and DELETE without header `X-HP-Request: 1` return 403 `csrf` 
 ## Identifiers, money, time, text
 
 - Ids are `prefix_` plus 22 lowercase base32 characters: `acc_`, `pln_`, `win_`, `stp_`, `opt_`, `prt_`, `inv_`.
+- Proposal and proposal-run ids are `prp_` and `prn_` plus 32 lowercase hex characters.
 - Join token is `jt_` plus 43 unpadded base64url characters. It is the capability in `/join/{token}`.
 - Money on the wire is `{ "amount_minor": <integer>, "currency": "EGP" }`. `amount_minor` is ≥ 1 and ≤ 100000000000. Currency is `EGP`, `USD`, `SAR`, or `AED`, each exponent 2.
 - Local dates are `YYYY-MM-DD`. Local times are `HH:MM` (24-hour). A plan time the product shows is `{ "local_date", "local_time", "timezone" }` with an IANA `timezone`. Clients show that wall time and the zone name.
