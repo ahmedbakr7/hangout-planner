@@ -48,3 +48,7 @@ source_adr:
 - **Out of scope:** the Tailwind and CSS variables in `src/app/globals.css` (unchanged), and `skills/frontend-patterns` (a lead PR adds the fonts row once this merges).
 
 **Agent:** build with `builder`. It may not run `next build`; the gate does.
+
+## Amendments
+
+- split AC-1 -> T-001-76: ac-red reverts only src/** (profile source_globs), so the lint-rule AC, proven in eslint.config.mjs, passes on the base once layout.tsx changes

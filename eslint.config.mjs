@@ -14,12 +14,6 @@ function aliasPatterns(alias, message) {
   ];
 }
 
-const nextFontGoogle = {
-  name: "next/font/google",
-  message:
-    "Load fonts with next/font/local from src/app/fonts (T-001-74): next/font/google fetches at build time.",
-};
-
 const serverBoundary = [
   {
     group: ["react", "react-dom", "react/*", "react-dom/*", "next/navigation"],
@@ -68,31 +62,23 @@ export default defineConfig([
     "next-env.d.ts",
   ]),
   {
-    // Before the boundary entries: the last no-restricted-imports setting wins,
-    // and each boundary entry carries the same path.
-    files: ["src/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": ["error", { paths: [nextFontGoogle] }],
-    },
-  },
-  {
     files: ["src/server/**/*.{ts,tsx}"],
     ignores: TEST_FILES,
     rules: {
-      "no-restricted-imports": ["error", { paths: [nextFontGoogle], patterns: serverBoundary }],
+      "no-restricted-imports": ["error", { patterns: serverBoundary }],
     },
   },
   {
     files: ["src/lib/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { paths: [nextFontGoogle], patterns: libBoundary }],
+      "no-restricted-imports": ["error", { patterns: libBoundary }],
     },
   },
   {
     files: ["src/components/**/*.{ts,tsx}"],
     ignores: TEST_FILES,
     rules: {
-      "no-restricted-imports": ["error", { paths: [nextFontGoogle], patterns: componentsBoundary }],
+      "no-restricted-imports": ["error", { patterns: componentsBoundary }],
     },
   },
   {
