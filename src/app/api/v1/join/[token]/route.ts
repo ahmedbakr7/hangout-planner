@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { and, asc, count, eq } from "drizzle-orm";
-import { authorize, type PlanRole } from "@/server/auth/authorize";
+import { type PlanRole } from "@/server/auth/authorize";
 import {
   authCookieOptions,
   generateCookieToken,
@@ -23,6 +23,7 @@ import {
 } from "@/server/db/schema";
 import { httpError } from "@/server/http/errors";
 import { generateId, isJoinToken } from "@/server/ids";
+import { planRoleForCookies } from "@/server/plans/role";
 import { isCurrencyCode, type CurrencyCode } from "@/server/money";
 import {
   allocateDistinguisher,
@@ -186,34 +187,6 @@ async function loadPlanByToken(token: string): Promise<PlanRow | null> {
   return rows[0] ?? null;
 }
 
-async function accountParticipates(
-  planId: string,
-  accountId: string,
-): Promise<boolean> {
-  const rows = await db()
-    .select({ id: participants.id })
-    .from(participants)
-    .where(
-      and(eq(participants.planId, planId), eq(participants.accountId, accountId)),
-    )
-    .limit(1);
-  return rows.length > 0;
-}
-
-async function accountInvited(
-  planId: string,
-  accountId: string,
-): Promise<boolean> {
-  const rows = await db()
-    .select({ id: invitations.id })
-    .from(invitations)
-    .where(
-      and(eq(invitations.planId, planId), eq(invitations.accountId, accountId)),
-    )
-    .limit(1);
-  return rows.length > 0;
-}
-
 async function readGuestSession(token: string | null): Promise<GuestSession> {
   const hash = cookieTokenHash(token);
   if (!hash) {
@@ -234,75 +207,12 @@ async function readGuestSession(token: string | null): Promise<GuestSession> {
   return { ok: true, id: row.id, token };
 }
 
-async function guestOwnsParticipant(
-  request: Request,
-  planId: string,
-): Promise<boolean> {
-  const guest = await readGuestSession(readCookie(request, GUEST_COOKIE));
-  if (!guest.ok) {
-    return false;
-  }
-  const rows = await db()
-    .select({ id: participants.id })
-    .from(participants)
-    .where(
-      and(
-        eq(participants.planId, planId),
-        eq(participants.guestSessionId, guest.id),
-      ),
-    )
-    .limit(1);
-  return rows.length > 0;
-}
-
-async function linkIncludesPlan(
-  request: Request,
-  planId: string,
-): Promise<boolean> {
-  const hash = cookieTokenHash(readCookie(request, LINK_COOKIE));
-  if (!hash) {
-    return false;
-  }
-  const rows = await db()
-    .select({ expiresAt: linkSessions.expiresAt })
-    .from(linkSessions)
-    .innerJoin(
-      linkSessionPlans,
-      eq(linkSessionPlans.linkSessionId, linkSessions.id),
-    )
-    .where(
-      and(eq(linkSessions.tokenHash, hash), eq(linkSessionPlans.planId, planId)),
-    )
-    .limit(1);
-  const row = rows[0];
-  return Boolean(row && isFuture(row.expiresAt));
-}
-
 async function planRoleFor(
   request: Request,
   plan: PlanRow,
   joinToken: string,
 ): Promise<PlanRole | null> {
-  const session = await readAccountSession(readCookie(request, "hp_session"));
-  const sessionAccountId = session.ok ? session.account.id : null;
-  const accountHasParticipant =
-    sessionAccountId !== null
-      ? await accountParticipates(plan.id, sessionAccountId)
-      : false;
-  const accountHasInvitation =
-    sessionAccountId !== null
-      ? await accountInvited(plan.id, sessionAccountId)
-      : false;
-  return authorize({
-    sessionAccountId,
-    organizerAccountId: plan.organizerAccountId,
-    accountHasParticipant,
-    guestOwnsParticipant: await guestOwnsParticipant(request, plan.id),
-    accountHasInvitation,
-    linkIncludesPlan: await linkIncludesPlan(request, plan.id),
-    requestJoinToken: joinToken,
-    planJoinToken: plan.joinToken,
-  });
+  return planRoleForCookies((name) => readCookie(request, name), plan, joinToken);
 }
 
 async function loadJoinPreview(plan: PlanRow): Promise<JoinPreview> {

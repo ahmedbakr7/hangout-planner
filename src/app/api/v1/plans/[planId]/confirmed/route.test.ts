@@ -606,6 +606,19 @@ describe("GET /v1/plans/{planId}/confirmed", () => {
     expect(await unknown.json()).toEqual(NOT_FOUND_ENVELOPE);
   });
 
+  it("T-001-71/AC-7 on a locked plan answers 404 to a caller with no cookies and 200 to a caller whose hp_link session includes the plan", async () => {
+    const seeded = await seedProposedPlan();
+    await lockPlan(seeded.planId);
+
+    const noCookies = await confirmedGet(seeded.planId);
+    expect(noCookies.status).toBe(404);
+    expect(await noCookies.json()).toEqual(NOT_FOUND_ENVELOPE);
+
+    const asLink = await confirmedGet(seeded.planId, `hp_link=${seeded.link.token}`);
+    expect(asLink.status).toBe(200);
+    expect(await asLink.json()).toEqual(expectedConfirmed(seeded));
+  });
+
   it("the confirmed document includes plan_id, title, state locked, time, steps with place name and amount, legs, and cohort display names, and omits option labels, signals, starting points, budget editing, threshold, and invite send", async () => {
     const seeded = await seedProposedPlan();
     await lockPlan(seeded.planId);
