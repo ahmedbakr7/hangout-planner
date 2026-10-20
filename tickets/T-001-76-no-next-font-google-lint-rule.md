@@ -2,7 +2,7 @@
 id: T-001-76
 title: "Lint rule: no import from next/font/google under src/"
 type: chore
-status: draft
+status: ready
 risk: low
 split_from: T-001-74
 depends_on: [T-001-74]
