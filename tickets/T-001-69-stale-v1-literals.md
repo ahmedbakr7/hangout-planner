@@ -41,4 +41,4 @@ This ticket covers the non-test part of roadmap item 15, from the post-merge rev
 - **Requirements:** none. This is stale text in a log value and in comments, with no product feature (ADR-0003). `sdlc lint` exempts `type: chore` and the mechanical lane.
 - **Precedent:** this is the first `lane: mechanical` ticket in this repo, so no ticket here shows the shape. It follows `.sdlc/skills/ticketize/SKILL.md` step 3 and the kit's ADR-0001 § mechanical, which names the `/api/v1` literal move as the lane's example. The ticket may be created in the PR that applies it. If the PR raises to standard, the ticket must already be `ready` on `main`.
 
-**Agent:** build with `builder`. If the lead rules that the log value is behaviour (see below), use the standard lane instead.
+**Agent:** build with `builder`. If the lead rules that the log value is behaviour, use the standard lane instead.
