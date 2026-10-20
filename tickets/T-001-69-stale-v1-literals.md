@@ -5,6 +5,7 @@ type: chore
 lane: mechanical
 status: ready
 risk: low
+test: none
 depends_on: []
 files:
   - "src/app/api/v1/join/[token]/route.ts"
