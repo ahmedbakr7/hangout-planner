@@ -273,3 +273,79 @@ describe("T-001-52/AC-3 chrome rules", () => {
     expect(await ruleIds(code, "src/lib/example.test.ts")).not.toContain(SYNTAX);
   });
 });
+
+async function restrictedMessages(code: string, file: string): Promise<string[]> {
+  const [result] = await eslint.lintText(code, {
+    filePath: path.join(ROOT, file),
+  });
+  return result.messages
+    .filter((message) => message.severity === 2 && message.ruleId === RESTRICTED)
+    .map((message) => message.message);
+}
+
+describe("T-001-74/AC-1 next/font/google is restricted", () => {
+  const GOOGLE_FONT = `import { IBM_Plex_Sans } from "next/font/google";\nexport { IBM_Plex_Sans };\n`;
+
+  it.each([
+    ["src/app/layout.tsx"],
+    ["src/components/x.tsx"],
+    ["src/server/x.ts"],
+    ["src/lib/x.ts"],
+    ["src/app/x.test.tsx"],
+  ])(
+    "T-001-74/AC-1 %s rejects an import from next/font/google and names next/font/local",
+    async (file) => {
+      expect(await ruleIds(GOOGLE_FONT, file)).toContain(RESTRICTED);
+      const messages = await restrictedMessages(GOOGLE_FONT, file);
+      expect(messages.some((m) => m.includes("next/font/local"))).toBe(true);
+    },
+  );
+
+  it("T-001-74/AC-1 the boundary rules still fire beside the font rule", async () => {
+    expect(
+      await ruleIds(
+        `import * as x from "@/components";\nexport { x };\n`,
+        "src/server/x.ts",
+      ),
+    ).toContain(RESTRICTED);
+    expect(
+      await ruleIds(
+        `import * as x from "@/server";\nexport { x };\n`,
+        "src/lib/x.ts",
+      ),
+    ).toContain(RESTRICTED);
+  });
+});
+
+describe("T-001-74/AC-2 the layout loads fonts locally", () => {
+  it(
+    "T-001-74/AC-2 src/app/layout.tsx imports nothing from next/font/google",
+    async () => {
+      const withRule = new ESLint({
+        cwd: ROOT,
+        overrideConfig: {
+          files: ["src/**/*.{ts,tsx}"],
+          rules: {
+            [RESTRICTED]: [
+              "error",
+              {
+                paths: [
+                  {
+                    name: "next/font/google",
+                    message: "Load fonts with next/font/local (T-001-74).",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      });
+      const [result] = await withRule.lintFiles(["src/app/layout.tsx"]);
+      const errors = result.messages
+        .filter((message) => message.severity === 2)
+        .map((message) => `${message.ruleId}: ${message.message}`);
+      expect(errors).toEqual([]);
+    },
+    120_000,
+  );
+});
