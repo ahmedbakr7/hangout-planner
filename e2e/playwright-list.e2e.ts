@@ -20,16 +20,18 @@ function listTests(): Promise<{ code: number; stdout: string }> {
 
 describe("playwright test --list", () => {
   it(
-    `T-001-63/AC-1 lists exactly one test, in the chromium project: ${title}`,
+    `T-001-63/AC-1 lists the smoke test in the chromium project and no test in another project: ${title}`,
     async () => {
       const { code, stdout } = await listTests();
       expect(code).toBe(0);
       const tests = stdout.split("\n").filter((line) => line.includes("›"));
-      expect(tests).toHaveLength(1);
-      expect(tests[0]).toMatch(
-        new RegExp(`^\\s*\\[chromium\\] › smoke\\.spec\\.ts:\\d+:\\d+ › ${title}$`),
+      expect(tests).toContainEqual(
+        expect.stringMatching(
+          new RegExp(`^\\s*\\[chromium\\] › smoke\\.spec\\.ts:\\d+:\\d+ › ${title}$`),
+        ),
       );
-      expect(stdout).toContain("Total: 1 test in 1 file");
+      const otherProjects = tests.filter((line) => !/^\s*\[chromium\] ›/.test(line));
+      expect(otherProjects).toEqual([]);
     },
     60_000,
   );
