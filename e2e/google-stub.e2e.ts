@@ -3,10 +3,12 @@
  * fixture places, EGP start prices and a usable route element per pair, and refuses what Google
  * would refuse. No request leaves the machine.
  */
+import { spawn } from "node:child_process";
 import http from "node:http";
-import type { AddressInfo } from "node:net";
+import net, { type AddressInfo } from "node:net";
+import path from "node:path";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { startGoogleStub } from "../browser/google-stub.mjs";
+import { scriptPort, startGoogleStub } from "../browser/google-stub.mjs";
 import {
   getStartPlaceDetails,
   getVenuePlaceDetails,
@@ -15,6 +17,8 @@ import {
 } from "@/server/google/places";
 import { computeRouteMatrix, isUsableRouteMatrixElement } from "@/server/google/routes";
 
+const root = path.resolve(import.meta.dirname, "..");
+const PORT_VARIABLE = "HP_E2E_GOOGLE_STUB_PORT";
 const ORIGIN_VARIABLE = "HP_E2E_GOOGLE_BASE_URL";
 const OPTIONS = { apiKey: "test-key" };
 const HEADERS = { "X-Goog-Api-Key": "test-key", "X-Goog-FieldMask": "id" };
@@ -147,4 +151,83 @@ describe("Google stub", () => {
     expect(status).toBe(404);
     expect((await matrix(validBody)).status).toBe(200);
   });
+});
+
+type StubExit = { status: number | null; stderr: string };
+
+// Async on purpose: a blocking spawn starves the worker's RPC heartbeat to Vitest.
+function runStub(port: string): { exit: Promise<StubExit>; kill: () => void } {
+  const env = { ...process.env };
+  env[PORT_VARIABLE] = port;
+  const child = spawn("node", ["browser/google-stub.mjs"], { cwd: root, env });
+  let stderr = "";
+  child.stderr.on("data", (chunk) => (stderr += chunk));
+  const exit = new Promise<StubExit>((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (status) => resolve({ status, stderr }));
+  });
+  return { exit, kill: () => child.kill() };
+}
+
+async function freePort(): Promise<number> {
+  const probe = net.createServer();
+  await new Promise<void>((resolve) => probe.listen(0, "127.0.0.1", resolve));
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>((resolve) => probe.close(() => resolve()));
+  return port;
+}
+
+async function searchUntilAnswered(port: number): Promise<number> {
+  const deadline = Date.now() + 5000;
+  for (;;) {
+    try {
+      const res = await fetch("http://127.0.0.1:" + port + "/v1/places:searchText", {
+        method: "POST",
+        headers: HEADERS,
+        body: "{}",
+      });
+      return res.status;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
+describe("Google stub script port", () => {
+  it("T-001-72/AC-1 the script listens on HP_E2E_GOOGLE_STUB_PORT and answers a place search", async () => {
+    const port = await freePort();
+    const stub = runStub(String(port));
+    try {
+      expect(await searchUntilAnswered(port)).toBe(200);
+    } finally {
+      stub.kill();
+      await stub.exit;
+    }
+  });
+
+  it("T-001-72/AC-2 an unset or empty variable gives the script port 3125", () => {
+    vi.stubEnv(PORT_VARIABLE, undefined);
+    expect(scriptPort()).toBe(3125);
+    vi.stubEnv(PORT_VARIABLE, "");
+    expect(scriptPort()).toBe(3125);
+    vi.stubEnv(PORT_VARIABLE, "4125");
+    expect(scriptPort()).toBe(4125);
+  });
+
+  it.each(["abc", "0", "65536", "3125x", "03125"])(
+    "T-001-72/AC-3 %s exits non-zero naming the variable and listens on no port",
+    async (value) => {
+      const stub = runStub(value);
+      const timer = setTimeout(stub.kill, 5000);
+      try {
+        const { status, stderr } = await stub.exit;
+        expect(status).toBeGreaterThan(0);
+        expect(stderr).toContain(PORT_VARIABLE);
+      } finally {
+        clearTimeout(timer);
+        stub.kill();
+      }
+    },
+  );
 });
