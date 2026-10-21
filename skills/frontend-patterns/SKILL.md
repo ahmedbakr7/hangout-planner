@@ -48,6 +48,7 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
 | Pure helper shared by pages and client components | `src/lib/<name>.ts` (no `"use client"`, no import from `src/server/`), test beside it as `<name>.test.ts` | `src/lib/plan-paths.ts` (T-001-50) |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
+| Fonts | woff2 files and their licence in `src/app/fonts/`, loaded once in `src/app/layout.tsx` with `localFont` from `next/font/local` and exposed as CSS variables (`--font-latin`, `--font-arabic`) | `src/app/layout.tsx` (T-001-74) |
 
 Pages load their first data on the server (ADR-0007, which keeps ADR-0001). Converted so far: `/plans/{planId}` (T-001-36), the example to copy; `/plans/{planId}/confirmed` (T-001-38), `/plans/{planId}/proposal` (T-001-39), `/plans/{planId}/respond` (T-001-40), `/plans/{planId}/invite` (T-001-41), `/plans/{planId}/join` (T-001-42), `/` (T-001-45), `/plans/new` (T-001-46), `/invitations` (T-001-47), `/account` (T-001-48). Exception: `/join/{token}` keeps client loading, because its `GET` sets the `hp_link` cookie, and needs no `error.tsx` (ADR-0008). A page not yet converted keeps today's pattern (a client component that fetches `/api/v1` in an effect) until its own ticket; a ticket that only edits such a page does not convert it. A ticket that adds a page follows ADR-0007.
 
@@ -66,6 +67,7 @@ Rules for new and changed code. Some older files still break them (ADR-0006); ne
 - Next 16 defaults: `proxy.ts`, not `middleware.ts`, if request interception is ever needed; no `webpack` key in `next.config.ts` (Turbopack builds); no Cache Components or React Compiler without an ADR.
 - shadcn/ui primitives from `src/components/ui/`, not raw `<button>` / `<input>` or a second kit.
 - Semantic Tailwind classes, not hex values or inline `style` colors.
+- Fonts with `next/font/local` from `src/app/fonts/`, not `next/font/google` (it fetches at build time and broke CI builds, T-001-74) and not a `<link>` to a font host.
 - Logical utilities (`ms-`, `pe-`, `start-`), not `ml-`, `pr-`, `left-`.
 - Writes send `X-HP-Request: 1` and `credentials: "same-origin"`; copy the block from `response-form.tsx`, do not add a client fetch library.
 - Loads in an effect: the async load function lives inside the `useEffect` and checks a local `cancelled` flag after each await, set in the cleanup. A Retry button does not call a second copy of the load. It increments a `reloadKey` state that the effect lists as a dependency, so the retry gets the same guard. Do not call a component-level function that sets state from an effect body (`react-hooks/set-state-in-effect`), and do not silence `react-hooks/*` with `eslint-disable`. Example: `src/components/join-panel.tsx` (T-001-56).
