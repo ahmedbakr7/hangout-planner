@@ -771,3 +771,44 @@ describe("OrganizerPlan attempt_in_progress", () => {
     expect(planRequests(fetchMock)).toEqual([`PATCH /api/v1/plans/${collectingId}`]);
   });
 });
+
+describe("OrganizerPlan reload on unmount", () => {
+  it("T-001-77/AC-1 a Retry reload that resolves after unmount does not navigate, even for a locked plan", async () => {
+    let resolveGet: (response: Response) => void = () => {};
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (String(input) === `/api/v1/plans/${lockedId}` && method === "GET") {
+        return new Promise<Response>((resolve) => {
+          resolveGet = resolve;
+        });
+      }
+      throw new Error(`unexpected fetch ${method} ${String(input)}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const view = renderPlan(lockedId, { not: "a plan" });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    view.unmount();
+    resolveGet(jsonResponse(200, basePlan(lockedId, { state: "locked" })));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("a save answered 409 attempt_in_progress still reloads while mounted and shows the reloaded plan", async () => {
+    const refetched = basePlan(collectingId, { title: "Reloaded while mounted" });
+    const fetchMock = await saveTitleWithConflict("attempt_in_progress", refetched);
+
+    expect(
+      await screen.findByText("Reloaded while mounted", { selector: "h1" }),
+    ).toBeTruthy();
+    expect(planRequests(fetchMock)).toEqual([
+      `PATCH /api/v1/plans/${collectingId}`,
+      `GET /api/v1/plans/${collectingId}`,
+    ]);
+  });
+});

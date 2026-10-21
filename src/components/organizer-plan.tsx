@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, {
+  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -745,6 +746,7 @@ function OrganizerPlanBody({
   );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   function applyPlan(next: OrganizerPlanData): void {
     const drafts = planDrafts(next);
@@ -758,47 +760,67 @@ function OrganizerPlanBody({
     setThreshold(drafts.threshold);
   }
 
-  async function loadPlan(): Promise<void> {
-    setLoad("loading");
-    setPlan(null);
-    setFieldErrors([]);
-    setRejectedFrozen(new Set());
-    setFormError(null);
-    try {
-      const response = await fetch(`/api/v1/plans/${planId}`, {
-        credentials: "same-origin",
-      });
-      const body = await readJson(response);
-      if (isPlanLockedResponse(response.status, body)) {
-        setLoad("locked");
-        setPlan(null);
-        router.replace(`/plans/${planId}/confirmed`);
-        return;
-      }
-      if (!response.ok) {
-        setLoad("error");
-        setPlan(null);
-        return;
-      }
-      const parsed = parsePlan(body);
-      if (!parsed || parsed.id !== planId) {
-        setLoad("error");
-        setPlan(null);
-        return;
-      }
-      if (parsed.state === "locked") {
-        setLoad("locked");
-        setPlan(null);
-        router.replace(`/plans/${planId}/confirmed`);
-        return;
-      }
-      applyPlan(parsed);
-      setLoad("loaded");
-    } catch {
-      setLoad("error");
-      setPlan(null);
+  useEffect(() => {
+    if (reloadKey === 0) {
+      return;
     }
-  }
+    let cancelled = false;
+
+    async function start(): Promise<void> {
+      setLoad("loading");
+      setPlan(null);
+      setFieldErrors([]);
+      setRejectedFrozen(new Set());
+      setFormError(null);
+      try {
+        const response = await fetch(`/api/v1/plans/${planId}`, {
+          credentials: "same-origin",
+        });
+        if (cancelled) {
+          return;
+        }
+        const body = await readJson(response);
+        if (cancelled) {
+          return;
+        }
+        if (isPlanLockedResponse(response.status, body)) {
+          setLoad("locked");
+          setPlan(null);
+          router.replace(`/plans/${planId}/confirmed`);
+          return;
+        }
+        if (!response.ok) {
+          setLoad("error");
+          setPlan(null);
+          return;
+        }
+        const parsed = parsePlan(body);
+        if (!parsed || parsed.id !== planId) {
+          setLoad("error");
+          setPlan(null);
+          return;
+        }
+        if (parsed.state === "locked") {
+          setLoad("locked");
+          setPlan(null);
+          router.replace(`/plans/${planId}/confirmed`);
+          return;
+        }
+        applyPlan(parsed);
+        setLoad("loaded");
+      } catch {
+        if (!cancelled) {
+          setLoad("error");
+          setPlan(null);
+        }
+      }
+    }
+
+    void start();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey, planId, router]);
 
   function fieldCode(path: string): string | undefined {
     return fieldErrors.find((field) => field.path === path)?.code;
@@ -1167,7 +1189,7 @@ function OrganizerPlanBody({
       }
       const parsed = parseError(payload);
       if (response.status === 409 && parsed.reason === ATTEMPT_IN_PROGRESS) {
-        await loadPlan();
+        setReloadKey((key) => key + 1);
         return;
       }
       if (parsed.reason === "field_frozen") {
@@ -1255,7 +1277,7 @@ function OrganizerPlanBody({
             type="button"
             variant="secondary"
             className="self-start"
-            onClick={() => void loadPlan()}
+            onClick={() => setReloadKey((key) => key + 1)}
           >
             {t("retry")}
           </Button>
