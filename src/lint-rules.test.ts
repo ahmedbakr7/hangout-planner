@@ -15,6 +15,21 @@ async function ruleIds(code: string, file: string): Promise<string[]> {
     .map((message) => message.ruleId ?? "parse-error");
 }
 
+async function errorMessages(
+  code: string,
+  file: string,
+): Promise<{ ruleId: string; message: string }[]> {
+  const [result] = await eslint.lintText(code, {
+    filePath: path.join(ROOT, file),
+  });
+  return result.messages
+    .filter((message) => message.severity === 2)
+    .map((message) => ({
+      ruleId: message.ruleId ?? "parse-error",
+      message: message.message,
+    }));
+}
+
 const RESTRICTED = "no-restricted-imports";
 const SYNTAX = "no-restricted-syntax";
 
@@ -305,4 +320,41 @@ describe("T-001-74/AC-2 the layout loads fonts locally", () => {
     },
     120_000,
   );
+});
+
+describe("T-001-76/AC-1 no next/font/google under src/", () => {
+  it.each([
+    ["src/app/layout.tsx"],
+    ["src/components/x.tsx"],
+    ["src/server/x.ts"],
+    ["src/lib/x.ts"],
+    ["src/app/x.test.tsx"],
+  ])(
+    "T-001-76/AC-1 %s rejects next/font/google and names next/font/local",
+    async (file) => {
+      const errors = await errorMessages(
+        `import { IBM_Plex_Sans } from "next/font/google";\nexport { IBM_Plex_Sans };\n`,
+        file,
+      );
+      const restricted = errors.filter((error) => error.ruleId === RESTRICTED);
+      expect(restricted).toHaveLength(1);
+      expect(restricted[0].message).toContain("next/font/local");
+    },
+  );
+
+  it("T-001-76/AC-1 src/server still rejects an @/components import", async () => {
+    const ids = await ruleIds(
+      `import * as x from "@/components/ui/button";\nexport { x };\n`,
+      "src/server/x.ts",
+    );
+    expect(ids).toContain(RESTRICTED);
+  });
+
+  it("T-001-76/AC-1 src/lib still rejects an @/server import", async () => {
+    const ids = await ruleIds(
+      `import * as x from "@/server/clock";\nexport { x };\n`,
+      "src/lib/x.ts",
+    );
+    expect(ids).toContain(RESTRICTED);
+  });
 });
