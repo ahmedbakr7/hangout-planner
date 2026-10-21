@@ -504,4 +504,40 @@ describe("ConfirmedView", () => {
     expect(CONFIRMED_GET).toBe(`/api/v1/plans/${PLAN_ID}/confirmed`);
     expect(OPENING_GET).toBe(`/api/v1/plans/${PLAN_ID}/opening`);
   });
+
+  it("T-001-78/AC-1 unmounting after Retry and before the opening answers does not navigate", async () => {
+    let resolveOpening: (response: Response) => void = () => {};
+    const opening = new Promise<Response>((resolve) => {
+      resolveOpening = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === CONFIRMED_GET) {
+        return jsonResponse(409, {
+          error: {
+            code: "conflict",
+            reason: "not_locked",
+            message: "not locked",
+            fields: [],
+          },
+        });
+      }
+      if (url === OPENING_GET) {
+        return opening;
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const view = renderView(null);
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(([input]) => String(input) === OPENING_GET),
+      ).toBe(true);
+    });
+    view.unmount();
+    resolveOpening(jsonResponse(200, openingBody("respond")));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(router.replace).not.toHaveBeenCalled();
+  });
 });
