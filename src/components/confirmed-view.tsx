@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import React, { useState, type ReactNode } from "react";
+import React, { useEffect, useState, type ReactNode } from "react";
 import { LanguageControl } from "@/components/language-control";
 import { Button } from "@/components/ui/button";
 import {
@@ -381,61 +381,74 @@ function ConfirmedViewBody({
   const [first] = useState(() => parseConfirmed(initialDoc));
   const [load, setLoad] = useState<LoadState>(first ? "loaded" : "error");
   const [doc, setDoc] = useState<ConfirmedDoc | null>(first);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  async function redirectNotLocked(): Promise<boolean> {
-    try {
-      const response = await fetch(`/api/v1/plans/${planId}/opening`, {
-        credentials: "same-origin",
-      });
-      if (response.status === 404) {
-        setDoc(null);
-        setLoad("redirecting");
-        router.replace(`/plans/${planId}/join`);
-        return true;
-      }
-      const body = await readJson(response);
-      const href = hrefFromOpeningBody(planId, body);
-      if (href) {
-        setDoc(null);
-        setLoad("redirecting");
-        router.replace(href);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
+  useEffect(() => {
+    if (reloadKey === 0) {
+      return;
     }
-  }
+    let cancelled = false;
 
-  async function loadConfirmed(): Promise<void> {
-    setLoad("loading");
-    setDoc(null);
-    try {
-      const response = await fetch(`/api/v1/plans/${planId}/confirmed`, {
-        credentials: "same-origin",
-      });
-      const body = await readJson(response);
-      const outcome = parseFetchBody(response.status, body);
-      if (outcome.kind === "locked") {
-        setDoc(outcome.doc);
-        setLoad("loaded");
-        return;
-      }
-      if (outcome.kind === "not_locked") {
-        const redirected = await redirectNotLocked();
-        if (!redirected) {
+    async function start(): Promise<void> {
+      setLoad("loading");
+      setDoc(null);
+      try {
+        const response = await fetch(`/api/v1/plans/${planId}/confirmed`, {
+          credentials: "same-origin",
+        });
+        if (cancelled) {
+          return;
+        }
+        const body = await readJson(response);
+        if (cancelled) {
+          return;
+        }
+        const outcome = parseFetchBody(response.status, body);
+        if (outcome.kind === "locked") {
+          setDoc(outcome.doc);
+          setLoad("loaded");
+          return;
+        }
+        if (outcome.kind === "not_locked") {
+          const opening = await fetch(`/api/v1/plans/${planId}/opening`, {
+            credentials: "same-origin",
+          });
+          if (cancelled) {
+            return;
+          }
+          if (opening.status === 404) {
+            setDoc(null);
+            setLoad("redirecting");
+            router.replace(`/plans/${planId}/join`);
+            return;
+          }
+          const openingBody = await readJson(opening);
+          if (cancelled) {
+            return;
+          }
+          const href = hrefFromOpeningBody(planId, openingBody);
+          if (href) {
+            setDoc(null);
+            setLoad("redirecting");
+            router.replace(href);
+            return;
+          }
+        }
+        setDoc(null);
+        setLoad("error");
+      } catch {
+        if (!cancelled) {
           setDoc(null);
           setLoad("error");
         }
-        return;
       }
-      setDoc(null);
-      setLoad("error");
-    } catch {
-      setDoc(null);
-      setLoad("error");
     }
-  }
+
+    void start();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey, planId, router]);
 
   if (load === "error") {
     return (
@@ -453,7 +466,7 @@ function ConfirmedViewBody({
             type="button"
             variant="secondary"
             className="self-start"
-            onClick={() => void loadConfirmed()}
+            onClick={() => setReloadKey((key) => key + 1)}
           >
             {tCommon("retry")}
           </Button>
