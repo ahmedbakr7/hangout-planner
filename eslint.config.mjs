@@ -14,6 +14,12 @@ function aliasPatterns(alias, message) {
   ];
 }
 
+const nextFontGoogle = {
+  name: "next/font/google",
+  message:
+    "Load fonts with next/font/local from src/app/fonts (T-001-74): next/font/google fetches at build time.",
+};
+
 const serverBoundary = [
   {
     group: ["react", "react-dom", "react/*", "react-dom/*", "next/navigation"],
@@ -61,24 +67,41 @@ export default defineConfig([
     "skills/",
     "next-env.d.ts",
   ]),
+  // Listed before the boundary entries: ESLint keeps only the last
+  // no-restricted-imports setting, so each boundary entry repeats this path.
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: [nextFontGoogle] }],
+    },
+  },
   {
     files: ["src/server/**/*.{ts,tsx}"],
     ignores: TEST_FILES,
     rules: {
-      "no-restricted-imports": ["error", { patterns: serverBoundary }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [nextFontGoogle], patterns: serverBoundary },
+      ],
     },
   },
   {
     files: ["src/lib/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { patterns: libBoundary }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [nextFontGoogle], patterns: libBoundary },
+      ],
     },
   },
   {
     files: ["src/components/**/*.{ts,tsx}"],
     ignores: TEST_FILES,
     rules: {
-      "no-restricted-imports": ["error", { patterns: componentsBoundary }],
+      "no-restricted-imports": [
+        "error",
+        { paths: [nextFontGoogle], patterns: componentsBoundary },
+      ],
     },
   },
   {

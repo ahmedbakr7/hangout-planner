@@ -50,3 +50,32 @@ describe("T-001-74/AC-2 fonts load from files in the repo", () => {
     300_000,
   );
 });
+
+describe("T-001-76/AC-1 the repo ESLint config rejects next/font/google", () => {
+  const source = 'import { IBM_Plex_Sans } from "next/font/google";\n';
+
+  it.each(["src/app/layout.tsx", "src/app/x.test.tsx"])(
+    "T-001-76/AC-1 reports no-restricted-imports naming next/font/local for %s",
+    async (filePath) => {
+      const eslint = new ESLint({ cwd: ROOT });
+      const [result] = await eslint.lintText(source, { filePath: path.join(ROOT, filePath) });
+      const hits = result.messages.filter(
+        (message) => message.ruleId === "no-restricted-imports" && message.severity === 2,
+      );
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits.some((message) => message.message.includes("next/font/local"))).toBe(true);
+    },
+    300_000,
+  );
+
+  it(
+    "T-001-76/AC-1 the real src/app/layout.tsx has no no-restricted-imports error",
+    async () => {
+      const eslint = new ESLint({ cwd: ROOT });
+      const [result] = await eslint.lintFiles(["src/app/layout.tsx"]);
+      const hits = result.messages.filter((message) => message.ruleId === "no-restricted-imports");
+      expect(hits).toEqual([]);
+    },
+    300_000,
+  );
+});
