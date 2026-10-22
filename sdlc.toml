@@ -53,8 +53,19 @@ repo = "ahmedbakr7/hangout-planner"
 lead_allowed = ["docs/**"]   # globs a PR that moves no ticket may change besides lead artifacts
 lead_code = "fail"           # other files in such a PR: "warn" (reported) or "fail" (code needs a ticket)
 
+[app]
+# ADR-0013 (kit v5.1.0): smoke picks a free port per run, so two gates on one machine need no
+# SDLC_APP_PORT. Every gate command sees the port as SDLC_APP_PORT. The browser suite keeps its
+# own ports (ADR-0012: HP_E2E_APP_PORT, HP_E2E_GOOGLE_STUB_PORT).
+port = "auto"
+
 [vcs]
 base = "main"
+# ADR-0013 (kit v4.1.0): `sdlc run build` fetches origin and pushes the ticket branch with an
+# empty `claim <id>` commit before the agent runs, so a second run on the same ticket is refused.
+claim = "push"
+# A branch with no commit for 7 days stops holding its ticket (`sdlc status` shows it expired).
+claim_days = 7
 # pr_command = ""            # e.g. "gh pr create --fill --base {base} --head {branch}"
 
 [gate]
