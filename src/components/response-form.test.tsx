@@ -616,6 +616,45 @@ describe("ResponseForm", () => {
     expectForbiddenAbsent();
   });
 
+  it.each(["locked", "proposed"] as const)(
+    "T-001-79/AC-1 unmounting after Retry and before the reload resolves does not navigate when the plan is %s",
+    async (planState) => {
+      let release: (response: Response) => void = () => {};
+      const requested: string[] = [];
+      const fetchMock = vi.fn(
+        (input: RequestInfo | URL) =>
+          new Promise<Response>((resolve) => {
+            requested.push(String(input));
+            release = resolve;
+          }),
+      );
+      vi.stubGlobal("fetch", fetchMock);
+      const view = renderForm("not a response");
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      expect(requested).toEqual([RESPONSE_GET]);
+
+      view.unmount();
+      release(jsonResponse(200, { ...collectingBody, plan_state: planState }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(router.replace).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a save answered 409 attempt_in_progress reloads while mounted and shows the reloaded form", async () => {
+    const fetchMock = await saveWithConflict(
+      "attempt_in_progress",
+      getBody("draft").body,
+    );
+    expect(await screen.findByText("Maadi, Cairo")).toBeTruthy();
+    expect(requestLines(fetchMock)).toEqual([
+      `PUT ${RESPONSE_PUT}`,
+      `GET ${RESPONSE_GET}`,
+    ]);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
   it("switching language keeps unsaved response input", async () => {
     await renderLoaded();
     fireEvent.click(within(firstWindow()).getByLabelText("Free"));

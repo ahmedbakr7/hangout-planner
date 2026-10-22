@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import React, {
+  useEffect,
   useState,
   type FormEvent,
   type ReactNode,
@@ -584,6 +585,7 @@ function ResponseFormBody({
   );
   const [submitting, setSubmitting] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   function chromeFor(parsed: ParsedError, fallback: string): string {
     if (parsed.reason && tReason.has(parsed.reason)) {
@@ -635,64 +637,96 @@ function ResponseFormBody({
     return true;
   }
 
-  async function loadResponse(): Promise<void> {
-    setLoad("loading");
-    clearPlan();
-    setFormError(null);
-    setOpenError(null);
-    setSearchError(null);
-    setFieldErrors([]);
-    setSaveNotice(null);
-    try {
-      const response = await fetch(`/api/v1/plans/${planId}/response`, {
-        credentials: "same-origin",
-      });
-      const body = await readJson(response);
-      if (response.status === 409) {
-        if (leaveClosed(parseError(body).reason)) {
+  useEffect(() => {
+    if (reloadKey === 0) {
+      return;
+    }
+    let cancelled = false;
+
+    // The reload clears the plan first, so a leave only has to set the state
+    // and navigate; it cannot call leaveClosed (a new function each render).
+    function leave(reason: string | undefined): boolean {
+      const href = closedHref(planId, reason);
+      if (!href) {
+        return false;
+      }
+      setLoad("redirecting");
+      router.replace(href);
+      return true;
+    }
+
+    async function reload(): Promise<void> {
+      setLoad("loading");
+      setPlan(null);
+      setAnswers({});
+      setPicks({});
+      setStartName(null);
+      setStartPlaceId(null);
+      setSearchResults([]);
+      setFormError(null);
+      setOpenError(null);
+      setSearchError(null);
+      setFieldErrors([]);
+      setSaveNotice(null);
+      try {
+        const response = await fetch(`/api/v1/plans/${planId}/response`, {
+          credentials: "same-origin",
+        });
+        if (cancelled) {
           return;
         }
-        clearPlan();
-        setLoad("error");
-        setOpenError(parseError(body));
-        return;
+        const body = await readJson(response);
+        if (cancelled) {
+          return;
+        }
+        if (response.status === 409) {
+          const parsedError = parseError(body);
+          if (leave(parsedError.reason)) {
+            return;
+          }
+          setLoad("error");
+          setOpenError(parsedError);
+          return;
+        }
+        if (!response.ok) {
+          setLoad("error");
+          setOpenError(parseError(body));
+          return;
+        }
+        const parsed = parseResponseDocument(body);
+        if (!parsed) {
+          setLoad("error");
+          setOpenError({ fields: [] });
+          return;
+        }
+        if (parsed.plan.planState === "proposed") {
+          leave("responses_closed");
+          return;
+        }
+        if (parsed.plan.planState === "locked") {
+          leave("plan_locked");
+          return;
+        }
+        setPlan(parsed.plan);
+        setAnswers(parsed.answers);
+        setPicks(parsed.picks);
+        setStartName(parsed.startName);
+        setSearchQuery("");
+        setSaveNotice(parsed.plan.complete ? "complete" : null);
+        setLoad("loaded");
+      } catch {
+        if (!cancelled) {
+          setLoad("error");
+          setOpenError({ fields: [] });
+        }
       }
-      if (!response.ok) {
-        clearPlan();
-        setLoad("error");
-        setOpenError(parseError(body));
-        return;
-      }
-      const parsed = parseResponseDocument(body);
-      if (!parsed) {
-        clearPlan();
-        setLoad("error");
-        setOpenError({ fields: [] });
-        return;
-      }
-      if (parsed.plan.planState === "proposed") {
-        leaveClosed("responses_closed");
-        return;
-      }
-      if (parsed.plan.planState === "locked") {
-        leaveClosed("plan_locked");
-        return;
-      }
-      setPlan(parsed.plan);
-      setAnswers(parsed.answers);
-      setPicks(parsed.picks);
-      setStartName(parsed.startName);
-      setStartPlaceId(null);
-      setSearchQuery("");
-      setSearchResults([]);
-      setSaveNotice(parsed.plan.complete ? "complete" : null);
-      setLoad("loaded");
-    } catch {
-      clearPlan();
-      setLoad("error");
-      setOpenError({ fields: [] });
     }
-  }
+
+    void reload();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey, planId, router]);
 
   function updateAnswer(windowId: string, patch: Partial<WindowAnswer>): void {
     setAnswers((current) => {
@@ -911,7 +945,7 @@ function ResponseFormBody({
       if (response.status === 409) {
         const reason = parseError(payload).reason;
         if (reason === ATTEMPT_IN_PROGRESS) {
-          await loadResponse();
+          setReloadKey((key) => key + 1);
           return;
         }
         if (leaveClosed(reason)) {
@@ -962,7 +996,7 @@ function ResponseFormBody({
             type="button"
             variant="secondary"
             className="self-start"
-            onClick={() => void loadResponse()}
+            onClick={() => setReloadKey((key) => key + 1)}
           >
             {tCommon("retry")}
           </Button>
