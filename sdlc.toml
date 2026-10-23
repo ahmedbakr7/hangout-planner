@@ -18,9 +18,9 @@ integration = "npx --no-install vitest run --config vitest.e2e.config.mts --repo
 # with the Google stub on 3125 (playwright.config.ts starts both). Browsers come from
 # PLAYWRIGHT_BROWSERS_PATH in agent containers and `playwright install` in CI.
 e2e = "PLAYWRIGHT_JUNIT_OUTPUT_NAME={junit} npx --no-install playwright test --reporter=junit"
-# jscpd is not a devDependency; pinned here until it is. Threshold = the 2026-10-02 baseline
-# (9.7% of production code duplicated): new copies fail; lower it as clones are removed.
-duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 10 --gitignore --ignore \"**/*.test.*,**/*.spec.*\" src"
+# jscpd is not a devDependency; pinned here until it is. Threshold ratchets down as clones are
+# removed: 10 at the 2026-10-02 baseline (9.7%), 9 on 2026-10-23 (8.6% after roadmap item 10).
+duplication = "npx --yes jscpd@4.3.0 --min-lines 12 --threshold 9 --gitignore --ignore \"**/*.test.*,**/*.spec.*\" src"
 
 [routes]
 # extractor = "nextjs-app"   # or "command" with command = "<prints METHOD /path lines>"
