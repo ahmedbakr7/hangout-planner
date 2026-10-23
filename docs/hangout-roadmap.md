@@ -53,7 +53,7 @@ Date: 2026-10-22. Main: `168c713`, kit pin `078ca93` (tag v5.1.0, ADR-0013).
 ## Decisions the lead owes
 
 - Move to the kit default `real_stack = ["e2e"]` (item 5).
-- Done 2026-10-23: jscpd threshold lowered from 10 to 9 (`commands.duplication`). Item 10 took production-code duplication from 9.7% to 8.6%; at 8 the check fails. The rest is mostly `.tsx` (14.5%, 30 clones, e.g. `account-gate.tsx` and `create-form.tsx`), with no ticket yet.
+- Done 2026-10-23: jscpd threshold lowered from 10 to 9 (`commands.duplication`). Item 10 took production-code duplication from 9.7% to 8.6%; at 8 the check fails. What is left: `.ts` 749 lines (7.7%, 35 clones), `.tsx` 723 lines (14.5%, 30 clones, e.g. `account-gate.tsx` and `create-form.tsx`), with no ticket yet.
 - Decided 2026-10-20: proposal and run ids (`prp_`, `prn_`, 32 hex) are declared in CONTRACTS § Identifiers; ADR-0008's reading for the join route (item 10); browser-test ports from the environment (ADR-0012, item 21); self-hosted fonts (item 22). `/join/{token}` keeps client loading (ADR-0008, 2026-10-12).
 
 ## Running it
