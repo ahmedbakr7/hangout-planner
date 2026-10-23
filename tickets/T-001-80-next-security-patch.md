@@ -14,7 +14,7 @@ skills:
 contracts: []
 requirements: []
 acceptance_criteria:
-  - "AC-1: package-lock.json resolves node_modules/next to a 16.4.x version at or above 16.4.3, every node_modules/@next/* entry it lists that next depends on (@next/env and the @next/swc-* binaries) resolves to that same version, and the installed next package reports it"
+  - "AC-1: package-lock.json resolves node_modules/next to a 16.x version at or above 16.4.3, node_modules/@next/env and every node_modules/@next/swc-* entry it lists resolve to that same version (@next/eslint-plugin-next follows eslint-config-next and is not checked), and the installed next package reports it"
 source_intent: intent/intent-001-core-plan-loop.md
 source_spec: design/spec-001-core-plan-loop.md
 source_plan: arch/plan-001-core-plan-loop.md
@@ -31,3 +31,5 @@ The lead installs before the build runs (agents cannot run `npm install`), as fo
 - **Security check.** The lead runs `npm audit --omit=dev` on the build head and posts the result on the PR: no `next` advisory may remain. The reviewer agent cannot run it (network).
 - `test: none`: no new behaviour. The gate's unit, integration and browser suites, `next build` and the smoke probes against `next start` prove the app still works on 16.4.3.
 - **Out of scope:** `eslint-config-next` stays at 16.4.0; drizzle-orm is T-001-81. Do not adopt any Next feature.
+
+**Agent:** build with `builder`. It may not run `next build` or `npm`; the gate does, and the lead has already installed.

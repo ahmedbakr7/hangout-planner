@@ -36,3 +36,5 @@ The lead installs before the build runs (agents cannot run `npm install`), as fo
 - **Security check.** The lead runs `npm audit --omit=dev` on the build head and posts the result: 0 vulnerabilities.
 - `test: none`: the integration and browser suites already run every query through drizzle on Postgres. Nothing under `drizzle/**` changes, so the ticket runs in the standard lane.
 - **Out of scope:** any use of the new 0.45 APIs; no change to queries, schema or `drizzle/0001_init.sql`.
+
+**Agent:** build with `builder`. It may not run `npm`; the lead has already installed.
