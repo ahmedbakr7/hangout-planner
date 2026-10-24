@@ -25,7 +25,7 @@ Kit v5.1.0 runs `app.setup` before a gate's checks with `SDLC_RUN_ID`, `SDLC_APP
 - `ops/run-env.mjs` has two commands, `setup` and `teardown`, wired as `[app] setup = "node ops/run-env.mjs setup"` and `teardown = "node ops/run-env.mjs teardown"`. The script is a ticket (T-001-82); the `sdlc.toml` lines are a lead PR after it merges, because `gate` reads `sdlc.toml` from main.
 - **`setup`:**
   - It reads `DATABASE_URL` from the environment, as the shell or CI sets it today. That URL names the server and the credentials.
-  - It connects to that server's `postgres` maintenance database and creates `hp_run_<id>`: `<id>` is `SDLC_RUN_ID` lower-cased, with every character outside `[a-z0-9_]` replaced by `_`.
+  - It connects to that server's `postgres` maintenance database and creates `hp_run_<id>`: `<id>` is `SDLC_RUN_ID` lower-cased, with every character outside `[a-z0-9_]` replaced by `_`. The mapping is not one-to-one (`a-b` and `a_b` give the same name), which is harmless because the kit's ids are `<pid>-<milliseconds>` and unique per run.
   - It applies `drizzle/0001_init.sql` to the new database, so smoke and the browser suite find the tables even in a gate whose test commands do not run first. The database is new, so this needs no lock (unlike `applySchemaOnce` in `src/server/db/test-schema.ts`, which test runs keep using).
   - It picks two free TCP ports on 127.0.0.1, different from each other and from `SDLC_APP_PORT`.
   - It appends exactly three lines to `$SDLC_RUN_ENV`: `DATABASE_URL` (the same URL with the run's database), `HP_E2E_APP_PORT` and `HP_E2E_GOOGLE_STUB_PORT`.
