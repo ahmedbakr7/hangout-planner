@@ -71,6 +71,12 @@ const closedPortUrl = async (): Promise<{ url: string; port: number }> => {
   return { url: `postgres://u:${PASSWORD}@127.0.0.1:${port}/hp_83`, port };
 };
 
+const withPassword = (base: string, password: string): string => {
+  const url = new URL(base);
+  url.password = password;
+  return url.toString();
+};
+
 const bind = (port: number): Promise<void> =>
   new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -247,11 +253,14 @@ describe("scripts/run-env.mjs", () => {
     const name = track(dbName(id));
     const dir = mkdtempSync(join(tmpdir(), "run-env-"));
     tempDirs.push(dir);
-    const envFile = join(dir, "never-created", "run.env");
-    const password = decodeURIComponent(new URL(databaseUrl).password);
+    const decoded = "p@ss w0rd";
+    const url = withPassword(databaseUrl, decoded);
+    const encoded = new URL(url).password;
+    expect(encoded).not.toBe(decoded);
+    const envFile = join(dir, `${encoded}-${decoded}`, "run.env");
 
     const result = run("setup", {
-      DATABASE_URL: databaseUrl,
+      DATABASE_URL: url,
       SDLC_RUN_ID: id,
       SDLC_RUN_ENV: envFile,
       SDLC_APP_PORT: "3999",
@@ -261,7 +270,8 @@ describe("scripts/run-env.mjs", () => {
     expect(result.stderr.trim().split("\n")).toHaveLength(1);
     expect(result.stderr).toContain("SDLC_RUN_ENV");
     expect(result.stderr).not.toContain("cannot reach");
-    if (password !== "") expect(result.output).not.toContain(password);
+    expect(result.output).not.toContain(encoded);
+    expect(result.output).not.toContain(decoded);
     expect(await databaseExists(name)).toBe(false);
   });
 
@@ -278,6 +288,38 @@ describe("scripts/run-env.mjs", () => {
     expect(result.stderr).toContain("cannot reach the Postgres server named by DATABASE_URL");
     expect(result.stderr).toContain(String(closed.port));
     expect(result.output).not.toContain(PASSWORD);
+  });
+
+  it("a password with a malformed percent sequence still gives one line and no password on a failure path", async () => {
+    const raw = "pa%ss";
+    const closed = await closedPortUrl();
+    const closedUrl = withPassword(closed.url, raw);
+    expect(new URL(closedUrl).password).toBe(raw);
+    const unreachable = run("setup", {
+      DATABASE_URL: closedUrl,
+      SDLC_RUN_ID: uniqueId(),
+      SDLC_RUN_ENV: tempEnvFile(),
+      SDLC_APP_PORT: "3999",
+    });
+    expect(unreachable.status).toBe(1);
+    expect(unreachable.stderr.trim().split("\n")).toHaveLength(1);
+    expect(unreachable.output).not.toContain(raw);
+
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const dir = mkdtempSync(join(tmpdir(), "run-env-"));
+    tempDirs.push(dir);
+    const unwritable = run("setup", {
+      DATABASE_URL: withPassword(databaseUrl, raw),
+      SDLC_RUN_ID: id,
+      SDLC_RUN_ENV: join(dir, `${raw}-pa-ss`, "run.env"),
+      SDLC_APP_PORT: "3999",
+    });
+    expect(unwritable.status).toBe(1);
+    expect(unwritable.stderr.trim().split("\n")).toHaveLength(1);
+    expect(unwritable.output).not.toContain(raw);
+    expect(unwritable.output).not.toContain("URIError");
+    expect(await databaseExists(name)).toBe(false);
   });
 
   it("an unset SDLC_RUN_ID or SDLC_RUN_ENV is refused before any connection is tried", async () => {

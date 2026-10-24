@@ -75,9 +75,17 @@ function isConnectionError(error) {
   return typeof code === "string" && (CONNECTION_CODES.has(code) || code.startsWith("CONNECTION_"));
 }
 
+function decodedPassword(url) {
+  try {
+    return decodeURIComponent(url.password);
+  } catch {
+    return "";
+  }
+}
+
 function scrub(line, url) {
   let text = line;
-  for (const secret of [url.password, decodeURIComponent(url.password)]) {
+  for (const secret of [url.password, decodedPassword(url)]) {
     if (secret) {
       text = text.split(secret).join("***");
     }
