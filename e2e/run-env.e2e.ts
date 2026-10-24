@@ -242,4 +242,30 @@ describe("scripts/run-env.mjs against the real Postgres", () => {
     expect(noEnv.output).toContain("SDLC_RUN_ENV is required");
     expect(await databaseExists(dbName(id))).toBe(false);
   });
+
+  it("T-001-84/AC-1 setup names SDLC_RUN_ENV, not the connection, when the env file cannot be written", async () => {
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const dir = mkdtempSync(join(tmpdir(), "run-env-e2e-"));
+    tempDirs.push(dir);
+    const envFile = join(dir, "never-created", "run.env");
+    const password = new URL(databaseUrl).password;
+    expect(password).not.toBe("");
+
+    const result = run("setup", {
+      DATABASE_URL: databaseUrl,
+      SDLC_RUN_ID: id,
+      SDLC_RUN_ENV: envFile,
+      SDLC_APP_PORT: APP_PORT,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("SDLC_RUN_ENV");
+    expect(result.stderr).not.toContain("cannot reach");
+    expect(result.stderr).not.toContain(password);
+    expect(result.stderr).not.toContain(decodeURIComponent(password));
+    expect(existsSync(envFile)).toBe(false);
+    expect(await databaseExists(name)).toBe(false);
+  });
 });
