@@ -32,6 +32,7 @@ const withPath = (base: string, database: string): string => {
 const admin = postgres(withPath(databaseUrl, "postgres"), { max: 1, onnotice: () => {} });
 const tempDirs: string[] = [];
 const created = new Set<string>();
+const roles = new Set<string>();
 
 const uniqueId = (): string => `e83_${randomBytes(6).toString("hex")}`;
 const dbName = (id: string): string => `hp_run_${id.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;
@@ -69,6 +70,22 @@ const dropCreated = async (): Promise<void> => {
     await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   }
   created.clear();
+  for (const role of roles) {
+    await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+  }
+  roles.clear();
+};
+
+// A LOGIN CREATEDB role whose password really authenticates: under scram-sha-256 a made-up
+// password in DATABASE_URL fails at login, before the step under test. Dropped after its databases.
+const urlForNewRole = async (password: string): Promise<string> => {
+  const role = `e84_${randomBytes(6).toString("hex")}`;
+  roles.add(role);
+  await admin.unsafe(`CREATE ROLE "${role}" LOGIN CREATEDB PASSWORD '${password.replace(/'/g, "''")}'`);
+  const url = new URL(databaseUrl);
+  url.username = role;
+  url.password = password;
+  return url.toString();
 };
 
 const closedPort = (): Promise<number> =>
@@ -255,7 +272,7 @@ describe("scripts/run-env.mjs against the real Postgres", () => {
     const dir = mkdtempSync(join(tmpdir(), "run-env-e2e-"));
     tempDirs.push(dir);
     const decoded = "p@ss w0rd";
-    const url = withPassword(databaseUrl, decoded);
+    const url = await urlForNewRole(decoded);
     const encoded = new URL(url).password;
     expect(encoded).not.toBe(decoded);
     const envFile = join(dir, `${encoded}-${decoded}`, "run.env");
@@ -283,7 +300,7 @@ describe("scripts/run-env.mjs against the real Postgres", () => {
     const dir = mkdtempSync(join(tmpdir(), "run-env-e2e-"));
     tempDirs.push(dir);
     const raw = "pa%ss";
-    const url = withPassword(databaseUrl, raw);
+    const url = await urlForNewRole(raw);
     expect(new URL(url).password).toBe(raw);
 
     const result = run("setup", {
