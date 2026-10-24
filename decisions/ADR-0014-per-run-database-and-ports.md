@@ -10,7 +10,7 @@ status: accepted
 - Date: 2026-10-24
 - Source: lead. On 2026-10-24 the lead chose "setup hook + ADR-0014" over a local wrapper script or keeping the manual steps.
 - Supersedes: none
-- Amends: ADR-0012 § Decision, the line "These two variables are the one exception to ADR-0010's 'never in the shell'. They are set in the shell, by a person or a parallel-run script, and only to choose ports. CI, `sdlc.toml` and `.env` files set neither". From now on, the gate's `app.setup` also sets them, locally and in CI.
+- Amends: ADR-0012 § Decision, the sentence "CI, `sdlc.toml` and `.env` files set neither, so CI runs on 3124 and 3125 as now." From now on, the gate's `app.setup` sets both variables, locally and in CI, so CI no longer runs on 3124 and 3125. Also changed in effect, not in wording: ADR-0010 § Database ("The same `DATABASE_URL` as the other suites: CI's Postgres service, or the local Postgres on 5433") and ADR-0012's parallel-run line on `DATABASE_URL`. Inside a gate, every suite still shares one `DATABASE_URL`, but it now names that run's own database on the same server.
 
 ## Context
 
@@ -30,14 +30,16 @@ Kit v5.1.0 runs `app.setup` before a gate's checks with `SDLC_RUN_ID`, `SDLC_APP
   - It picks two free TCP ports on 127.0.0.1, different from each other and from `SDLC_APP_PORT`.
   - It appends exactly three lines to `$SDLC_RUN_ENV`: `DATABASE_URL` (the same URL with the run's database), `HP_E2E_APP_PORT` and `HP_E2E_GOOGLE_STUB_PORT`.
   - If the server cannot be reached, it exits non-zero within 15 seconds with a message naming the host, the port and `DATABASE_URL`, never the password, and writes nothing.
-- **`teardown`** derives the database name from `SDLC_RUN_ID` only, never from `DATABASE_URL`'s path. It refuses any name that does not match `^hp_run_[a-z0-9_]+$`, connects to the `postgres` maintenance database and runs `DROP DATABASE IF EXISTS ... WITH (FORCE)`.
+- **`teardown`** derives the database name from `SDLC_RUN_ID` only, never from `DATABASE_URL`'s path. It refuses any name that does not match `^hp_run_[a-z0-9_]{1,56}$` (at most 63 bytes, Postgres's identifier limit, so a long id is never truncated into another name), connects to the `postgres` maintenance database and runs `DROP DATABASE IF EXISTS ... WITH (FORCE)`.
 - ADR-0012's port rules (defaults 3124 and 3125, validation, the same-port error) are unchanged. Outside the gate, a person may still set or leave the two variables. Inside the gate, setup's values win, because the kit applies `$SDLC_RUN_ENV` over the shell.
 - ADR-0010's "never in the shell" for the five app variables is unchanged. `DATABASE_URL` was never one of them.
 
 ## Consequences
 
 - A parallel run needs only its own worktree. The runbook's manual database and port steps go away in the lead PR that wires `sdlc.toml`. `FE_BUILDER_PORT` stays manual: `fe-builder`'s `next dev` runs in the agent, outside the gate.
-- CI changes behaviour. Each `gate ci` and `gate pr` creates and drops its own database on the service container, and the browser suite runs on random free ports instead of 3124 and 3125. The service's `postgres` role is a superuser, so it may create databases. A role without `CREATEDB` fails setup with Postgres's own error.
+- CI changes behaviour. Each `gate ci` and `gate pr` creates and drops its own database on the service container, and the browser suite runs on random free ports instead of 3124 and 3125. Setup runs before every gate the kit runs (build, test, review, pr, ci), so every gate now needs `DATABASE_URL` and fails at once with `DATABASE_URL is required` without it. The roadmap's runbook already sets it for every play. The service's `postgres` role is a superuser, so it may create databases. A role without `CREATEDB` fails setup with Postgres's own error.
 - Every gate applies the schema once more, which costs about a second.
+- The ports are picked, released and bound later, so another process can take one in between. The browser suite then fails on a busy port, as ADR-0013 notes for smoke: rerun the gate.
+- `ops/run-env.mjs` opens a raw `postgres(...)` client, which `skills/backend-patterns` ("Use X, not Y") allows only in tests. This script is the second exception: it must reach the maintenance database before the app's database exists, and it is gate tooling, not app code. Nothing under `src/` may copy it.
 - A gate killed before teardown leaves an `hp_run_*` database behind. `teardown` cleans only its own run. Stray ones are dropped by hand (`DROP DATABASE hp_run_... WITH (FORCE)`), and none hold data that matters.
-- `drizzle/0001_init.sql` gains a second loader. The rule from roadmap item 9 still holds: the first change after a database holds real data needs a migration ADR, and that ADR must cover this loader too.
+- `drizzle/0001_init.sql` gains another loader. The rule from roadmap item 9 still holds: the first change after a database holds real data needs a migration ADR, and that ADR must cover this loader too.
