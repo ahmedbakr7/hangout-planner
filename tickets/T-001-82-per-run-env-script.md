@@ -2,13 +2,12 @@
 id: T-001-82
 title: "ops/run-env.mjs: per-run database and browser-test ports for the gate"
 type: chore
-status: ready
+status: blocked
+blocked_by: "Superseded by T-001-83 (ADR-0015): the kit keeps ops/** for lead artifacts, so no build may write ops/run-env.mjs"
 risk: medium
 depends_on: []
 files:
   - "ops/run-env.mjs"
-  - "src/run-env.test.ts"
-  - "e2e/run-env.e2e.ts"
 skills:
   - build
 contracts: []
@@ -26,6 +25,8 @@ source_adr:
   - decisions/ADR-0013-kit-v5-claims-and-auto-port.md
   - decisions/ADR-0014-per-run-database-and-ports.md
 ---
+
+**Blocked, superseded by T-001-83 (ADR-0015).** The kit keeps `ops/**` for lead artifacts, so no build may write `ops/run-env.mjs`. T-001-83 carries these AC with the script at `scripts/run-env.mjs`. Do not build this ticket.
 
 ADR-0014 step 1: the script the gate's `[app] setup` and `teardown` will call. This ticket writes only the script, its unit test (build) and its real-stack test (test play). Wiring `sdlc.toml` is the lead PR that follows, because the gate reads `sdlc.toml` from main.
 
