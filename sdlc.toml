@@ -58,6 +58,11 @@ lead_code = "fail"           # other files in such a PR: "warn" (reported) or "f
 # SDLC_APP_PORT. Every gate command sees the port as SDLC_APP_PORT. The browser suite keeps its
 # own ports (ADR-0012: HP_E2E_APP_PORT, HP_E2E_GOOGLE_STUB_PORT).
 port = "auto"
+# ADR-0014 and ADR-0015: each gate run gets its own database (hp_run_<SDLC_RUN_ID>) on the server
+# DATABASE_URL names, and its own browser-test ports. Setup appends DATABASE_URL, HP_E2E_APP_PORT
+# and HP_E2E_GOOGLE_STUB_PORT to $SDLC_RUN_ENV; teardown drops the database, pass or fail.
+setup = "node scripts/run-env.mjs setup"
+teardown = "node scripts/run-env.mjs teardown"
 
 [vcs]
 base = "main"
