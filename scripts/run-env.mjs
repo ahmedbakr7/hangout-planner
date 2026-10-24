@@ -13,7 +13,16 @@ const MAX_PORT_TRIES = 20;
 const SCHEMA_FILE = resolve(dirname(fileURLToPath(import.meta.url)), "../drizzle/0001_init.sql");
 const USAGE = "usage: node scripts/run-env.mjs <setup|teardown>";
 
+const CONNECTION_CODES = new Set(["ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN", "ETIMEDOUT", "EHOSTUNREACH", "CONNECT_TIMEOUT"]);
+
 class UsageError extends Error {}
+
+class StepError extends Error {
+  constructor(step, cause) {
+    super(cause?.message ?? String(cause), { cause });
+    this.step = step;
+  }
+}
 
 function fail(message, code = 1) {
   process.stderr.write(`${message}\n`);
@@ -61,11 +70,41 @@ function isServerError(error) {
   return typeof error?.severity === "string";
 }
 
-function describeFailure(error, url) {
-  if (isServerError(error)) {
-    return `${error.message} (from the server named by DATABASE_URL)`;
+function isConnectionError(error) {
+  const code = error?.code;
+  return typeof code === "string" && (CONNECTION_CODES.has(code) || code.startsWith("CONNECTION_"));
+}
+
+function scrub(line, url) {
+  let text = line;
+  for (const secret of [url.password, decodeURIComponent(url.password)]) {
+    if (secret) {
+      text = text.split(secret).join("***");
+    }
   }
-  return `cannot reach the Postgres server named by DATABASE_URL at host ${url.hostname} port ${url.port || "5432"}`;
+  return text.replace(/\s*[\r\n]+\s*/g, " ");
+}
+
+function describeFailure(error, url, command) {
+  const cause = error instanceof StepError ? error.cause : error;
+  let line;
+  if (isServerError(cause)) {
+    line = `${cause.message} (from the server named by DATABASE_URL)`;
+  } else if (isConnectionError(cause)) {
+    line = `cannot reach the Postgres server named by DATABASE_URL at host ${url.hostname} port ${url.port || "5432"}`;
+  } else {
+    const step = error instanceof StepError ? error.step : "running";
+    line = `${command} failed ${step}: ${cause?.message ?? String(cause)}`;
+  }
+  return scrub(line, url);
+}
+
+async function inStep(step, work) {
+  try {
+    return await work();
+  } catch (error) {
+    throw new StepError(step, error);
+  }
 }
 
 async function withClient(url, work) {
@@ -101,14 +140,18 @@ async function pickPorts(appPort) {
 
 async function setup(base, name, envFile) {
   const maintenance = urlWithDatabase(base, MAINTENANCE_DATABASE);
-  await withClient(maintenance, (sql) => sql`CREATE DATABASE ${sql(name)}`);
+  await inStep(`creating the database ${name}`, () =>
+    withClient(maintenance, (sql) => sql`CREATE DATABASE ${sql(name)}`),
+  );
   const runUrl = urlWithDatabase(base, name);
   try {
-    await withClient(runUrl, (sql) => sql.file(SCHEMA_FILE));
-    const ports = await pickPorts(process.env.SDLC_APP_PORT);
-    appendFileSync(
-      envFile,
-      `DATABASE_URL=${runUrl.toString()}\nHP_E2E_APP_PORT=${ports.web}\nHP_E2E_GOOGLE_STUB_PORT=${ports.stub}\n`,
+    await inStep(`applying the schema file (${SCHEMA_FILE})`, () => withClient(runUrl, (sql) => sql.file(SCHEMA_FILE)));
+    const ports = await inStep("picking free ports", () => pickPorts(process.env.SDLC_APP_PORT));
+    await inStep(`writing SDLC_RUN_ENV (${envFile})`, async () =>
+      appendFileSync(
+        envFile,
+        `DATABASE_URL=${runUrl.toString()}\nHP_E2E_APP_PORT=${ports.web}\nHP_E2E_GOOGLE_STUB_PORT=${ports.stub}\n`,
+      ),
     );
   } catch (error) {
     await withClient(maintenance, (sql) => sql`DROP DATABASE IF EXISTS ${sql(name)} WITH (FORCE)`).catch(() => {});
@@ -118,7 +161,9 @@ async function setup(base, name, envFile) {
 
 async function teardown(base, name) {
   const maintenance = urlWithDatabase(base, MAINTENANCE_DATABASE);
-  await withClient(maintenance, (sql) => sql`DROP DATABASE IF EXISTS ${sql(name)} WITH (FORCE)`);
+  await inStep(`dropping the database ${name}`, () =>
+    withClient(maintenance, (sql) => sql`DROP DATABASE IF EXISTS ${sql(name)} WITH (FORCE)`),
+  );
 }
 
 async function main() {
@@ -149,7 +194,7 @@ async function main() {
       await teardown(base, name);
     }
   } catch (error) {
-    fail(describeFailure(error, base));
+    fail(describeFailure(error, base, command));
   }
 }
 

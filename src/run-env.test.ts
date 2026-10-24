@@ -241,4 +241,69 @@ describe("scripts/run-env.mjs", () => {
     expect(noEnv.output).toContain("SDLC_RUN_ENV is required");
     expect(await databaseExists(dbName(id))).toBe(false);
   });
+
+  it("T-001-84/AC-1 setup names SDLC_RUN_ENV when the env file cannot be written, and drops the run database", async () => {
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const dir = mkdtempSync(join(tmpdir(), "run-env-"));
+    tempDirs.push(dir);
+    const envFile = join(dir, "never-created", "run.env");
+    const password = decodeURIComponent(new URL(databaseUrl).password);
+
+    const result = run("setup", {
+      DATABASE_URL: databaseUrl,
+      SDLC_RUN_ID: id,
+      SDLC_RUN_ENV: envFile,
+      SDLC_APP_PORT: "3999",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("SDLC_RUN_ENV");
+    expect(result.stderr).not.toContain("cannot reach");
+    if (password !== "") expect(result.output).not.toContain(password);
+    expect(await databaseExists(name)).toBe(false);
+  });
+
+  it("a closed-port DATABASE_URL still prints the connection line", async () => {
+    const closed = await closedPortUrl();
+    const result = run("setup", {
+      DATABASE_URL: closed.url,
+      SDLC_RUN_ID: uniqueId(),
+      SDLC_RUN_ENV: tempEnvFile(),
+      SDLC_APP_PORT: "3999",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("cannot reach the Postgres server named by DATABASE_URL");
+    expect(result.stderr).toContain(String(closed.port));
+    expect(result.output).not.toContain(PASSWORD);
+  });
+
+  it("an unset SDLC_RUN_ID or SDLC_RUN_ENV is refused before any connection is tried", async () => {
+    const closed = await closedPortUrl();
+    const noId = run("setup", { DATABASE_URL: closed.url, SDLC_RUN_ID: undefined, SDLC_RUN_ENV: tempEnvFile() });
+    expect(noId.status).toBe(1);
+    expect(noId.stderr).toContain("SDLC_RUN_ID is required");
+    expect(noId.stderr).not.toContain("cannot reach");
+
+    const noEnv = run("setup", { DATABASE_URL: closed.url, SDLC_RUN_ID: uniqueId(), SDLC_RUN_ENV: undefined });
+    expect(noEnv.status).toBe(1);
+    expect(noEnv.stderr).toContain("SDLC_RUN_ENV is required");
+    expect(noEnv.stderr).not.toContain("cannot reach");
+  });
+
+  it("teardown takes the database name from SDLC_RUN_ID, not from DATABASE_URL's path", async () => {
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const other = track(dbName(uniqueId()));
+    await admin.unsafe(`CREATE DATABASE "${name}"`);
+    await admin.unsafe(`CREATE DATABASE "${other}"`);
+
+    const result = run("teardown", { DATABASE_URL: withPath(databaseUrl, other), SDLC_RUN_ID: id });
+
+    expect(result.status, result.output).toBe(0);
+    expect(await databaseExists(name)).toBe(false);
+    expect(await databaseExists(other)).toBe(true);
+  });
 });
