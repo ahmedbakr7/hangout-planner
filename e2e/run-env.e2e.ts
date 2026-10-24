@@ -17,12 +17,6 @@ const SCRIPT = "scripts/run-env.mjs";
 const PASSWORD = "e2eS3cretPassw0rd";
 const APP_PORT = "3999";
 
-const withPassword = (base: string, password: string): string => {
-  const url = new URL(base);
-  url.password = password;
-  return url.toString();
-};
-
 const withPath = (base: string, database: string): string => {
   const url = new URL(base);
   url.pathname = `/${database}`;
