@@ -26,6 +26,7 @@ const withPath = (base: string, database: string): string => {
 const admin = postgres(withPath(databaseUrl, "postgres"), { max: 1, onnotice: () => {} });
 const tempDirs: string[] = [];
 const created = new Set<string>();
+const roles = new Set<string>();
 
 const uniqueId = (): string => `e83_${randomBytes(6).toString("hex")}`;
 const dbName = (id: string): string => `hp_run_${id.toLowerCase().replace(/[^a-z0-9_]/g, "_")}`;
@@ -63,6 +64,22 @@ const dropCreated = async (): Promise<void> => {
     await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   }
   created.clear();
+  for (const role of roles) {
+    await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+  }
+  roles.clear();
+};
+
+// A LOGIN CREATEDB role whose password really authenticates: under scram-sha-256 a made-up
+// password in DATABASE_URL fails at login, before the step under test. Dropped after its databases.
+const urlForNewRole = async (password: string): Promise<string> => {
+  const role = `e84_${randomBytes(6).toString("hex")}`;
+  roles.add(role);
+  await admin.unsafe(`CREATE ROLE "${role}" LOGIN CREATEDB PASSWORD '${password.replace(/'/g, "''")}'`);
+  const url = new URL(databaseUrl);
+  url.username = role;
+  url.password = password;
+  return url.toString();
 };
 
 const closedPort = (): Promise<number> =>
@@ -241,5 +258,56 @@ describe("scripts/run-env.mjs against the real Postgres", () => {
     expect(noEnv.status).not.toBe(0);
     expect(noEnv.output).toContain("SDLC_RUN_ENV is required");
     expect(await databaseExists(dbName(id))).toBe(false);
+  });
+
+  it("T-001-84/AC-1 setup names SDLC_RUN_ENV, not the connection, when the env file cannot be written", async () => {
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const dir = mkdtempSync(join(tmpdir(), "run-env-e2e-"));
+    tempDirs.push(dir);
+    const decoded = "p@ss w0rd";
+    const url = await urlForNewRole(decoded);
+    const encoded = new URL(url).password;
+    expect(encoded).not.toBe(decoded);
+    const envFile = join(dir, `${encoded}-${decoded}`, "run.env");
+
+    const result = run("setup", {
+      DATABASE_URL: url,
+      SDLC_RUN_ID: id,
+      SDLC_RUN_ENV: envFile,
+      SDLC_APP_PORT: APP_PORT,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.stderr).toContain("SDLC_RUN_ENV");
+    expect(result.stderr).not.toContain("cannot reach");
+    expect(result.output).not.toContain(encoded);
+    expect(result.output).not.toContain(decoded);
+    expect(existsSync(envFile)).toBe(false);
+    expect(await databaseExists(name)).toBe(false);
+  });
+
+  it("a password with a malformed percent sequence still gives one line and no password", async () => {
+    const id = uniqueId();
+    const name = track(dbName(id));
+    const dir = mkdtempSync(join(tmpdir(), "run-env-e2e-"));
+    tempDirs.push(dir);
+    const raw = "pa%ss";
+    const url = await urlForNewRole(raw);
+    expect(new URL(url).password).toBe(raw);
+
+    const result = run("setup", {
+      DATABASE_URL: url,
+      SDLC_RUN_ID: id,
+      SDLC_RUN_ENV: join(dir, `${raw}-pa-ss`, "run.env"),
+      SDLC_APP_PORT: APP_PORT,
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr.trim().split("\n")).toHaveLength(1);
+    expect(result.output).not.toContain(raw);
+    expect(result.output).not.toContain("URIError");
+    expect(await databaseExists(name)).toBe(false);
   });
 });
