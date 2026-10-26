@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
+import { hashCookieToken } from "@/server/auth/session";
 import { resetClock } from "@/server/clock";
 import { generateId } from "@/server/ids";
 import { closeDatabase as closeAttempt } from "@/server/proposal/attempt";
@@ -117,7 +118,10 @@ async function wipePlan(planId: string): Promise<void> {
     `;
   }
   for (const guest of guests) {
-    await sql`DELETE FROM guest_sessions WHERE id = ${guest.id}`;
+    await sql`
+      DELETE FROM guest_sessions WHERE id = ${guest.id}
+      AND NOT EXISTS (SELECT 1 FROM participants WHERE guest_session_id = ${guest.id})
+    `;
   }
 }
 
@@ -487,7 +491,7 @@ describe("e2e shipped foundations and auth", () => {
     expect(rejected.error.fields).toContainEqual({ path: "email", code: "bad_email" });
   });
 
-  it("T-001-86/AC-5 T-001-05/AC-3 hp_session, hp_guest, and hp_link are httpOnly, SameSite=Lax, Path=/, 30-day, and Secure only when HP_COOKIE_SECURE=1", async () => {
+  it("T-001-86/AC-5 T-001-05/AC-3 hp_session, hp_guest, and hp_link are httpOnly, SameSite=Lax, Path=/, 30-day sliding, and Secure only when HP_COOKIE_SECURE=1", async () => {
     async function issued(): Promise<Record<string, string>> {
       const { cookie } = await register(track(uniqueEmail("cookies")));
       const plan = await openPlan(cookie);
@@ -535,6 +539,91 @@ describe("e2e shipped foundations and auth", () => {
     for (const [name, line] of Object.entries(secured)) {
       expectContracted(name, line, true);
     }
+  });
+
+  it("T-001-86/AC-5 T-001-05/AC-3 sliding: hp_session, hp_guest, and hp_link are re-set with a 30-day lifetime and their stored expiry moves back to 30 days", async () => {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const TOLERANCE_MS = 5 * 60 * 1000;
+
+    async function shortenExpiry(table: "sessions" | "guest_sessions" | "link_sessions", value: string) {
+      const hash = hashCookieToken(value);
+      const shortened = await sql`
+        UPDATE ${sql(table)} SET expires_at = now() + interval '1 day' WHERE token_hash = ${hash}
+      `;
+      expect(shortened.count).toBe(1);
+    }
+
+    async function storedLifetimeMs(
+      table: "sessions" | "guest_sessions" | "link_sessions",
+      value: string,
+    ): Promise<number> {
+      const rows = await sql<{ ms: number }[]>`
+        SELECT (extract(epoch FROM expires_at - now()) * 1000)::float8 AS ms
+        FROM ${sql(table)} WHERE token_hash = ${hashCookieToken(value)}
+      `;
+      expect(rows).toHaveLength(1);
+      return rows[0]!.ms;
+    }
+
+    function expectThirtyDays(response: Response, name: string, ms: number): void {
+      const line = setCookieLine(response, name);
+      expect(line, `${name} was not re-set`).not.toBe("");
+      const maxAge = line
+        .split(";")
+        .map((part) => part.trim().toLowerCase())
+        .find((part) => part.startsWith("max-age="));
+      expect(maxAge, `${name} has no Max-Age`).toBeDefined();
+      expect(Number(maxAge!.slice("max-age=".length))).toBe(SESSION_MAX_AGE);
+      expect(Math.abs(ms - SESSION_MAX_AGE * 1000)).toBeLessThan(TOLERANCE_MS);
+    }
+
+    const { cookie: sessionCookie } = await register(track(uniqueEmail("slide")));
+    const sessionValue = sessionCookie.slice("hp_session=".length);
+    await shortenExpiry("sessions", sessionValue);
+    expect(Math.abs((await storedLifetimeMs("sessions", sessionValue)) - DAY_MS)).toBeLessThan(TOLERANCE_MS);
+    const me = await getMe(getRequest("/api/v1/me", sessionCookie));
+    expect(me.status).toBe(200);
+    expectThirtyDays(me, "hp_session", await storedLifetimeMs("sessions", sessionValue));
+
+    const planOne = await openPlan(sessionCookie);
+    const planTwo = await openPlan(sessionCookie);
+
+    const guest = await joinAnonymously(planOne.join_path);
+    const guestValue = guest.cookie.slice("hp_guest=".length);
+    await shortenExpiry("guest_sessions", guestValue);
+    expect(Math.abs((await storedLifetimeMs("guest_sessions", guestValue)) - DAY_MS)).toBeLessThan(
+      TOLERANCE_MS,
+    );
+    const tokenTwo = planTwo.join_path.slice("/join/".length);
+    const rejoined = await joinPost(
+      jsonRequest(
+        `/api/v1/join/${tokenTwo}`,
+        "POST",
+        { kind: "anonymous", display_name: "Hana" },
+        { cookie: guest.cookie },
+      ),
+      { params: Promise.resolve({ token: tokenTwo }) },
+    );
+    expect(rejoined.status).toBe(201);
+    expect(cookieValue(rejoined, "hp_guest")).toBe(guestValue);
+    expectThirtyDays(rejoined, "hp_guest", await storedLifetimeMs("guest_sessions", guestValue));
+
+    const tokenOne = planOne.join_path.slice("/join/".length);
+    const opened = await joinGet(getRequest(`/api/v1/join/${tokenOne}`), {
+      params: Promise.resolve({ token: tokenOne }),
+    });
+    expect(opened.status).toBe(200);
+    const linkValue = cookieValue(opened, "hp_link");
+    await shortenExpiry("link_sessions", linkValue);
+    expect(Math.abs((await storedLifetimeMs("link_sessions", linkValue)) - DAY_MS)).toBeLessThan(
+      TOLERANCE_MS,
+    );
+    const reopened = await joinGet(getRequest(`/api/v1/join/${tokenOne}`, `hp_link=${linkValue}`), {
+      params: Promise.resolve({ token: tokenOne }),
+    });
+    expect(reopened.status).toBe(200);
+    expect(cookieValue(reopened, "hp_link")).toBe(linkValue);
+    expectThirtyDays(reopened, "hp_link", await storedLifetimeMs("link_sessions", linkValue));
   });
 
   it("T-001-86/AC-6 T-001-06/AC-1 POST /v1/accounts answers 201 with the account and hp_session; 409 email_taken and 400 create nothing and set no cookie", async () => {
