@@ -50,3 +50,54 @@ describe("create plan error boundary", () => {
     expect(consoleError).toHaveBeenCalledWith(error);
   });
 });
+
+import ar from "../../../../messages/ar.json";
+
+describe("T-001-85 create plan error boundary copy", () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    cleanup();
+    consoleError.mockRestore();
+  });
+
+  function checkBoundary(locale: "en" | "ar", messages: typeof en) {
+    const error = new Error("database call rejected for plan_secret");
+    const retry = vi.fn();
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <CreatePlanError error={error} retry={retry} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      messages.Create.title,
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert").textContent).toBe(
+      messages.errors.code.upstream,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button").textContent).toBe(messages.common.retry);
+    fireEvent.click(screen.getByRole("button"));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(error);
+    expect(container.textContent).not.toContain("plan_secret");
+  }
+
+  it("T-001-85/AC-1 English shows the heading and one alert with the screen's texts", () => {
+    checkBoundary("en", en);
+  });
+
+  it("T-001-85/AC-2 English shows one retry button that retries once, logs the error once and hides the message", () => {
+    checkBoundary("en", en);
+  });
+
+  it("T-001-85/AC-4 Arabic shows the Arabic heading, alert and retry button", () => {
+    checkBoundary("ar", ar as typeof en);
+  });
+});
