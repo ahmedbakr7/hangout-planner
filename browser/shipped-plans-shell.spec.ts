@@ -96,6 +96,7 @@ test("T-001-87/AC-2 T-001-08/AC-4 next accepts only /, /plans/new, /invitations 
 
   const cases: { next: string; lands: string }[] = [
     { next: "/plans/new", lands: `${origin}/plans/new` },
+    { next: "/invitations", lands: `${origin}/invitations` },
     { next: joinPath, lands: `${origin}${joinPath}` },
     { next: "/plans/pln_someone_elses", lands: `${origin}/` },
     { next: "https://evil.example/", lands: `${origin}/` },
