@@ -83,3 +83,84 @@ describe("root error boundary", () => {
     expect(consoleError).toHaveBeenCalledWith(error);
   });
 });
+
+import ar from "../../messages/ar.json";
+
+describe("T-001-85 root error boundary copy", () => {
+  let consoleError: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    cleanup();
+    consoleError.mockRestore();
+  });
+
+  function checkHome(locale: "en" | "ar", messages: typeof en) {
+    pathname = "/";
+    const error = new Error(`database call rejected for ${PRIVATE_TITLE}`);
+    const retry = vi.fn();
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <RootError error={error} retry={retry} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      messages.Home.title,
+    );
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert").textContent).toBe(messages.Home.loadError);
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button").textContent).toBe(messages.Home.retry);
+    fireEvent.click(screen.getByRole("button"));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(error);
+    expect(container.textContent).not.toContain(PRIVATE_TITLE);
+  }
+
+  function checkElsewhere(locale: "en" | "ar", messages: typeof en) {
+    pathname = "/join/abc";
+    const error = new Error(`database call rejected for ${PRIVATE_TITLE}`);
+    const retry = vi.fn();
+    const { container } = render(
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <RootError error={error} retry={retry} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("alert").textContent).toBe(
+      messages.errors.code.upstream,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.getByRole("button").textContent).toBe(messages.common.retry);
+    fireEvent.click(screen.getByRole("button"));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(error);
+    expect(container.textContent).not.toContain(PRIVATE_TITLE);
+  }
+
+  it("T-001-85/AC-2 English off / shows no heading, one alert and one common retry button", () => {
+    checkElsewhere("en", en);
+  });
+
+  it("T-001-85/AC-3 on / shows the Home heading, alert and retry button", () => {
+    checkHome("en", en);
+  });
+
+  it("T-001-85/AC-3 on /join/abc shows no heading and the upstream alert", () => {
+    checkElsewhere("en", en);
+  });
+
+  it("T-001-85/AC-4 Arabic on / shows the Arabic Home heading, alert and retry button", () => {
+    checkHome("ar", ar as typeof en);
+  });
+
+  it("T-001-85/AC-4 Arabic on /join/abc shows no heading and the Arabic upstream alert", () => {
+    checkElsewhere("ar", ar as typeof en);
+  });
+});
