@@ -67,7 +67,35 @@ test.afterAll(async () => {
   );
 });
 
-test("T-001-87/AC-2 T-001-08/AC-4 next accepts only /, /plans/new, /invitations or /join/ plus a join token; any other value is ignored and success returns home", async ({
+test("T-001-87/AC-1 T-001-07/AC-3 dir and lang on html follow the hp_locale cookie: ar is rtl and en is ltr", async ({
+  browser,
+  baseURL,
+}) => {
+  const cases: { cookie: "ar" | "en" | null; lang: string; dir: string }[] = [
+    { cookie: "ar", lang: "ar", dir: "rtl" },
+    { cookie: "en", lang: "en", dir: "ltr" },
+    { cookie: null, lang: "en", dir: "ltr" },
+  ];
+  for (const { cookie, lang, dir } of cases) {
+    const context = await browser.newContext();
+    try {
+      if (cookie) {
+        await context.addCookies([{ name: "hp_locale", value: cookie, url: baseURL! }]);
+      }
+      const page = await context.newPage();
+      await page.goto("/");
+      const html = await page.evaluate(() => ({
+        lang: document.documentElement.lang,
+        dir: document.documentElement.dir,
+      }));
+      expect(html, `hp_locale=${cookie ?? "unset"}`).toEqual({ lang, dir });
+    } finally {
+      await context.close();
+    }
+  }
+});
+
+test("T-001-87/AC-2T-001-08/AC-4 next accepts only /, /plans/new, /invitations or /join/ plus a join token; any other value is ignored and success returns home", async ({
   browser,
   request,
   baseURL,
