@@ -95,7 +95,7 @@ test("T-001-87/AC-1 T-001-07/AC-3 dir and lang on html follow the hp_locale cook
   }
 });
 
-test("T-001-87/AC-2T-001-08/AC-4 next accepts only /, /plans/new, /invitations or /join/ plus a join token; any other value is ignored and success returns home", async ({
+test("T-001-87/AC-2 T-001-08/AC-4 next accepts only /, /plans/new, /invitations or /join/ plus a join token; any other value is ignored and success returns home", async ({
   browser,
   request,
   baseURL,
