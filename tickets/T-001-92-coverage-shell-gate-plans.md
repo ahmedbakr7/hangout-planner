@@ -7,7 +7,6 @@ risk: low
 depends_on: [T-001-07, T-001-08, T-001-09, T-001-10, T-001-24, T-001-35, T-001-48, T-001-52, T-001-53, T-001-66, T-001-70, T-001-91]
 files:
   - "e2e/shipped-coverage-shell-gate-plans.e2e.ts"
-  - "src/app/shell-tokens.test.ts"
   - "src/i18n/fallback.test.ts"
   - "browser/shell-styles.spec.ts"
   - "src/components/account-gate.test.tsx"
@@ -43,7 +42,7 @@ Roadmap item 6, second half. `gate ci` proves every AC of every done ticket (`ac
 - **Real-stack proof.** At least one test with a `T-001-92/AC-n` tag runs in a real-stack suite (`e2e/` or `browser/`): the gate refuses a `type: test` build without one. `e2e/shipped-coverage-shell-gate-plans.e2e.ts` is that file; copy the harness of `e2e/shipped-plans-shell.e2e.ts` (from T-001-87).
 - **Other test files.** If the test that best proves an AC lives in a test file not listed under `files:`, retag it there; the scope check flags it as out of area and the review names it. Tests only: a `type: test` ticket changes nothing outside the test globs.
 - **No production change.** If a test fails because production disagrees with the shipped AC, stop and report the AC, the command, expected against actual, and the file:line you believe is wrong; that becomes a new ticket. Do not weaken the assertion to match.
-- **Not in this ticket.** T-001-07 AC-1 and AC-2 (where hex and spacing live in CSS and which token names CSS uses: source text, which ESLint and review enforce), T-001-08 AC-7 (the chrome AC: shadcn primitives, no raw hex, and "follows" three skills; ESLint and review enforce it, the lead decision of 2026-10-15 behind T-001-53), and T-001-10 AC-6 ("this ticket does not call runProposalAttempt": T-001-24 later made PATCH run attempts) stay in the `ac-coverage` baseline. No test can prove them as written; roadmap item 7 holds them for a lead spec change. Do not tag a test with them.
+- **Not in this ticket.** T-001-07 AC-1 and AC-2 (where hex and spacing live in CSS and which token names CSS uses: source text, which review enforces; `src/app/shell-tokens.test.ts` asserts them on source text, so it is not listed and is not retagged), T-001-08 AC-7 (the chrome AC: shadcn primitives, no raw hex, and "follows" three skills; ESLint and review enforce it, the lead decision of 2026-10-15 behind T-001-53), and T-001-10 AC-6 ("this ticket does not call runProposalAttempt": T-001-24 later made PATCH run attempts) stay in the `ac-coverage` baseline. No test can prove them as written; roadmap item 7 holds them for a lead spec change. Do not tag a test with them.
 - **Paths.** T-001-10's AC text predates ADR-0003 and names `/v1/...`; the route is `/api/v1/...` (ADR-0003, roadmap item 12). A test of the `/api/v1` path proves that clause. Name ADR-0003 in the test's comment.
 - **Report.** End with a table: shipped AC, test file, test name, retagged or new.
 
