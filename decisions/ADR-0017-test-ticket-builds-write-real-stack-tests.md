@@ -11,6 +11,7 @@ status: accepted
 - Source: lead. On 2026-10-27 the lead approved this change ("Go" on the list that named it).
 - Supersedes: none
 - Amends: the "Testing" line of the Lock in `skills/frontend-patterns/SKILL.md` and in `skills/backend-patterns/SKILL.md`. A Lock line changes only by an ADR.
+- Read with: ADR-0010 ("so the test play may write specs") and ADR-0012 ("Only the test play may write `browser/**`"). Where they say "the test play", a `type: test` ticket's build counts as that play. T-001-72, which ADR-0012 names, was itself a `type: test` ticket built this way.
 
 ## Context
 
@@ -31,5 +32,5 @@ PR #195 added rulebook rows for this path. Those rows read the Lock as covering 
 ## Consequences
 
 - Nothing that already ran changes. T-001-66 and T-001-86..90 followed this rule before it was written down.
-- A feature ticket still cannot write `e2e/` or `browser/` in its build. The kit's scope check enforces that, not this text.
+- A feature ticket still cannot write `e2e/` or `browser/` in its build. The kit's scope check enforces that, not this text. In kit v5.5.0, `Gate._hard` in `.sdlc/sdlc/gate.py` treats every `tests.integration_globs` path as outside a build's write set unless the ticket is `type: test`.
 - A test helper that more than one test file shares still needs a ticket that lists it under `test_files` (ADR-0016).
