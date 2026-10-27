@@ -49,7 +49,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Ids | `src/server/ids.ts`: `generateId(prefix)` for the 22-character ids in CONTRACTS § Identifiers; `generateOpaqueId("prp_" \| "prn_")` for proposal and run ids (32 hex) | import them; new code adds no private `randomBytes` id helper (older `ses_`, `pse_`, `gst_`, `lnk_` copies remain; do not copy them) |
 | Schema / migration | `src/server/db/schema.ts` and a new file in `drizzle/` | `drizzle/0001_init.sql` |
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
-| Handler-level test | `e2e/<name>.e2e.ts` (test agent only) | `e2e/attempt-in-progress.e2e.ts` |
+| Handler-level test | `e2e/<name>.e2e.ts` (test play, or a `type: test` ticket's build). The Lock's "e2e is the test agent's" covers feature tickets; a `type: test` ticket has no test play and its build writes the real-stack files (kit `ticketize` skill, item 8). | `e2e/attempt-in-progress.e2e.ts` |
+| Real-stack proof for a shipped (`done`) ticket | A `type: test` ticket (a done ticket's own test play is refused). Its tests go in `e2e/shipped-<area>.e2e.ts` (or `browser/shipped-<area>.spec.ts`), and each title starts with the new ticket's tag and then the shipped ticket's tag, then the behaviour. The test asserts every clause of the shipped AC, through the routes and Postgres or a browser | `e2e/shipped-lock-confirmed.e2e.ts` (`T-001-90/AC-3 T-001-28/AC-2 ...`) |
 
 ### Use X, not Y
 
