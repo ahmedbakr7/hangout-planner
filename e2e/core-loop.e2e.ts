@@ -482,7 +482,7 @@ afterAll(async () => {
 });
 
 describe("e2e core loop", () => {
-  it("account, create in EGP, copy path, anonymous join, complete response, proposal, swap, signal, lock, and confirmed read on the share link", async () => {
+  it("T-001-90/AC-4 T-001-29/AC-1 account, create in EGP, copy path, anonymous join, complete response, proposal, swap, signal, lock, and confirmed read on the share link", async () => {
     const organizerEmail = track(uniqueEmail("org"));
     const organizer = await register(organizerEmail, "Omar");
 
