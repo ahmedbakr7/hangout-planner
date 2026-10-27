@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-27. Main: `23f7652`, kit pin `078ca93` (tag v5.1.0, ADR-0013).
+Date: 2026-10-27. Main: `d231598`, kit pin `27c9f92` (tag v5.5.0, ADR-0016).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -75,6 +75,7 @@ Date: 2026-10-27. Main: `23f7652`, kit pin `078ca93` (tag v5.1.0, ADR-0013).
   4. Open the PR. CI runs `gate ci` and `gate pr`.
   5. The lead approves in chat with "approve #<n>"; the lead's agent posts the `role: lead` record on the head the lead saw, naming the instruction (who, when, PR, commit). A new head needs a new approval.
   6. Merge with a merge commit once CI and `sdlc/approval` are green and CodeRabbit has finished. Never squash: derived status reads `Sdlc-Ticket` from the commits on main.
+  - Before a build, `sdlc plan <id>` (kit v5.2.0, ADR-0016) prints the ticket's lane, each play's checks and write set, and the proof each AC owes.
   - Check a set-up without running an agent: `sdlc run build <id> --agent builder --dry-run` prints the branch and the exact command.
   - By hand, if the runner can't be used: commit with `sdlc commit <id> --agent <name> --play <play> -m "..."` and run `sdlc gate <play> <id>` on the clean commit. Evidence from a dirty tree records the base commit as proven.
 - Lead PRs (no ticket): `sdlc prompt review --pr <n>` writes the review prompt to `.sdlc-run/prompts/review-pr-<n>.md`. A fresh `claude -p` process with the reviewer's tools runs it and writes `.sdlc-run/lead-review-<n>.md`. The author publishes it with `sdlc review publish --pr <n>`, or posts it unchanged. The `role: lead` record is posted as in step 5 above: only on the lead's "approve #<n>" for that head. `sdlc/approval` is judged by the kit pinned on the base branch.
