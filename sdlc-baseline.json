@@ -198,19 +198,6 @@
       "ERROR tickets/T-001-22-proposal-scoring.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
       "ERROR tickets/T-001-29-e2e.md: requirements: is empty (cite F-/N- ids from the spec)": 1
     },
-    "contracts": {
-      "page in code but not in CONTRACTS: / (src/app/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /account (src/app/account/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /invitations (src/app/invitations/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /join/{} (src/app/join/[token]/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/new (src/app/plans/new/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{} (src/app/plans/[planId]/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{}/confirmed (src/app/plans/[planId]/confirmed/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{}/invite (src/app/plans/[planId]/invite/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{}/join (src/app/plans/[planId]/join/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{}/proposal (src/app/plans/[planId]/proposal/page.tsx)": 1,
-      "page in code but not in CONTRACTS: /plans/{}/respond (src/app/plans/[planId]/respond/page.tsx)": 1
-    },
     "trace": {
       "T-001-01/AC-1: done but proof is none": 1,
       "T-001-01/AC-2: done but proof is none": 1,
