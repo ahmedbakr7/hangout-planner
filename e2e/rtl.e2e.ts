@@ -148,7 +148,7 @@ afterEach(() => {
 });
 
 describe("e2e rtl", () => {
-  it("Arabic locale sets dir=rtl on create", async () => {
+  it("T-001-90/AC-6 T-001-29/AC-3 Arabic locale sets dir=rtl on create", async () => {
     stubCreateFetch();
     render(
       createElement(
@@ -171,7 +171,7 @@ describe("e2e rtl", () => {
     expect(screen.getByRole("heading", { name: "إنشاء خطة" })).toBeTruthy();
   });
 
-  it("Arabic locale sets dir=rtl on confirmed", async () => {
+  it("T-001-90/AC-6 T-001-29/AC-3 Arabic locale sets dir=rtl on confirmed", async () => {
     stubConfirmedFetch();
     render(
       createElement(
@@ -194,7 +194,7 @@ describe("e2e rtl", () => {
     expect(screen.getByText("Abu Tarek")).toBeTruthy();
   });
 
-  it("a missing Arabic key still shows the English string", async () => {
+  it("T-001-90/AC-6 T-001-29/AC-3 a missing Arabic key still shows the English string", async () => {
     expect(dirForLocale("ar")).toBe("rtl");
     expect(lookup(messagesForLocale("ar"), ["common", "create"])).toBe("Create");
     expect(

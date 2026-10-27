@@ -282,7 +282,7 @@ afterAll(async () => {
 });
 
 describe("e2e authz", () => {
-  it("a second account cannot read another organizer's plan", async () => {
+  it("T-001-90/AC-5 T-001-29/AC-2 a second account cannot read another organizer's plan", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const stranger = await register(track(uniqueEmail("stranger")), "Samy");
     const plan = await openPlan(organizer.token);
@@ -308,7 +308,7 @@ describe("e2e authz", () => {
     expect(JSON.stringify(body)).not.toContain("Omar");
   });
 
-  it("a participant cannot lock", async () => {
+  it("T-001-90/AC-5 T-001-29/AC-2 a participant cannot lock", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token);
@@ -340,7 +340,7 @@ describe("e2e authz", () => {
     expect(state[0]?.state).toBe("proposed");
   });
 
-  it("a locked write fails", async () => {
+  it("T-001-90/AC-5 T-001-29/AC-2 a locked write fails", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const plan = await openPlan(organizer.token);
     await sql`
@@ -366,7 +366,7 @@ describe("e2e authz", () => {
     expect(stored[0]).toEqual({ title: "Thursday in Maadi", state: "locked" });
   });
 
-  it("an unknown invite email adds no inbox row", async () => {
+  it("T-001-90/AC-5 T-001-29/AC-2 an unknown invite email adds no inbox row", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const plan = await openPlan(organizer.token);
     const unknownEmail = `nobody.${randomBytes(6).toString("hex")}@example.com`;
