@@ -606,6 +606,22 @@ Locale cookie, not a path prefix. The copied link is `/join/{token}`.
 | Proposal | `/plans/{planId}/proposal` |
 | Confirmed | `/plans/{planId}/confirmed` |
 
+The same pages for the gate. `owner` is the ticket that built the page. Smoke opens each `sample` with no cookie and needs a status below 400; an unknown plan id renders the page's not-found state.
+
+```pages
+/                           owner=T-001-11  sample=/
+/account                    owner=T-001-08  sample=/account
+/plans/new                  owner=T-001-11  sample=/plans/new
+/plans/{planId}             owner=T-001-12  sample=/plans/demo
+/plans/{planId}/invite      owner=T-001-19  sample=/plans/demo/invite
+/plans/{planId}/join        owner=T-001-18  sample=/plans/demo/join
+/invitations                owner=T-001-19  sample=/invitations
+/join/{token}               owner=T-001-18  sample=/join/demo
+/plans/{planId}/respond     owner=T-001-21  sample=/plans/demo/respond
+/plans/{planId}/proposal    owner=T-001-27  sample=/plans/demo/proposal
+/plans/{planId}/confirmed   owner=T-001-28  sample=/plans/demo/confirmed
+```
+
 The page asks opening or `GET /api/v1/join/{token}` and renders the matching path. A direct hit on the wrong path redirects to `next`. Strangers get the not-found state for that open, with no other plan's data.
 
 `/account?next=` accepts only `/`, `/plans/new`, `/invitations`, or `/join/{token}`. Any other value is ignored and the gate returns home after sign-in. Signed-out create sends the person to the gate with `next=/plans/new`. The gate offers a way back to join without an account when `next` is a join path.
