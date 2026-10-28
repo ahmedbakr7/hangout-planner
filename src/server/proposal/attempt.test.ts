@@ -549,7 +549,7 @@ async function seedTwoMemberPlan(): Promise<{
 }
 
 describe("runProposalAttempt", () => {
-  it("an empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls", async () => {
+  it("T-001-95/AC-4 T-001-23/AC-4 an empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token, { threshold: 1 });
@@ -769,7 +769,7 @@ describe("runProposalAttempt", () => {
     expect(runs).toEqual([{ outcome: "proposed" }]);
   });
 
-  it("HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish", async () => {
+  it("T-001-95/AC-4 T-001-23/AC-7 HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish", async () => {
     const { planId } = await seedTwoMemberPlan();
     process.env.HP_PROPOSAL_ENABLED = "0";
     const captured: string[] = [];

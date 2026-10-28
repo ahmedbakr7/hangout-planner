@@ -67,6 +67,51 @@ describe("coversInstant", () => {
   });
 });
 
+describe("T-001-22 worked time grid", () => {
+  it("T-001-95/AC-3 T-001-22/AC-1 a window 18:00–19:00 yields 18:00, 18:15, 18:30 and 18:45; members free 18:00–18:30 and 18:30–19:00 both cover 18:30, the unique maximum coverage of 2 and the chosen time; a busy member adds no instant", () => {
+    expect(windowInstants("18:00", "19:00").map(formatLocalMinutes)).toEqual([
+      "18:00",
+      "18:15",
+      "18:30",
+      "18:45",
+    ]);
+
+    const a = free("18:00", "18:30");
+    const b = free("18:30", "19:00");
+    expect(coversInstant(a, "18:30")).toBe(true);
+    expect(coversInstant(b, "18:30")).toBe(true);
+
+    const coverage = windowInstants("18:00", "19:00").map((instant) => [
+      formatLocalMinutes(instant),
+      coverageAt(instant, [a, b]),
+    ]);
+    expect(coverage).toEqual([
+      ["18:00", 1],
+      ["18:15", 1],
+      ["18:30", 2],
+      ["18:45", 1],
+    ]);
+    const maximum = Math.max(...coverage.map(([, count]) => count as number));
+    expect(maximum).toBe(2);
+    expect(coverage.filter(([, count]) => count === maximum)).toEqual([["18:30", 2]]);
+
+    const chosen = chooseTime([WINDOW_18_19], [[a], [b]]);
+    expect(chosen).toEqual({
+      timeBlocked: false,
+      localDate: "2026-10-02",
+      minutes: 18 * 60 + 30,
+      coverage: 2,
+    });
+
+    // A busy member covers no instant, so adding one changes neither any count nor the choice.
+    for (const instant of windowInstants("18:00", "19:00")) {
+      expect(coversInstant(BUSY, instant)).toBe(false);
+      expect(coverageAt(instant, [a, b, BUSY])).toBe(coverageAt(instant, [a, b]));
+    }
+    expect(chooseTime([WINDOW_18_19], [[a], [b], [BUSY]])).toEqual(chosen);
+  });
+});
+
 describe("chooseTime", () => {
   it("picks 18:30 as the unique maximum coverage of 2; a busy member adds no instant", () => {
     const a = free("18:00", "18:30");
