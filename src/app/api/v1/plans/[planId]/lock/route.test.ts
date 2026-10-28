@@ -536,7 +536,7 @@ describe("POST /v1/plans/{planId}/lock", () => {
     expect(await confirmed.json()).toEqual(body);
   });
 
-  it("collecting and blocked return 409 not_proposed; already locked returns 409 plan_locked; there is no unlock route", async () => {
+  it("T-001-96/AC-1 T-001-26/AC-2 collecting and blocked return 409 not_proposed; already locked returns 409 plan_locked; there is no unlock route", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const plan = await openPlan(organizer.token);
     const cookie = `hp_session=${organizer.token}`;
@@ -599,7 +599,7 @@ describe("POST /v1/plans/{planId}/lock", () => {
     expect(existsSync(resolve(__dirname, "../unlock"))).toBe(false);
   });
 
-  it("a stranger gets 404 with the envelope only; a participant gets 403 organizer_only; missing X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
+  it("T-001-96/AC-1 T-001-26/AC-5 a stranger gets 404 with the envelope only; a participant gets 403 organizer_only; missing X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
     const seeded = await seedProposedPlan();
 
     const stranger = await lockPost(seeded.planId, {
@@ -642,5 +642,34 @@ describe("POST /v1/plans/{planId}/lock", () => {
       state: "proposed",
       locked_at: null,
     });
+  });
+
+  it("T-001-96/AC-1 T-001-26/AC-6 handler tests use Postgres from DATABASE_URL", async () => {
+    // The test client is the Postgres server and database that DATABASE_URL names.
+    expect(databaseUrl).toMatch(/^postgres(ql)?:\/\//);
+    const server = await sql<{ version: string; database: string }[]>`
+      SELECT version() AS version, current_database() AS database
+    `;
+    expect(server[0]?.version).toMatch(/^PostgreSQL /);
+    expect(server[0]?.database).toBe(
+      decodeURIComponent(new URL(databaseUrl).pathname.slice(1)),
+    );
+
+    // The handlers read rows this client wrote, and this client reads the rows the handlers wrote:
+    // they share that one database.
+    const seeded = await seedProposedPlan();
+    const response = await lockPost(seeded.planId, {
+      cookie: `hp_session=${seeded.organizerToken}`,
+    });
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      plan_id: string;
+      steps: { place_name: string }[];
+    };
+    expect(body.plan_id).toBe(seeded.planId);
+    expect(body.steps.map((step) => step.place_name)).toEqual(["Abu Tarek", "Cilantro"]);
+    const stored = await planRow(seeded.planId);
+    expect(stored?.state).toBe("locked");
+    expect(stored?.locked_at).not.toBeNull();
   });
 });

@@ -304,7 +304,7 @@ describe("ConfirmedView", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 
-  it("before lock this surface is absent, and opening it shows the current surface for that person and state", async () => {
+  it("T-001-96/AC-3 T-001-28/AC-1 before lock this surface is absent, and opening it shows the current surface for that person and state", async () => {
     await renderErrorThenRetry({ get: "not_locked", opening: "organizer" });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}`);
@@ -380,7 +380,7 @@ describe("ConfirmedView", () => {
     expect(screen.queryByText("0s")).toBeNull();
   });
 
-  it("the distinguisher is shown only when cohort names collide", async () => {
+  it("T-001-96/AC-3 T-001-28/AC-3 the distinguisher is shown only when cohort names collide", async () => {
     await renderLoaded();
     expect(screen.queryByText("n8p1")).toBeNull();
     expect(screen.getByText("a3k9")).toBeTruthy();
@@ -401,7 +401,7 @@ describe("ConfirmedView", () => {
     expect(screen.queryByText("h2k4")).toBeNull();
   });
 
-  it("the surface has no unlock, no signals, no starting points, no option labels, no swap, no response fields, no budget editing, no threshold, and no invite send", async () => {
+  it("T-001-96/AC-3 T-001-28/AC-4 the surface has no unlock, no signals, no starting points, no option labels, no swap, no response fields, no budget editing, no threshold, and no invite send", async () => {
     await renderLoaded();
     expectForbiddenControlsAbsent();
     expect(screen.queryByText("Koshary")).toBeNull();
@@ -410,7 +410,7 @@ describe("ConfirmedView", () => {
     expect(screen.queryByRole("spinbutton")).toBeNull();
   });
 
-  it("chrome may name Google Places and Google Maps routing, and there is no map image and no native-app install step", async () => {
+  it("T-001-96/AC-3 T-001-28/AC-6 chrome may name Google Places and Google Maps routing, and there is no map image and no native-app install step", async () => {
     await renderLoaded();
     expect(
       screen.getByText(
@@ -424,7 +424,7 @@ describe("ConfirmedView", () => {
     expectNoInstall();
   });
 
-  it("a load failure uses text-destructive and retry and omits another plan's title and places", async () => {
+  it("T-001-96/AC-3 T-001-28/AC-7 a load failure uses text-destructive and retry and omits another plan's title and places", async () => {
     const fetchMock = stubFetch({ get: lockedBody() });
     renderView(null);
 
