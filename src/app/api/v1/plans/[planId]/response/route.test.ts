@@ -25,6 +25,8 @@ import {
   PUT,
 } from "./route";
 import { setGoogleClientOptions } from "@/server/response/google";
+import { PATCH as patchPlanRoute } from "../route";
+import { POST as postAttemptRoute } from "../proposal-attempts/route";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -931,7 +933,561 @@ describe("GET/PUT /v1/plans/{planId}/response", () => {
     expect(guestGet.status).toBe(200);
     expect(((await guestGet.json()) as GetBody).response.complete).toBe(false);
   });
+
+  it("T-001-95/AC-1 T-001-20/AC-2 a later complete save returns first_completion false, replaces every stored answer and keeps the count; an incomplete or an invalid body from a complete caller returns 400 and leaves the stored complete response", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const plan = await openPlan(organizer.token);
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const shape = await planShape(plan.id);
+    const cookie = `hp_session=${member.token}`;
+
+    const first = await responsePut(plan.id, completeBody(shape), { cookie });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "collecting",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+
+    setGoogleClientOptions({ apiKey: "test-places-key", fetch: detailsFetch(otherCafe) });
+    const laterBody = {
+      windows: [
+        {
+          window_id: shape.windows[0]!.id,
+          kind: "free",
+          earliest_local: "18:00",
+          latest_local: "20:00",
+        },
+        { window_id: shape.windows[1]!.id, kind: "busy" },
+      ],
+      start_place_id: otherCafe.id,
+      picks: [
+        {
+          step_id: shape.steps[0]!.id,
+          option_id: optionFor(shape, shape.steps[0]!.id, "Grills"),
+        },
+        {
+          step_id: shape.steps[1]!.id,
+          option_id: optionFor(shape, shape.steps[1]!.id, "Filter"),
+        },
+      ],
+    };
+    const later = await responsePut(plan.id, laterBody, { cookie });
+    expect(later.status).toBe(200);
+    expect(await later.json()).toEqual({
+      complete: true,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+
+    // Every earlier answer is gone: windows, start and picks are exactly the later body.
+    const replaced = await storedResponse(participantId);
+    expect(replaced).toEqual({
+      response: {
+        complete: true,
+        start_google_place_id: otherCafe.id,
+        start_name: "Zamalek Garden",
+        start_lat: 30.06,
+        start_lng: 31.22,
+      },
+      windows: [
+        {
+          window_id: shape.windows[0]!.id,
+          kind: "free",
+          earliest_local: "18:00",
+          latest_local: "20:00",
+        },
+        {
+          window_id: shape.windows[1]!.id,
+          kind: "busy",
+          earliest_local: null,
+          latest_local: null,
+        },
+      ].sort((a, b) => a.window_id.localeCompare(b.window_id)),
+      picks: laterBody.picks
+        .map((row) => ({ step_id: row.step_id, option_id: row.option_id }))
+        .sort((a, b) => a.step_id.localeCompare(b.step_id)),
+    });
+
+    const incomplete = await responsePut(
+      plan.id,
+      { windows: [{ window_id: shape.windows[0]!.id, kind: "busy" }] },
+      { cookie },
+    );
+    expect(incomplete.status).toBe(400);
+    expect(await incomplete.json()).toMatchObject({
+      error: { code: "validation_failed" },
+    });
+    expect(await storedResponse(participantId)).toEqual(replaced);
+    expect(await answeredCount(plan.id)).toBe(1);
+
+    const invalid = await responsePut(
+      plan.id,
+      {
+        ...laterBody,
+        windows: [{ window_id: "win_notrealnotrealnotre", kind: "busy" }],
+      },
+      { cookie },
+    );
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({
+      error: { code: "validation_failed" },
+    });
+    expect(await storedResponse(participantId)).toEqual(replaced);
+    expect(await answeredCount(plan.id)).toBe(1);
+  });
+
+  it("T-001-95/AC-1 T-001-20/AC-3 an invalid window or pick returns 400 and writes nothing; a response is complete only with every window, a stored start and exactly one pick per step", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const plan = await openPlan(organizer.token);
+    const shape = await planShape(plan.id);
+    const full = completeBody(shape);
+    const member = async (name: string, distinguisher: string) => {
+      const account = await register(track(uniqueEmail(name)), name);
+      const participantId = await seedAccountParticipant(
+        plan.id,
+        account.account.id,
+        name,
+        distinguisher,
+      );
+      return { participantId, cookie: `hp_session=${account.token}` };
+    };
+
+    // Invalid window and invalid pick: 400, and no row of any kind is written.
+    const nour = await member("Nour", "a3k9");
+    const outside = await responsePut(
+      plan.id,
+      {
+        ...full,
+        windows: [
+          {
+            window_id: shape.windows[0]!.id,
+            kind: "free",
+            earliest_local: "17:00",
+            latest_local: "22:00",
+          },
+          full.windows[1]!,
+        ],
+      },
+      { cookie: nour.cookie },
+    );
+    expect(outside.status).toBe(400);
+    expect(await outside.json()).toMatchObject({
+      error: {
+        code: "validation_failed",
+        fields: [{ path: "windows[0].earliest_local", code: "outside_window" }],
+      },
+    });
+    expect(await storedResponse(nour.participantId)).toEqual({
+      response: null,
+      windows: [],
+      picks: [],
+    });
+
+    const badPick = await responsePut(
+      plan.id,
+      {
+        ...full,
+        picks: [
+          {
+            step_id: shape.steps[0]!.id,
+            option_id: optionFor(shape, shape.steps[1]!.id, "Turkish"),
+          },
+          full.picks[1]!,
+        ],
+      },
+      { cookie: nour.cookie },
+    );
+    expect(badPick.status).toBe(400);
+    expect(await badPick.json()).toMatchObject({
+      error: {
+        code: "validation_failed",
+        fields: [{ path: "picks[0].option_id", code: "unknown" }],
+      },
+    });
+    expect(await storedResponse(nour.participantId)).toEqual({
+      response: null,
+      windows: [],
+      picks: [],
+    });
+    expect(await answeredCount(plan.id)).toBe(0);
+
+    // Missing one window: stays incomplete.
+    const missingWindow = await responsePut(
+      plan.id,
+      { ...full, windows: [full.windows[1]!] },
+      { cookie: nour.cookie },
+    );
+    expect(missingWindow.status).toBe(200);
+    expect(await missingWindow.json()).toEqual({
+      complete: false,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect((await storedResponse(nour.participantId)).response?.complete).toBe(false);
+
+    // No stored start: stays incomplete.
+    const hana = await member("Hana", "k7m2");
+    const noStart = await responsePut(
+      plan.id,
+      { windows: full.windows, picks: full.picks },
+      { cookie: hana.cookie },
+    );
+    expect(noStart.status).toBe(200);
+    expect(await noStart.json()).toMatchObject({ complete: false, first_completion: false });
+    expect((await storedResponse(hana.participantId)).response).toMatchObject({
+      complete: false,
+      start_google_place_id: null,
+    });
+
+    // One step without a pick: stays incomplete; two picks for one step: 400, nothing written.
+    const ziad = await member("Ziad", "z9q1");
+    const onePick = await responsePut(
+      plan.id,
+      { ...full, picks: [full.picks[0]!] },
+      { cookie: ziad.cookie },
+    );
+    expect(onePick.status).toBe(200);
+    expect(await onePick.json()).toMatchObject({ complete: false, first_completion: false });
+    const beforeDouble = await storedResponse(ziad.participantId);
+    expect(beforeDouble.response?.complete).toBe(false);
+    const doublePick = await responsePut(
+      plan.id,
+      {
+        ...full,
+        picks: [
+          full.picks[0]!,
+          {
+            step_id: shape.steps[0]!.id,
+            option_id: optionFor(shape, shape.steps[0]!.id, "Grills"),
+          },
+          full.picks[1]!,
+        ],
+      },
+      { cookie: ziad.cookie },
+    );
+    expect(doublePick.status).toBe(400);
+    expect(await doublePick.json()).toMatchObject({ error: { code: "validation_failed" } });
+    expect(await storedResponse(ziad.participantId)).toEqual(beforeDouble);
+    expect(await answeredCount(plan.id)).toBe(0);
+
+    // Every window, a stored start and one pick per step: complete.
+    const done = await responsePut(plan.id, full, { cookie: nour.cookie });
+    expect(done.status).toBe(200);
+    expect(await done.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "collecting",
+    });
+    expect((await storedResponse(nour.participantId)).response?.complete).toBe(true);
+    expect(await answeredCount(plan.id)).toBe(1);
+  });
+
+  it("T-001-95/AC-1 T-001-20/AC-4 start_place_id is resolved with Place Details; the server stores place id, name, latitude and longitude; JSON carries the start name only; a Details failure is 503 upstream and writes nothing", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const newcomer = await register(track(uniqueEmail("newcomer")), "Hana");
+    const plan = await openPlan(organizer.token);
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const newcomerId = await seedAccountParticipant(
+      plan.id,
+      newcomer.account.id,
+      "Hana",
+      "k7m2",
+    );
+    const shape = await planShape(plan.id);
+    const cookie = `hp_session=${member.token}`;
+
+    const captured: { url: string; method: string | undefined; fieldMask: string | null }[] = [];
+    setGoogleClientOptions({
+      apiKey: "details-key",
+      fetch: async (input, init) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        captured.push({
+          url,
+          method: init?.method,
+          fieldMask: new Headers(init?.headers).get("X-Goog-FieldMask"),
+        });
+        return jsonResponse(startCafe);
+      },
+    });
+
+    const saved = await responsePut(plan.id, completeBody(shape), { cookie });
+    expect(saved.status).toBe(200);
+    const savedJson = JSON.stringify(await saved.json());
+    expect(captured).toHaveLength(1);
+    expect(new URL(captured[0]!.url).pathname).toBe("/v1/places/ChIJ-start");
+    expect(captured[0]!.method).toBe("GET");
+    expect(captured[0]!.fieldMask).toBe(START_DETAILS_FIELD_MASK);
+
+    const stored = await storedResponse(participantId);
+    expect(stored.response).toEqual({
+      complete: true,
+      start_google_place_id: "ChIJ-start",
+      start_name: "Maadi, Cairo",
+      start_lat: 29.96,
+      start_lng: 31.25,
+    });
+
+    const got = await responseGet(plan.id, cookie);
+    expect(got.status).toBe(200);
+    const body = (await got.json()) as GetBody;
+    expect(body.response.start).toEqual({ name: "Maadi, Cairo" });
+    for (const json of [JSON.stringify(body), savedJson]) {
+      expect(json).not.toContain("ChIJ-start");
+      expect(json).not.toContain("29.96");
+      expect(json).not.toContain("31.25");
+      expect(json).not.toContain("start_lat");
+      expect(json).not.toContain("start_lng");
+      expect(json).not.toContain("latitude");
+      expect(json).not.toContain("longitude");
+      expect(json).not.toContain("google_place_id");
+    }
+
+    setGoogleClientOptions({
+      apiKey: "details-key",
+      fetch: async () => jsonResponse({ error: "nope" }, 500),
+    });
+    const changed = completeBody(shape, "ChIJ-fail");
+    changed.picks[0] = {
+      step_id: shape.steps[0]!.id,
+      option_id: optionFor(shape, shape.steps[0]!.id, "Grills"),
+    };
+    const failed = await responsePut(plan.id, changed, { cookie });
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toEqual({
+      error: { code: "upstream", message: "places upstream failed", fields: [] },
+    });
+    expect(await storedResponse(participantId)).toEqual(stored);
+
+    const firstFail = await responsePut(plan.id, completeBody(shape, "ChIJ-fail"), {
+      cookie: `hp_session=${newcomer.token}`,
+    });
+    expect(firstFail.status).toBe(503);
+    expect(await firstFail.json()).toMatchObject({ error: { code: "upstream" } });
+    expect(await storedResponse(newcomerId)).toEqual({ response: null, windows: [], picks: [] });
+    expect(await answeredCount(plan.id)).toBe(1);
+  });
+
+  it("T-001-95/AC-1 T-001-20/AC-5 GET and PUT give 409 responses_closed while proposed and 409 plan_locked while locked; the payload omits count, threshold, other participants and their starts; title, labels and start name come back as stored", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const other = await register(track(uniqueEmail("other")), "Hana");
+    const title = "Late Dinner — عشاء  & Co.";
+    const plan = await openPlan(organizer.token, {
+      title,
+      steps: [
+        { name: "Dinner", options: ["Koshary (Tahrir)", "Grills & Co"] },
+        { name: "Coffee", options: ["Turkish — تركي", "Filter V60"] },
+      ],
+    });
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const otherId = await seedAccountParticipant(plan.id, other.account.id, "Hana", "k7m2");
+    await sql`
+      INSERT INTO responses (
+        participant_id, start_google_place_id, start_name, start_lat, start_lng, complete
+      ) VALUES (${otherId}, 'ChIJ-secret', 'Secret Dock', 1.23, 4.56, false)
+    `;
+    const shape = await planShape(plan.id);
+    const cookie = `hp_session=${member.token}`;
+    const quirkyStart = { ...startCafe, displayName: { text: "  Maadi — المعادي, Cairo " } };
+    setGoogleClientOptions({ apiKey: "test-places-key", fetch: detailsFetch(quirkyStart) });
+    const body = {
+      windows: [
+        { window_id: shape.windows[0]!.id, kind: "busy" },
+        {
+          window_id: shape.windows[1]!.id,
+          kind: "free",
+          earliest_local: "10:30",
+          latest_local: "13:00",
+        },
+      ],
+      start_place_id: startCafe.id,
+      picks: [
+        {
+          step_id: shape.steps[0]!.id,
+          option_id: optionFor(shape, shape.steps[0]!.id, "Koshary (Tahrir)"),
+        },
+        {
+          step_id: shape.steps[1]!.id,
+          option_id: optionFor(shape, shape.steps[1]!.id, "Turkish — تركي"),
+        },
+      ],
+    };
+    const saved = await responsePut(plan.id, body, { cookie });
+    expect(saved.status).toBe(200);
+
+    const open = await responseGet(plan.id, cookie);
+    expect(open.status).toBe(200);
+    const view = (await open.json()) as GetBody;
+    expect(view.title).toBe(title);
+    expect(view.steps.map((step) => step.options.map((option) => option.label))).toEqual([
+      ["Koshary (Tahrir)", "Grills & Co"],
+      ["Turkish — تركي", "Filter V60"],
+    ]);
+    const storedName = (await storedResponse(participantId)).response?.start_name;
+    expect(view.response.start).toEqual({ name: storedName });
+    expect(storedName).toContain("Maadi — المعادي, Cairo");
+    expect(view).not.toHaveProperty("answered_count");
+    expect(view).not.toHaveProperty("threshold");
+    expect(view).not.toHaveProperty("participants");
+    const json = JSON.stringify(view);
+    for (const hidden of [
+      "answered_count",
+      "threshold",
+      "participants",
+      "Hana",
+      otherId,
+      "Secret Dock",
+      "ChIJ-secret",
+      "1.23",
+      "4.56",
+    ]) {
+      expect(json).not.toContain(hidden);
+    }
+
+    const before = await storedResponse(participantId);
+    const changed = { ...body, windows: [{ window_id: shape.windows[0]!.id, kind: "busy" }, body.windows[1]!] };
+    for (const [state, reason] of [
+      ["proposed", "responses_closed"],
+      ["locked", "plan_locked"],
+    ] as const) {
+      if (state === "locked") {
+        await sql`UPDATE plans SET state = 'locked', locked_at = now() WHERE id = ${plan.id}`;
+      } else {
+        await sql`UPDATE plans SET state = 'proposed' WHERE id = ${plan.id}`;
+      }
+      const read = await responseGet(plan.id, cookie);
+      expect(read.status, state).toBe(409);
+      expect(await read.json(), state).toEqual({
+        error: { code: "conflict", reason, message: expect.any(String), fields: [] },
+      });
+      const write = await responsePut(plan.id, changed, { cookie });
+      expect(write.status, state).toBe(409);
+      expect(await write.json(), state).toEqual({
+        error: { code: "conflict", reason, message: expect.any(String), fields: [] },
+      });
+      expect(await storedResponse(participantId), state).toEqual(before);
+      expect(await answeredCount(plan.id), state).toBe(1);
+    }
+  });
+
+  it("T-001-95/AC-1 T-001-20/AC-8 a stranger gets 404 with the envelope only; a PUT without X-HP-Request: 1 is 403 csrf and writes nothing; the handler runs on Postgres with the fake Google client only", async () => {
+    const networkCalls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      networkCalls.push(String(input));
+      throw new Error(`unit tests must not call the network: ${String(input)}`);
+    });
+    const fakeCalls: string[] = [];
+    setGoogleClientOptions({
+      apiKey: "test-places-key",
+      fetch: async (input) => {
+        fakeCalls.push(
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+        );
+        return jsonResponse(startCafe);
+      },
+    });
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const stranger = await register(track(uniqueEmail("stranger")), "Ziad");
+    const plan = await openPlan(organizer.token, { title: "Thursday in Maadi" });
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const shape = await planShape(plan.id);
+    const strangerCookie = `hp_session=${stranger.token}`;
+
+    const expectEnvelopeOnly = async (response: Response) => {
+      expect(response.status).toBe(404);
+      const envelope = (await response.json()) as { error: Record<string, unknown> };
+      expect(envelope).toEqual({
+        error: { code: "not_found", message: "plan not found", fields: [] },
+      });
+      expect(Object.keys(envelope)).toEqual(["error"]);
+      const json = JSON.stringify(envelope);
+      for (const leak of ["Thursday in Maadi", "Nour", "Omar", "Koshary", "Dinner", plan.id]) {
+        expect(json).not.toContain(leak);
+      }
+    };
+    await expectEnvelopeOnly(await responseGet(plan.id, strangerCookie));
+    await expectEnvelopeOnly(
+      await responsePut(plan.id, completeBody(shape), { cookie: strangerCookie }),
+    );
+    const strangerRows = await sql<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM participants
+      WHERE plan_id = ${plan.id} AND account_id = ${stranger.account.id}
+    `;
+    expect(strangerRows[0]?.n).toBe(0);
+
+    const csrf = await responsePut(plan.id, completeBody(shape), {
+      cookie: `hp_session=${member.token}`,
+      csrf: false,
+    });
+    expect(csrf.status).toBe(403);
+    expect(await csrf.json()).toEqual({
+      error: { code: "forbidden", reason: "csrf", message: "missing X-HP-Request", fields: [] },
+    });
+    expect(await storedResponse(participantId)).toEqual({ response: null, windows: [], picks: [] });
+    expect(await answeredCount(plan.id)).toBe(0);
+    expect(fakeCalls).toEqual([]);
+
+    // The same body with the header is served by the fake Details client and lands in Postgres.
+    const saved = await responsePut(plan.id, completeBody(shape), {
+      cookie: `hp_session=${member.token}`,
+    });
+    expect(saved.status).toBe(200);
+    expect(fakeCalls).toHaveLength(1);
+    expect((await storedResponse(participantId)).response).toMatchObject({
+      complete: true,
+      start_google_place_id: "ChIJ-start",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect(networkCalls).toEqual([]);
+  });
 });
+
+type StoredResponse = {
+  response: {
+    complete: boolean;
+    start_google_place_id: string | null;
+    start_name: string | null;
+    start_lat: number | null;
+    start_lng: number | null;
+  } | null;
+  windows: {
+    window_id: string;
+    kind: string;
+    earliest_local: string | null;
+    latest_local: string | null;
+  }[];
+  picks: { step_id: string; option_id: string }[];
+};
+
+/** Everything stored for one participant's response, in a stable order. */
+async function storedResponse(participantId: string): Promise<StoredResponse> {
+  const response = await sql<NonNullable<StoredResponse["response"]>[]>`
+    SELECT complete, start_google_place_id, start_name, start_lat, start_lng
+    FROM responses WHERE participant_id = ${participantId}
+  `;
+  const windows = await sql<StoredResponse["windows"]>`
+    SELECT window_id, kind, earliest_local, latest_local
+    FROM response_windows WHERE participant_id = ${participantId}
+    ORDER BY window_id
+  `;
+  const picks = await sql<StoredResponse["picks"]>`
+    SELECT step_id, option_id FROM response_picks
+    WHERE participant_id = ${participantId}
+    ORDER BY step_id
+  `;
+  return {
+    response: response[0] ? { ...response[0] } : null,
+    windows: windows.map((row) => ({ ...row })),
+    picks: picks.map((row) => ({ ...row })),
+  };
+}
 
 const DINNER_A = {
   id: "ChIJ-dinner-a",
@@ -1234,7 +1790,8 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
     });
   });
 
-  it("HP_PROPOSAL_ENABLED=0 records venue_data and does not call Google", async () => {
+  // T-001-24 names /v1/...; the route is /api/v1/... (ADR-0003). This handler serves that path.
+  it("T-001-95/AC-5 T-001-24/AC-6 HP_PROPOSAL_ENABLED=0 records venue_data and does not call Google", async () => {
     const organizer = await register(track(uniqueEmail("flag")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token, { threshold: 1 });
@@ -1275,6 +1832,416 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
         block_venue_data: true,
       },
     ]);
+  });
+
+  // T-001-24 names /v1/...; the route is /api/v1/... (ADR-0003), so these tests send /api/v1 paths.
+  it("T-001-95/AC-5 T-001-24/AC-1 PUT response runs an attempt only after a first completion commits and makes answered_count equal the threshold, then returns the resulting plan_state; a save while blocked does not run an attempt", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const hana = await register(track(uniqueEmail("hana")), "Hana");
+    const ziad = await register(track(uniqueEmail("ziad")), "Ziad");
+    const plan = await openPlan(organizer.token, { threshold: 2 });
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    const hanaId = await seedAccountParticipant(plan.id, hana.account.id, "Hana", "k7m2");
+    await seedAccountParticipant(plan.id, ziad.account.id, "Ziad", "z9q1");
+    const shape = await planShape(plan.id);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    const put = (cookie: string, body: unknown) =>
+      PUT(jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", body, { cookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+
+    // An incomplete save: no attempt.
+    const draft = await put(`hp_session=${nour.token}`, {
+      windows: [{ window_id: shape.windows[0]!.id, kind: "busy" }],
+    });
+    expect(draft.status).toBe(200);
+    expect(await draft.json()).toEqual({
+      complete: false,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect(await runCount(plan.id)).toBe(0);
+
+    // A first completion that leaves the count below the threshold: no attempt.
+    const firstBelow = await put(`hp_session=${nour.token}`, completeBody(shape));
+    expect(await firstBelow.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "collecting",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect(await runCount(plan.id)).toBe(0);
+
+    // Editing an already complete response is not a first completion: no attempt.
+    const edit = await put(`hp_session=${nour.token}`, completeBody(shape));
+    expect(await edit.json()).toEqual({
+      complete: true,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect(await runCount(plan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // The first completion that makes answered_count equal the threshold runs one attempt.
+    const meets = await put(`hp_session=${hana.token}`, completeBody(shape));
+    expect(meets.status).toBe(200);
+    expect(await meets.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "proposed",
+    });
+    expect(await answeredCount(plan.id)).toBe(2);
+    expect(await planState(plan.id)).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+    // The attempt saw the committed completion: the completing member is in the cohort.
+    const cohort = await sql<{ participant_id: string }[]>`
+      SELECT participant_id FROM proposal_cohort
+      WHERE proposal_id IN (SELECT id FROM proposals WHERE plan_id = ${plan.id})
+      ORDER BY participant_id
+    `;
+    expect(cohort.map((row) => row.participant_id)).toEqual([nourId, hanaId].sort());
+
+    // While blocked, even a first completion that lands on the threshold runs no attempt.
+    await sql`UPDATE plans SET state = 'blocked', threshold = 3 WHERE id = ${plan.id}`;
+    captured.length = 0;
+    const blocked = await put(`hp_session=${ziad.token}`, completeBody(shape));
+    expect(blocked.status).toBe(200);
+    expect(await blocked.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "blocked",
+    });
+    expect(await answeredCount(plan.id)).toBe(3);
+    expect(await planState(plan.id)).toBe("blocked");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(captured).toEqual([]);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-4 the run locks the plan row; a lock younger than 20 seconds returns 409 attempt_in_progress after the triggering write has committed; a lock older than 20 seconds is taken over", async () => {
+    const organizer = await register(track(uniqueEmail("lock")), "Omar");
+    const youngMember = await register(track(uniqueEmail("young")), "Nour");
+    const oldMember = await register(track(uniqueEmail("old")), "Hana");
+    const youngPlan = await openPlan(organizer.token, { threshold: 1 });
+    const oldPlan = await openPlan(organizer.token, { threshold: 1 });
+    const youngId = await seedAccountParticipant(youngPlan.id, youngMember.account.id, "Nour");
+    await seedAccountParticipant(oldPlan.id, oldMember.account.id, "Hana", "k7m2");
+    const youngShape = await planShape(youngPlan.id);
+    const oldShape = await planShape(oldPlan.id);
+    const frozen = new Date("2026-09-26T12:00:00.000Z");
+    setClock(frozen);
+    // A lock taken 19.999 seconds ago is younger than 20 seconds.
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${new Date(frozen.getTime() - ATTEMPT_LOCK_MS + 1)}
+      WHERE id = ${youngPlan.id}
+    `;
+    const captured: string[] = [];
+    const lockSeen: boolean[] = [];
+    const fake = attemptGoogleFetch(captured);
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: async (request, init) => {
+        // Observe the plan row while the run is calling Google.
+        const rows = await sql<{ attempt_lock: boolean }[]>`
+          SELECT attempt_lock FROM plans WHERE id = ${oldPlan.id}
+        `;
+        lockSeen.push(rows[0]?.attempt_lock ?? false);
+        return fake(request, init);
+      },
+    });
+
+    const young = await PUT(
+      jsonRequest(`/api/v1/plans/${youngPlan.id}/response`, "PUT", completeBody(youngShape), {
+        cookie: `hp_session=${youngMember.token}`,
+      }),
+      { params: Promise.resolve({ planId: youngPlan.id }) },
+    );
+    expect(young.status).toBe(409);
+    expect(await young.json()).toEqual({
+      error: {
+        code: "conflict",
+        reason: "attempt_in_progress",
+        message: "a proposal attempt is already in progress",
+        fields: [],
+      },
+    });
+    // The triggering write committed before the 409.
+    expect(await answeredCount(youngPlan.id)).toBe(1);
+    expect((await storedResponse(youngId)).response).toMatchObject({
+      complete: true,
+      start_google_place_id: startCafe.id,
+    });
+    expect(await planState(youngPlan.id)).toBe("collecting");
+    expect(await runCount(youngPlan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // A lock taken 20.001 seconds ago is older than 20 seconds and is taken over.
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${new Date(frozen.getTime() - ATTEMPT_LOCK_MS - 1)}
+      WHERE id = ${oldPlan.id}
+    `;
+    const takeover = await PUT(
+      jsonRequest(`/api/v1/plans/${oldPlan.id}/response`, "PUT", completeBody(oldShape), {
+        cookie: `hp_session=${oldMember.token}`,
+      }),
+      { params: Promise.resolve({ planId: oldPlan.id }) },
+    );
+    expect(takeover.status).toBe(200);
+    expect(await takeover.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "proposed",
+    });
+    expect(await planState(oldPlan.id)).toBe("proposed");
+    expect(await runCount(oldPlan.id)).toBe(1);
+    expectNoLiveGoogle(captured);
+    // While the run worked, the plan row held its lock; it is released when the run ends.
+    expect(lockSeen.length).toBeGreaterThan(0);
+    expect(lockSeen.every(Boolean)).toBe(true);
+    const lock = await sql<{ attempt_lock: boolean }[]>`
+      SELECT attempt_lock FROM plans WHERE id = ${oldPlan.id}
+    `;
+    expect(lock[0]?.attempt_lock).toBe(false);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-5 the attempts route returns 429 after 20 runs per plan per rolling hour (19 still runs) and does not change the plan; a completion or budget raise that finds the hour full does not call Google, finishes as venue_data, and still returns 200 for the committed write", async () => {
+    const organizer = await register(track(uniqueEmail("cap")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const plan = await openPlan(organizer.token, { threshold: 1 });
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const shape = await planShape(plan.id);
+    const orgCookie = `hp_session=${organizer.token}`;
+    const frozen = new Date();
+    setClock(frozen);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    // The cap is the AC's literal 20, not production's constant, so a changed cap fails this test.
+    const hourCap = 20;
+    await seedHourRuns(plan.id, hourCap, new Date(frozen.getTime() - 59 * 60_000));
+    const runsInHour = async (at: Date) =>
+      Number(
+        (
+          await sql<{ count: string }[]>`
+            SELECT count(*)::text AS count FROM proposal_runs
+            WHERE plan_id = ${plan.id} AND started_at > ${new Date(at.getTime() - 60 * 60_000)}
+          `
+        )[0]?.count ?? 0,
+      );
+    const latestRun = async () =>
+      (
+        await sql<
+          { outcome: string; block_time: boolean; block_budget: boolean; block_venue_data: boolean }[]
+        >`
+          SELECT outcome, block_time, block_budget, block_venue_data
+          FROM proposal_runs WHERE plan_id = ${plan.id}
+          ORDER BY started_at DESC, id DESC LIMIT 1
+        `
+      )[0];
+    const planRow = async () =>
+      (
+        await sql<
+          { state: string; budget_amount_minor: number; threshold: number; answered_count: number; updated_at: Date }[]
+        >`
+          SELECT state, budget_amount_minor, threshold, answered_count, updated_at
+          FROM plans WHERE id = ${plan.id}
+        `
+      )[0];
+    const attempt = () =>
+      postAttemptRoute(
+        jsonRequest(`/api/v1/plans/${plan.id}/proposal-attempts`, "POST", {}, { cookie: orgCookie }),
+        { params: Promise.resolve({ planId: plan.id }) },
+      );
+
+    // A completion that finds the hour full: 200 for the committed write, venue_data, no Google.
+    const completed = await PUT(
+      jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", completeBody(shape), {
+        cookie: `hp_session=${member.token}`,
+      }),
+      { params: Promise.resolve({ planId: plan.id }) },
+    );
+    expect(completed.status).toBe(200);
+    expect(await completed.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "blocked",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect((await storedResponse(participantId)).response?.complete).toBe(true);
+    expect(captured).toEqual([]);
+    expect(await runCount(plan.id)).toBe(hourCap + 1);
+    expect(await latestRun()).toEqual({
+      outcome: "blocked",
+      block_time: false,
+      block_budget: false,
+      block_venue_data: true,
+    });
+
+    // The attempts route with the hour full: 429 and the plan does not change.
+    const before = await planRow();
+    const limited = await attempt();
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({
+      error: { code: "rate_limited", message: "too many proposal attempts", fields: [] },
+    });
+    expect(await planRow()).toEqual(before);
+    expect(await runCount(plan.id)).toBe(hourCap + 1);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(0);
+    expect(captured).toEqual([]);
+
+    // A budget raise while blocked that finds the hour full: 200 for the committed write, venue_data, no Google.
+    const raised = await patchPlanRoute(
+      jsonRequest(
+        `/api/v1/plans/${plan.id}`,
+        "PATCH",
+        { budget: { amount_minor: 90_000, currency: "EGP" } },
+        { cookie: orgCookie },
+      ),
+      { params: Promise.resolve({ planId: plan.id }) },
+    );
+    expect(raised.status).toBe(200);
+    const raisedBody = (await raised.json()) as {
+      state: string;
+      budget: { amount_minor: number; currency: string };
+    };
+    expect(raisedBody.budget).toEqual({ amount_minor: 90_000, currency: "EGP" });
+    expect(raisedBody.state).toBe("blocked");
+    expect(Number((await planRow())?.budget_amount_minor)).toBe(90_000);
+    expect(captured).toEqual([]);
+    expect(await runCount(plan.id)).toBe(hourCap + 2);
+    expect(await latestRun()).toEqual({
+      outcome: "blocked",
+      block_time: false,
+      block_budget: false,
+      block_venue_data: true,
+    });
+
+    // Boundary at exactly 20: move past every earlier run, then fill the rolling hour with
+    // one run 59 minutes old and 19 runs 30 minutes old. The attempts route answers 429.
+    const later = new Date(frozen.getTime() + 61 * 60_000);
+    setClock(later);
+    expect(await runsInHour(later)).toBe(0);
+    await seedHourRuns(plan.id, 1, new Date(later.getTime() - 59 * 60_000));
+    await seedHourRuns(plan.id, hourCap - 1, new Date(later.getTime() - 30 * 60_000));
+    expect(await runsInHour(later)).toBe(20);
+    const beforeAtTwenty = await planRow();
+    const atTwenty = await attempt();
+    expect(atTwenty.status).toBe(429);
+    expect(await atTwenty.json()).toEqual({
+      error: { code: "rate_limited", message: "too many proposal attempts", fields: [] },
+    });
+    expect(await planRow()).toEqual(beforeAtTwenty);
+    expect(await runsInHour(later)).toBe(20);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(0);
+    expect(captured).toEqual([]);
+
+    // Boundary at 19: the hour is rolling, so two minutes later the 59-minute-old run leaves it,
+    // 19 runs remain, and the attempts route runs an attempt instead of answering 429.
+    const rolledAt = new Date(later.getTime() + 2 * 60_000);
+    setClock(rolledAt);
+    expect(await runsInHour(rolledAt)).toBe(19);
+    const rolled = await attempt();
+    expect(rolled.status).toBe(200);
+    expect(((await rolled.json()) as { state: string }).state).toBe("proposed");
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+    expect(await runsInHour(rolledAt)).toBe(20);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(1);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-8 handler tests use Postgres and the fake Google clients, and keep plan validation, response counting, and the no-write-on-invalid rules", async () => {
+    const networkCalls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      networkCalls.push(String(input));
+      throw new Error(`unit tests must not call the network: ${String(input)}`);
+    });
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const hana = await register(track(uniqueEmail("hana")), "Hana");
+    const plan = await openPlan(organizer.token, { threshold: 3 });
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    await seedAccountParticipant(plan.id, hana.account.id, "Hana", "k7m2");
+    const shape = await planShape(plan.id);
+    const orgCookie = `hp_session=${organizer.token}`;
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    const patch = (body: unknown) =>
+      patchPlanRoute(jsonRequest(`/api/v1/plans/${plan.id}`, "PATCH", body, { cookie: orgCookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+    const put = (cookie: string, body: unknown) =>
+      PUT(jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", body, { cookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+    const thresholdNow = async () =>
+      Number(
+        (await sql<{ threshold: number }[]>`SELECT threshold FROM plans WHERE id = ${plan.id}`)[0]
+          ?.threshold,
+      );
+
+    // Plan validation still holds: an invalid patch is 400, writes nothing, runs nothing.
+    const invalidPatch = await patch({ title: "", threshold: 2 });
+    expect(invalidPatch.status).toBe(400);
+    expect(await invalidPatch.json()).toMatchObject({
+      error: { code: "validation_failed", fields: [{ path: "title" }] },
+    });
+    expect(await thresholdNow()).toBe(3);
+    expect(await planState(plan.id)).toBe("collecting");
+    expect(await runCount(plan.id)).toBe(0);
+
+    // No write on an invalid response.
+    const invalidPut = await put(`hp_session=${nour.token}`, {
+      ...completeBody(shape),
+      windows: [
+        {
+          window_id: shape.windows[0]!.id,
+          kind: "free",
+          earliest_local: "17:00",
+          latest_local: "22:00",
+        },
+        completeBody(shape).windows[1]!,
+      ],
+    });
+    expect(invalidPut.status).toBe(400);
+    expect(await storedResponse(nourId)).toEqual({ response: null, windows: [], picks: [] });
+    expect(await answeredCount(plan.id)).toBe(0);
+
+    // Response counting still holds: first completions count once each, an edit does not.
+    expect((await (await put(`hp_session=${nour.token}`, completeBody(shape))).json())).toMatchObject({
+      first_completion: true,
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect((await (await put(`hp_session=${nour.token}`, completeBody(shape))).json())).toMatchObject({
+      first_completion: false,
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    await put(`hp_session=${hana.token}`, completeBody(shape));
+    expect(await answeredCount(plan.id)).toBe(2);
+    expect(await runCount(plan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // Lowering the threshold onto the count runs against Postgres and the fake Google clients only.
+    const lowered = await patch({ threshold: 2 });
+    expect(lowered.status).toBe(200);
+    expect(((await lowered.json()) as { state: string }).state).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(1);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+    expect(networkCalls).toEqual([]);
   });
 });
 

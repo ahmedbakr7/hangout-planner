@@ -706,7 +706,8 @@ describe("POST /v1/plans/{planId}/proposal-attempts", () => {
     expect(await planState(seeded.planId)).toBe("blocked");
   });
 
-  it("a stranger gets 404 with the envelope only; a non-organizer who can know the plan gets 403 organizer_only; missing X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
+  // T-001-24 names /v1/...; this is the /api/v1/... attempts route (ADR-0003).
+  it("T-001-95/AC-5 T-001-24/AC-7 a stranger gets 404 with the envelope only; a non-organizer who can know the plan gets 403 organizer_only; missing X-HP-Request: 1 returns 403 csrf and writes nothing", async () => {
     const seeded = await seedBlockedPlan();
     const stranger = await register(track(uniqueEmail("stranger")), "Ziad");
     const captured: string[] = [];

@@ -506,6 +506,120 @@ describe("GET /v1/plans/{planId}/place-searches", () => {
     });
   });
 
+  it("T-001-95/AC-1 T-001-20/AC-6 q must be 1–80 characters after trim; at most 5 results with no coordinates and no prices; 429 after 30 calls per participant per rolling hour; 503 upstream on Google failure", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const heavy = await register(track(uniqueEmail("heavy")), "Hana");
+    const unlucky = await register(track(uniqueEmail("unlucky")), "Ziad");
+    const plan = await openPlan(organizer.token);
+    await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    await seedAccountParticipant(plan.id, heavy.account.id, "Hana", "k7m2");
+    await seedAccountParticipant(plan.id, unlucky.account.id, "Ziad", "z9q1");
+    const cookie = `hp_session=${member.token}`;
+
+    const many = Array.from({ length: 8 }, (_, index) => ({
+      id: `ChIJ-q${index}`,
+      displayName: { text: `Spot ${index}` },
+      location: { latitude: 29.5 + index / 10, longitude: 31.7 },
+      priceRange: { startPrice: { currencyCode: "EGP", units: "275", nanos: 0 } },
+      priceLevel: "PRICE_LEVEL_MODERATE",
+    }));
+    const captured: Captured[] = [];
+    setGoogleClientOptions({ apiKey: "search-key", fetch: searchFetch(many, captured) });
+
+    // Length is counted after trim: empty and 81 are refused without calling Google.
+    for (const [q, code] of [
+      [null, "required"],
+      ["", "required"],
+      ["    ", "required"],
+      ["x".repeat(81), "too_long"],
+      [`  ${"x".repeat(81)}  `, "too_long"],
+    ] as const) {
+      const refused = await searchGet(plan.id, q, { cookie });
+      expect(refused.status, String(q)).toBe(400);
+      expect(await refused.json(), String(q)).toEqual({
+        error: {
+          code: "validation_failed",
+          message: expect.any(String),
+          fields: [{ path: "q", code }],
+        },
+      });
+    }
+    expect(captured).toEqual([]);
+
+    // 1 and 80 characters after trim are accepted; padding does not count.
+    for (const q of ["m", "  m  ", "x".repeat(80), `   ${"x".repeat(80)}   `]) {
+      const ok = await searchGet(plan.id, q, { cookie });
+      expect(ok.status, q).toBe(200);
+      const body = (await ok.json()) as { results: Record<string, unknown>[] };
+      expect(body.results).toHaveLength(5);
+      expect(body.results).toEqual(
+        many.slice(0, 5).map((place) => ({ google_place_id: place.id, name: place.displayName.text })),
+      );
+      const json = JSON.stringify(body);
+      for (const hidden of [
+        "location",
+        "latitude",
+        "longitude",
+        "lat",
+        "lng",
+        "29.5",
+        "31.7",
+        "price",
+        "275",
+        "amount",
+        "currency",
+        "EGP",
+        "PRICE_LEVEL",
+      ]) {
+        expect(json, `${q}: ${hidden}`).not.toContain(hidden);
+      }
+    }
+    expect(captured.map((row) => (row.body as { textQuery: string }).textQuery)).toEqual([
+      "m",
+      "m",
+      "x".repeat(80),
+      "x".repeat(80),
+    ]);
+
+    // 30 calls in a rolling hour are served; the 31st is 429; the next hour serves again.
+    setClock(new Date("2026-04-10T12:00:00.000Z"));
+    const heavyCookie = `hp_session=${heavy.token}`;
+    for (let i = 0; i < 30; i += 1) {
+      const served = await searchGet(plan.id, "Maadi", { cookie: heavyCookie });
+      expect(served.status, `call ${i + 1}`).toBe(200);
+      await served.json();
+    }
+    const limited = await searchGet(plan.id, "Maadi", { cookie: heavyCookie });
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({
+      error: { code: "rate_limited", message: "too many place searches", fields: [] },
+    });
+    // Another participant's calls are counted separately.
+    const neighbour = await searchGet(plan.id, "Maadi", { cookie });
+    expect(neighbour.status).toBe(200);
+    await neighbour.json();
+    setClock(new Date("2026-04-10T13:00:00.001Z"));
+    const nextHour = await searchGet(plan.id, "Maadi", { cookie: heavyCookie });
+    expect(nextHour.status).toBe(200);
+    await nextHour.json();
+
+    // Google failure is 503 upstream.
+    for (const failing of [
+      async () => jsonResponse({ error: "nope" }, 500),
+      async () => {
+        throw new Error("socket hang up");
+      },
+    ] satisfies FetchFn[]) {
+      setGoogleClientOptions({ apiKey: "search-key", fetch: failing });
+      const failed = await searchGet(plan.id, "Maadi", { cookie: `hp_session=${unlucky.token}` });
+      expect(failed.status).toBe(503);
+      expect(await failed.json()).toEqual({
+        error: { code: "upstream", message: "places upstream failed", fields: [] },
+      });
+    }
+  });
+
   it("T-001-57/AC-1 returns 429 when 30 rows newer than one hour exist, even though this instance served none of them", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");

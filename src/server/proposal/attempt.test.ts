@@ -549,7 +549,7 @@ async function seedTwoMemberPlan(): Promise<{
 }
 
 describe("runProposalAttempt", () => {
-  it("an empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls", async () => {
+  it("T-001-95/AC-4 T-001-23/AC-4 an empty cohort stores no proposal and finishes blocked with time true, budget false, venue_data false, and no Google calls", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token, { threshold: 1 });
@@ -769,7 +769,7 @@ describe("runProposalAttempt", () => {
     expect(runs).toEqual([{ outcome: "proposed" }]);
   });
 
-  it("HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish", async () => {
+  it("T-001-95/AC-4 T-001-23/AC-7 HP_PROPOSAL_ENABLED=0 skips Google and finishes as venue_data with the other two flags false for the parts that did not finish", async () => {
     const { planId } = await seedTwoMemberPlan();
     process.env.HP_PROPOSAL_ENABLED = "0";
     const captured: string[] = [];
@@ -809,5 +809,238 @@ describe("runProposalAttempt", () => {
         block_venue_data: true,
       },
     ]);
+  });
+
+  it("T-001-95/AC-4 T-001-23/AC-1 writes proposed for a full chain or blocked otherwise, and on a proposal stores the cohort and the pool", async () => {
+    // Full chain: two complete members and one incomplete joined member.
+    const { planId, nourId, ziadId, shape } = await seedTwoMemberPlan();
+    const late = await register(track(uniqueEmail("late")), "Hana");
+    const lateId = await seedAccountParticipant(planId, late.account.id, "Hana", "k7m2");
+    await sql`
+      INSERT INTO responses (participant_id, complete) VALUES (${lateId}, false)
+    `;
+    const captured: string[] = [];
+    const proposed = await runProposalAttempt(
+      planId,
+      attemptDeps(googleFetch(captured, { byQuery: defaultPlaces, durationSeconds: defaultDuration })),
+    );
+    expect(proposed).toEqual({ status: "proposed" });
+    expect((await sql<{ state: string }[]>`SELECT state FROM plans WHERE id = ${planId}`)[0]?.state).toBe(
+      "proposed",
+    );
+    const proposal = await sql<{ id: string }[]>`SELECT id FROM proposals WHERE plan_id = ${planId}`;
+    expect(proposal).toHaveLength(1);
+    const proposalId = proposal[0]!.id;
+
+    // The cohort is exactly the complete members, not the incomplete one.
+    const cohort = await sql<{ participant_id: string }[]>`
+      SELECT participant_id FROM proposal_cohort WHERE proposal_id = ${proposalId}
+    `;
+    expect(cohort.map((row) => row.participant_id).sort()).toEqual([nourId, ziadId].sort());
+    expect(cohort.map((row) => row.participant_id)).not.toContain(lateId);
+
+    // The pool is every eligible place per step, with name, amount and location.
+    const pool = await sql<
+      { step_id: string; google_place_id: string; place_name: string; amount_minor: string; latitude: number; longitude: number }[]
+    >`
+      SELECT step_id, google_place_id, place_name, amount_minor::text AS amount_minor, latitude, longitude
+      FROM proposal_candidates WHERE proposal_id = ${proposalId}
+      ORDER BY step_id, google_place_id
+    `;
+    const expectedPool = [
+      { step: shape.steps[0]!.id, place: DINNER_A },
+      { step: shape.steps[0]!.id, place: DINNER_B },
+      { step: shape.steps[1]!.id, place: COFFEE_A },
+      { step: shape.steps[1]!.id, place: COFFEE_B },
+    ]
+      .map(({ step, place }) => ({
+        step_id: step,
+        google_place_id: place.id,
+        place_name: place.name,
+        amount_minor: String(place.units * 100),
+        latitude: place.lat,
+        longitude: place.lng,
+      }))
+      .sort((a, b) =>
+        a.step_id === b.step_id
+          ? a.google_place_id.localeCompare(b.google_place_id)
+          : a.step_id.localeCompare(b.step_id),
+      );
+    expect(pool.map((row) => ({ ...row }))).toEqual(expectedPool);
+
+    // Otherwise: a step with no eligible place finishes blocked and stores no proposal.
+    const other = await seedTwoMemberPlan();
+    const blocked = await runProposalAttempt(
+      other.planId,
+      attemptDeps(
+        googleFetch([], {
+          byQuery: { Koshary: defaultPlaces.Koshary, Turkish: [], Filter: [] },
+          durationSeconds: defaultDuration,
+        }),
+      ),
+    );
+    expect(blocked).toEqual({
+      status: "blocked",
+      block: { time: false, budget: true, venue_data: false },
+    });
+    expect(
+      (await sql<{ state: string }[]>`SELECT state FROM plans WHERE id = ${other.planId}`)[0]?.state,
+    ).toBe("blocked");
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${other.planId}`).toHaveLength(0);
+    expect(
+      await sql`
+        SELECT 1 FROM proposal_cohort WHERE proposal_id IN (SELECT id FROM proposals WHERE plan_id = ${other.planId})
+      `,
+    ).toHaveLength(0);
+  });
+
+  it("T-001-95/AC-4 T-001-23/AC-2 drops a priceLevel-only place, another currency, and an amount outside 1 through the plan budget; amount_minor uses the integer startPrice rule", async () => {
+    const { planId, shape } = await seedTwoMemberPlan();
+    // Plan budget is 50_000 minor (500 EGP).
+    const place = (id: string, extra: Record<string, unknown>) =>
+      venuePlace({ id, name: id, lat: 30.01, lng: 31.235, ...extra });
+    const fetch = googleFetch([], {
+      byQuery: {
+        Koshary: [
+          place("ChIJ-level", { priceLevelOnly: true }),
+          place("ChIJ-usd", { currency: "USD", units: 20 }),
+          place("ChIJ-zero", { units: 0, nanos: 0 }),
+          place("ChIJ-over", { units: 500, nanos: 10_000_000 }),
+          place("ChIJ-odd-nanos", { units: 89, nanos: 5_000_000 }),
+          place("ChIJ-one", { units: 0, nanos: 10_000_000 }),
+          place("ChIJ-half", { units: 89, nanos: 500_000_000 }),
+          place("ChIJ-budget", { units: 500, nanos: 0 }),
+        ],
+        Turkish: [venuePlace(COFFEE_A)],
+      },
+    });
+
+    expect(await runProposalAttempt(planId, attemptDeps(fetch))).toEqual({ status: "proposed" });
+    const dinnerPool = await sql<{ google_place_id: string; amount_minor: string }[]>`
+      SELECT google_place_id, amount_minor::text AS amount_minor
+      FROM proposal_candidates
+      WHERE step_id = ${shape.steps[0]!.id}
+        AND proposal_id IN (SELECT id FROM proposals WHERE plan_id = ${planId})
+      ORDER BY google_place_id
+    `;
+    // units * 100 + nanos / 10_000_000 exactly; 1 and the budget itself are inside the range.
+    expect(dinnerPool.map((row) => ({ ...row }))).toEqual([
+      { google_place_id: "ChIJ-budget", amount_minor: "50000" },
+      { google_place_id: "ChIJ-half", amount_minor: "8950" },
+      { google_place_id: "ChIJ-one", amount_minor: "1" },
+    ]);
+  });
+
+  it("T-001-95/AC-4 T-001-23/AC-3 a duration under 1 second is not stored; a full proposal has one leg between each consecutive pair with duration_seconds at least 1", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const plan = await openPlan(organizer.token, {
+      threshold: 1,
+      steps: [
+        { name: "Dinner", options: ["Koshary", "Grills"] },
+        { name: "Coffee", options: ["Turkish", "Filter"] },
+        { name: "Dessert", options: ["Kunafa", "Basbousa"] },
+      ],
+    });
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    const shape = await planShape(plan.id);
+    await seedComplete(plan.id, nourId, START_A, shape);
+    await sql`
+      INSERT INTO response_picks (participant_id, step_id, option_id)
+      VALUES (${nourId}, ${shape.steps[2]!.id}, ${optionFor(shape, "Dessert", "Kunafa")})
+    `;
+    await setAnswered(plan.id, 1);
+    const DESSERT = { id: "ChIJ-dessert", name: "Kunafa House", lat: 30.03, lng: 31.25, units: 30 };
+    const DESSERT_ZERO = { ...DINNER_ZERO, id: "ChIJ-dessert-zero", name: "Zero Sweets" };
+    const fetch = googleFetch([], {
+      byQuery: {
+        Koshary: [venuePlace(DINNER_ZERO), venuePlace(DINNER_A)],
+        Turkish: [venuePlace(COFFEE_A)],
+        Kunafa: [venuePlace(DESSERT_ZERO), venuePlace(DESSERT)],
+      },
+      // Every route touching a "zero" place lasts 0 seconds; the rest differ per leg.
+      durationSeconds: (origin, destination) =>
+        origin.latitude === DINNER_ZERO.lat || destination.latitude === DINNER_ZERO.lat
+          ? 0
+          : 100 + Math.round((destination.latitude - 29) * 1000),
+    });
+
+    expect(await runProposalAttempt(plan.id, attemptDeps(fetch))).toEqual({ status: "proposed" });
+    const proposalId = (await sql<{ id: string }[]>`SELECT id FROM proposals WHERE plan_id = ${plan.id}`)[0]!.id;
+    const steps = await sql<{ step_id: string; google_place_id: string }[]>`
+      SELECT step_id, google_place_id FROM proposal_steps WHERE proposal_id = ${proposalId}
+    `;
+    const placeByStep = new Map(steps.map((row) => [row.step_id, row.google_place_id]));
+    expect(placeByStep.get(shape.steps[0]!.id)).toBe(DINNER_A.id);
+    expect(placeByStep.get(shape.steps[1]!.id)).toBe(COFFEE_A.id);
+    expect(placeByStep.get(shape.steps[2]!.id)).toBe(DESSERT.id);
+
+    const legs = await sql<{ from_step_id: string; to_step_id: string; duration_seconds: number }[]>`
+      SELECT from_step_id, to_step_id, duration_seconds FROM proposal_legs WHERE proposal_id = ${proposalId}
+      ORDER BY duration_seconds
+    `;
+    const byPair = new Map(legs.map((row) => [`${row.from_step_id}>${row.to_step_id}`, row.duration_seconds]));
+    expect(legs).toHaveLength(2);
+    expect(byPair.get(`${shape.steps[0]!.id}>${shape.steps[1]!.id}`)).toBe(
+      100 + Math.round((COFFEE_A.lat - 29) * 1000),
+    );
+    expect(byPair.get(`${shape.steps[1]!.id}>${shape.steps[2]!.id}`)).toBe(
+      100 + Math.round((DESSERT.lat - 29) * 1000),
+    );
+    for (const leg of legs) {
+      expect(leg.duration_seconds).toBeGreaterThanOrEqual(1);
+    }
+
+    // When the only dinner place routes in 0 seconds, nothing under 1 second is stored.
+    const zeroPlan = await openPlan(organizer.token, { threshold: 1 });
+    const zeroMember = await seedAccountParticipant(zeroPlan.id, nour.account.id, "Nour", "a3k9");
+    await seedComplete(zeroPlan.id, zeroMember, START_A, await planShape(zeroPlan.id));
+    await setAnswered(zeroPlan.id, 1);
+    const zeroOnly = await runProposalAttempt(
+      zeroPlan.id,
+      attemptDeps(
+        googleFetch([], {
+          byQuery: { Koshary: [venuePlace(DINNER_ZERO)], Turkish: [venuePlace(COFFEE_A)] },
+          durationSeconds: defaultDuration,
+        }),
+      ),
+    );
+    expect(zeroOnly).toEqual({
+      status: "blocked",
+      block: { time: false, budget: false, venue_data: true },
+    });
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${zeroPlan.id}`).toHaveLength(0);
+    expect(
+      await sql`SELECT 1 FROM proposal_legs WHERE duration_seconds < 1`,
+    ).toHaveLength(0);
+  });
+
+  it("T-001-95/AC-4 T-001-23/AC-8 runs on Postgres with fake Google clients only and never calls places.googleapis.com or routes.googleapis.com", async () => {
+    const network: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      network.push(String(input));
+      throw new Error(`unit tests must not call the network: ${String(input)}`);
+    });
+    const { planId } = await seedTwoMemberPlan();
+    const fake: string[] = [];
+    const result = await runProposalAttempt(
+      planId,
+      attemptDeps(googleFetch(fake, { byQuery: defaultPlaces, durationSeconds: defaultDuration })),
+    );
+    expect(result).toEqual({ status: "proposed" });
+
+    // The fake answered both the Places search and the Routes matrix; the real network saw nothing.
+    expect(fake).toContain(PLACES_SEARCH_TEXT_URL);
+    expect(fake).toContain(ROUTES_MATRIX_URL);
+    expect(network).toEqual([]);
+    expect(network.some((url) => url.includes("googleapis.com"))).toBe(false);
+
+    // The run wrote its rows to the Postgres database in DATABASE_URL.
+    const server = await sql<{ version: string }[]>`SELECT version() AS version`;
+    expect(server[0]?.version).toMatch(/^PostgreSQL/);
+    const runs = await sql<{ outcome: string }[]>`
+      SELECT outcome FROM proposal_runs WHERE plan_id = ${planId}
+    `;
+    expect(runs.map((row) => ({ ...row }))).toEqual([{ outcome: "proposed" }]);
   });
 });

@@ -36,6 +36,17 @@ describe("fairnessWarning", () => {
     expect(maxTripMinusMedian(trips)).toBe(2400 - 720);
   });
 
+  it("T-001-95/AC-3 T-001-22/AC-3 trips of 600, 720 and 2400 seconds turn the warning on with median 720; trips of 600 and 720 turn it off with median (600 + 720 + 1) // 2 = 660", () => {
+    const on = [600, 720, 2400];
+    expect(medianTripSeconds(on)).toBe(720);
+    expect(fairnessWarning(on)).toBe(true);
+
+    const off = [600, 720];
+    expect(medianTripSeconds(off)).toBe((600 + 720 + 1 - ((600 + 720 + 1) % 2)) / 2);
+    expect(medianTripSeconds(off)).toBe(660);
+    expect(fairnessWarning(off)).toBe(false);
+  });
+
   it("turns off for trips of 600 and 720, with median (600 + 720 + 1) // 2 = 660", () => {
     const trips = [600, 720];
     expect(medianTripSeconds(trips)).toBe(660);

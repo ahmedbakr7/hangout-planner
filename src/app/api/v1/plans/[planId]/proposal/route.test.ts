@@ -602,6 +602,102 @@ describe("GET /v1/plans/{planId}/proposal", () => {
     expect(visitorBody.proposal?.legs).toEqual(organizerBody.proposal?.legs);
   });
 
+  it("T-001-95/AC-4 T-001-23/AC-5 GET proposal returns the contract shapes: alternatives, like_count and dislike_count are organizer-only; a cohort member gets my_signal and no alternatives or counts; a non-cohort participant gets the itinerary without alternatives, counts or my_signal", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const ziad = await register(track(uniqueEmail("ziad")), "Ziad");
+    const hana = await register(track(uniqueEmail("hana")), "Hana");
+    const plan = await openPlan(organizer.token);
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    const ziadId = await seedAccountParticipant(plan.id, ziad.account.id, "Ziad", "m2n4");
+    await seedAccountParticipant(plan.id, hana.account.id, "Hana", "k7m2");
+    const shape = await planShape(plan.id);
+    await seedComplete(plan.id, nourId, START_A, shape);
+    await seedComplete(plan.id, ziadId, START_B, shape);
+    await sql`UPDATE plans SET answered_count = 2 WHERE id = ${plan.id}`;
+    expect(
+      await runProposalAttempt(plan.id, {
+        google: { apiKey: "test-places-key", fetch: googleFetch([]) },
+        languageCode: "en",
+      }),
+    ).toEqual({ status: "proposed" });
+    const proposalId = (await sql<{ id: string }[]>`SELECT id FROM proposals WHERE plan_id = ${plan.id}`)[0]!.id;
+    const dinner = shape.steps[0]!.id;
+    const coffee = shape.steps[1]!.id;
+    await sql`
+      INSERT INTO step_signals (proposal_id, step_id, participant_id, signal)
+      VALUES (${proposalId}, ${dinner}, ${nourId}, 'like'), (${proposalId}, ${coffee}, ${nourId}, 'dislike')
+    `;
+
+    const read = async (token: string) => {
+      const response = await proposalGet(plan.id, `hp_session=${token}`);
+      expect(response.status).toBe(200);
+      return (await response.json()) as ProposalGetBody;
+    };
+    const org = await read(organizer.token);
+    const member = await read(nour.token);
+    const quiet = await read(ziad.token);
+    const outsider = await read(hana.token);
+
+    const itineraryKeys = ["name", "option_label", "place", "step_id"];
+    for (const body of [org, member, quiet, outsider]) {
+      expect(Object.keys(body).sort()).toEqual(["block", "proposal", "state"]);
+      expect(body.state).toBe("proposed");
+      expect(body.block).toBeNull();
+      expect(Object.keys(body.proposal!).sort()).toEqual(
+        ["attending_count", "cohort", "cohort_size", "fairness_warning", "legs", "steps", "time"].sort(),
+      );
+    }
+
+    // Organizer: counts and alternatives on every step, no my_signal.
+    for (const step of org.proposal!.steps) {
+      expect(Object.keys(step).sort()).toEqual(
+        [...itineraryKeys, "alternatives", "dislike_count", "like_count"].sort(),
+      );
+      for (const alternative of step.alternatives as Record<string, unknown>[]) {
+        expect(Object.keys(alternative).sort()).toEqual(
+          ["amount_minor", "currency", "google_place_id", "name"].sort(),
+        );
+      }
+    }
+    const orgByStep = new Map(org.proposal!.steps.map((step) => [step.step_id, step]));
+    expect(orgByStep.get(dinner)).toMatchObject({ like_count: 1, dislike_count: 0 });
+    expect(orgByStep.get(coffee)).toMatchObject({ like_count: 0, dislike_count: 1 });
+    expect(orgByStep.get(dinner)!.alternatives).toEqual([
+      expect.objectContaining({ currency: "EGP" }),
+    ]);
+
+    // Cohort members: my_signal (like, dislike or unset) and nothing organizer-only.
+    for (const body of [member, quiet]) {
+      for (const step of body.proposal!.steps) {
+        expect(Object.keys(step).sort()).toEqual([...itineraryKeys, "my_signal"].sort());
+      }
+    }
+    const signals = (body: ProposalGetBody) =>
+      Object.fromEntries(body.proposal!.steps.map((step) => [step.step_id, step.my_signal]));
+    expect(signals(member)).toEqual({ [dinner]: "like", [coffee]: "dislike" });
+    expect(signals(quiet)).toEqual({ [dinner]: "unset", [coffee]: "unset" });
+
+    // Non-cohort participant: the itinerary only.
+    for (const step of outsider.proposal!.steps) {
+      expect(Object.keys(step).sort()).toEqual(itineraryKeys);
+    }
+
+    // Everyone sees the same itinerary.
+    const itinerary = (body: ProposalGetBody) => ({
+      ...body.proposal!,
+      steps: body.proposal!.steps.map((step) => ({
+        step_id: step.step_id,
+        name: step.name,
+        option_label: step.option_label,
+        place: step.place,
+      })),
+    });
+    for (const body of [member, quiet, outsider]) {
+      expect(itinerary(body)).toEqual(itinerary(org));
+    }
+  });
+
   it("T-001-39/AC-1 an invited account, a link reader and an unknown plan get 404 with the envelope only", async () => {
     const organizer = await register(track(uniqueEmail("org")), "Omar");
     const invited = await register(track(uniqueEmail("invited")), "Hana");
