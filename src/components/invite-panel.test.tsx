@@ -421,7 +421,7 @@ describe("InvitePanel", () => {
     stubInviteFetch({ invite: "empty" });
   });
 
-  it("shows the share-link text and a copy control; when copy fails the link text stays visible", async () => {
+  it("T-001-94/AC-6 T-001-19/AC-1 shows the share-link text and a copy control; when copy fails the link text stays visible", async () => {
     const writeText = stubClipboard("fail");
     await renderLoadedInvite({ invite: "empty" });
     const link = screen.getByText(shareUrl());
@@ -446,7 +446,7 @@ describe("InvitePanel", () => {
     expect(screen.getByText(shareUrl())).toBeTruthy();
   });
 
-  it("has one email field and no friend list, suggested people, or past co-planners", async () => {
+  it("T-001-94/AC-6 T-001-19/AC-2 has one email field and no friend list, suggested people, or past co-planners", async () => {
     await renderLoadedInvite({ invite: "empty" });
     expect(screen.getAllByRole("textbox")).toHaveLength(1);
     expect(screen.getByLabelText("Invitee email")).toBeTruthy();
@@ -575,7 +575,7 @@ describe("InvitePanel", () => {
     expect(sentItems()).toHaveLength(2);
   });
 
-  it("T-001-41/AC-6 T-001-55/AC-2 while locked this surface is absent", async () => {
+  it("T-001-94/AC-6 T-001-19/AC-5 T-001-41/AC-6 T-001-55/AC-2 while locked this surface is absent", async () => {
     await renderLoadedInvite({ invite: "ok", send: "locked" });
     fireEvent.change(screen.getByLabelText("Invitee email"), {
       target: { value: "hana@example.com" },
@@ -591,7 +591,7 @@ describe("InvitePanel", () => {
     expectLeakedInviteAbsent();
   });
 
-  it("switching language keeps unsaved invite input", async () => {
+  it("T-001-94/AC-6 T-001-19/AC-6 switching language keeps unsaved invite input", async () => {
     await renderLoadedInvite({ invite: "empty" });
     fireEvent.change(screen.getByLabelText("Invitee email"), {
       target: { value: "keep.this@example.com" },
@@ -661,6 +661,77 @@ describe("InvitePanel", () => {
     fireEvent.click(retry);
     expect(await screen.findByText(shareUrl())).toBeTruthy();
     expect(getCall(fetchMock, INVITE_GET)?.credentials).toBe("same-origin");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expectLeakedInviteAbsent();
+  });
+
+  it("T-001-94/AC-6 T-001-19/AC-3 the sent list shows each invited account once with its display name and its status of invited, joined, or answered; an empty list uses text-muted-foreground", async () => {
+    stubInviteFetch({ invite: "empty" });
+    renderInvite(inviteBody("empty").body);
+    const empty = await screen.findByText(en.invite.emptySent);
+    expect(classTokens(empty)).toContain("text-muted-foreground");
+    expect(sentItems()).toHaveLength(0);
+
+    cleanup();
+    stubInviteFetch({ invite: "ok", send: "reuse" });
+    renderInvite({
+      join_path: JOIN_PATH,
+      invitations: [hanaInvited, alexJoined, omarAnswered],
+    });
+    expect(await screen.findByText("Hana")).toBeTruthy();
+    expect(screen.queryByText(en.invite.emptySent)).toBeNull();
+
+    const expected: [string, string][] = [
+      ["Hana", en.invite.statusInvited],
+      ["Alex", en.invite.statusJoined],
+      ["Omar", en.invite.statusAnswered],
+    ];
+    const expectRows = (): void => {
+      const items = sentItems();
+      expect(items).toHaveLength(3);
+      for (const [name, status] of expected) {
+        const rows = items.filter((item) => item.querySelector("span")?.textContent === name);
+        expect(rows, name).toHaveLength(1);
+        const spans = Array.from(rows[0]!.querySelectorAll("span")).map((span) => span.textContent);
+        expect(spans[0], name).toBe(name);
+        expect(spans[spans.length - 1], name).toBe(status);
+      }
+    };
+    expectRows();
+
+    // Sending to an account already on the list keeps that account on one row.
+    fireEvent.change(screen.getByLabelText(en.invite.email), {
+      target: { value: "hana@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.invite.send }));
+    await waitFor(() => {
+      expect((screen.getByLabelText(en.invite.email) as HTMLInputElement).value).toBe("");
+    });
+    expectRows();
+  });
+
+  it("T-001-94/AC-6 T-001-19/AC-8 a load failure uses text-destructive and retry and omits the other plan's link, title, and people the failed response carried", async () => {
+    const failing = stubInviteFetch({ invite: "fail" });
+    renderInvite(null);
+    const retry = screen.getByRole("button", { name: en.common.retry });
+
+    // The retried load fails too, with a body that carries another plan's link, title and people.
+    fireEvent.click(retry);
+    await waitFor(() => {
+      expect(getCall(failing, INVITE_GET)).toBeDefined();
+    });
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(en.invite.loadError);
+    expect(classTokens(alert)).toContain("text-destructive");
+    expectLeakedInviteAbsent();
+    expect(screen.queryByText(shareUrl())).toBeNull();
+    expect(screen.queryByLabelText(en.invite.email)).toBeNull();
+    expect(sentItems()).toHaveLength(0);
+
+    // Retry is still offered and loads this plan once the read succeeds.
+    stubInviteFetch({ invite: "ok" });
+    fireEvent.click(screen.getByRole("button", { name: en.common.retry }));
+    expect(await screen.findByText(shareUrl())).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
     expectLeakedInviteAbsent();
   });

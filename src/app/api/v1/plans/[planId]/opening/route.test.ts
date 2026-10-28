@@ -449,7 +449,7 @@ describe("GET /v1/plans/{planId}/opening", () => {
     }
   });
 
-  it("an invited account who is not a participant gets next join while the plan is not locked and next confirmed while locked", async () => {
+  it("T-001-94/AC-2 T-001-15/AC-2 an invited account who is not a participant gets next join while the plan is not locked and next confirmed while locked", async () => {
     const orgEmail = track(uniqueEmail("host"));
     const invitedEmail = track(uniqueEmail("guestacc"));
     const organizer = await register(orgEmail, "Omar");

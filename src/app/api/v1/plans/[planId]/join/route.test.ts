@@ -337,7 +337,7 @@ describe("POST /v1/plans/{planId}/join", () => {
     expect(await participantCount(plan.id)).toBe(1);
   });
 
-  it("an invited account who is not yet a participant gets 201; an account that is already a participant gets 200 and that same participant", async () => {
+  it("T-001-94/AC-2 T-001-15/AC-4 an invited account who is not yet a participant gets 201; an account that is already a participant gets 200 and that same participant", async () => {
     const orgEmail = track(uniqueEmail("host"));
     const invitedEmail = track(uniqueEmail("member"));
     const organizer = await register(orgEmail, "Omar");
@@ -400,7 +400,7 @@ describe("POST /v1/plans/{planId}/join", () => {
     expect(await participantCount(plan.id)).toBe(2);
   });
 
-  it("locked, organizer, and full use the same 409s as token join and create no participant", async () => {
+  it("T-001-94/AC-2 T-001-15/AC-5 locked, organizer, and full use the same 409s as token join and create no participant", async () => {
     const orgEmail = track(uniqueEmail("lock"));
     const invitedEmail = track(uniqueEmail("full"));
     const organizer = await register(orgEmail, "Omar");

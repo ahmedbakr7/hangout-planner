@@ -312,7 +312,7 @@ describe("GET /v1/invitations", () => {
     expect(body.invitations).toHaveLength(2);
   });
 
-  it("a second invite of the same account to the same plan does not add a second row", async () => {
+  it("T-001-94/AC-4 T-001-17/AC-2 a second invite of the same account to the same plan does not add a second row", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const hanaEmail = track(uniqueEmail("hana"));
     const organizer = await register(orgEmail, "Omar");
@@ -350,7 +350,7 @@ describe("GET /v1/invitations", () => {
     });
   });
 
-  it("empty is invitations [] and truncated false, and another account's invitation is absent", async () => {
+  it("T-001-94/AC-4 T-001-17/AC-3 empty is invitations [] and truncated false, and another account's invitation is absent", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const hanaEmail = track(uniqueEmail("hana"));
     const emptyEmail = track(uniqueEmail("empty"));
@@ -375,7 +375,7 @@ describe("GET /v1/invitations", () => {
     expect(JSON.stringify(body)).not.toContain("Thursday");
   });
 
-  it("no account session returns 401 missing_session", async () => {
+  it("T-001-94/AC-4 T-001-17/AC-4 no account session returns 401 missing_session", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const hanaEmail = track(uniqueEmail("hana"));
     const organizer = await register(orgEmail, "Omar");

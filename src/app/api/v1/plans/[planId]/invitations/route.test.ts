@@ -321,7 +321,7 @@ type SentRow = {
 };
 
 describe("POST /v1/plans/{planId}/invitations", () => {
-  it("matches an existing account email after trim and lowercase, creates the invitation when missing, reuses the participant distinguisher when that account already joined, and does not change answered_count", async () => {
+  it("T-001-94/AC-3 T-001-16/AC-2 matches an existing account email after trim and lowercase, creates the invitation when missing, reuses the participant distinguisher when that account already joined, and does not change answered_count", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const hanaEmail = track(uniqueEmail("hana"));
     const nourEmail = track(uniqueEmail("nour"));
@@ -466,7 +466,7 @@ describe("POST /v1/plans/{planId}/invitations", () => {
     expect(await answeredCount(plan.id)).toBe(0);
   });
 
-  it("sending again does not add a second row", async () => {
+  it("T-001-94/AC-3 T-001-16/AC-4 sending again does not add a second row", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const hanaEmail = track(uniqueEmail("hana"));
     const organizer = await register(orgEmail, "Omar");
@@ -512,7 +512,7 @@ describe("POST /v1/plans/{planId}/invitations", () => {
     expect(stored).toEqual([{ account_id: hana.account.id }]);
   });
 
-  it("locked returns 409 plan_locked and adds no row", async () => {
+  it("T-001-94/AC-3 T-001-16/AC-5 locked returns 409 plan_locked and adds no row", async () => {
     const orgEmail = track(uniqueEmail("lock"));
     const hanaEmail = track(uniqueEmail("hana"));
     const organizer = await register(orgEmail, "Omar");
