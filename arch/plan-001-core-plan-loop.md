@@ -1,3 +1,10 @@
+---
+id: plan-001
+title: Core hangout plan loop
+status: accepted
+source_spec: design/spec-001-core-plan-loop.md
+---
+
 # Plan 001 — core hangout plan loop
 
 Source: `design/spec-001-core-plan-loop.md` (accepted), `design/DESIGN.md`, `decisions/ADR-0001-stack.md`, `arch/CONTRACTS.md`.
@@ -8,7 +15,7 @@ Do not release a build that accepts a completing response and does not yet run t
 
 Next command after tickets are accepted: `/build <id>` in a new session, one ticket at a time. Not from this session.
 
-## Cuts
+## Ticket cuts
 
 | Cut | Type | Risk | Depends | Skills |
 |---|---|---|---|---|
@@ -45,6 +52,29 @@ Next command after tickets are accepted: `/build <id>` in a new session, one tic
 C05, C06, C22, C23, and C24 are first-of-kind auth or proposal work. Build them at L3. The human accepts that graph before those builds start.
 
 C20 stores a completing response and the answered count. It does not call `runProposalAttempt`. C24 adds that call, the threshold and budget-raise calls, and `POST /v1/plans/{planId}/proposal-attempts`.
+
+## Contracts
+
+Every route, page, table, event and Google call this plan adds is written in `arch/CONTRACTS.md`: `## HTTP` (routes), `## Screens` (pages), `## Tables`, `## Events`, `## External Google`, and `## UI-only` for requirements with no contract. Each ticket's `contracts:` names its heading there. The requirement-to-cut table is `## Requirement map` below; it marks the UI-only requirements.
+
+## Shared modules
+
+Each module below has one owner ticket. Later tickets import it and do not copy it.
+
+| Module | Owner ticket | Exposes |
+|---|---|---|
+| `src/server/db/client.ts` | T-001-01 | `createDb`, `db`, `closeDatabase` |
+| `src/server/money.ts` | T-001-03 | `CURRENCIES`, `isCurrencyCode`, `isAmountMinor`, `parseMoney` |
+| `src/server/ids.ts` | T-001-03 | `generateId`, `isId`, `generateJoinToken`, `generateDistinguisher` |
+| `src/server/http/errors.ts` | T-001-04 | `httpError`, `isErrorStatus`, error code tables |
+| `src/server/clock.ts` | T-001-04 | `now`, `setClock`, `resetClock` |
+| `src/server/auth/password.ts` | T-001-05 | `hashPassword`, `verifyPassword` |
+| `src/server/auth/session.ts` | T-001-05 | session TTL, cookie options, token hashing |
+| `src/server/auth/authorize.ts` | T-001-05 | `PLAN_ROLES`, `authorize` |
+| `src/server/plans/edit-rules.ts` | T-001-09 | `PLAN_STATES`, `editableFor`, `validatePlanPatch` |
+| `src/server/plans/views.ts` | T-001-09 | `organizerPlanView`, `participantResponseView` |
+| `src/server/google/places.ts` | T-001-13 | place search and details clients |
+| `src/server/google/routes.ts` | T-001-13 | `computeRouteMatrix` |
 
 ## File map
 
@@ -159,7 +189,7 @@ The test agent (C29, skill `test`, not `build`) owns:
 
 The test agent does not edit production source and does not delete acceptance criteria.
 
-## Blast radius and rollback
+## Rollback
 
 This slice is the first schema. `drizzle/0001_init.sql` creates the whole database. There is no down migration.
 

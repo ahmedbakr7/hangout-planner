@@ -1,7 +1,7 @@
 ---
 id: T-001-01
 title: "App bootstrap"
-type: backend
+type: chore
 status: done
 legacy: v0
 risk: low
@@ -16,7 +16,7 @@ files:
 skills:
   - build
   - backend-patterns
-contracts: "arch/CONTRACTS.md"
+contracts: []
 requirements: []
 acceptance_criteria:
   - "AC-1: package.json engines field is Node 22"

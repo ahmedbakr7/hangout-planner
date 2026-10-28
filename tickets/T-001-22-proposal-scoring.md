@@ -18,7 +18,7 @@ skills:
   - build
   - backend-patterns
 contracts: "arch/CONTRACTS.md#Time"
-requirements: []
+requirements: [F-001-26, N-001-8, F-001-30]
 acceptance_criteria:
   - "AC-1: A window 18:00–19:00 yields 18:00, 18:15, 18:30, and 18:45; a member free 18:00–18:30 and a member free 18:30–19:00 both cover 18:30; that instant is the unique maximum coverage of 2 and is the chosen time; a busy member adds no instant"
   - "AC-2: Coverage 0 is time-blocked and stores no clock time"

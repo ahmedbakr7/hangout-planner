@@ -27,20 +27,7 @@
       "T-001-30/AC-7: missing": 1
     },
     "artifacts": {
-      "ERROR arch/plan-001-core-plan-loop.md: frontmatter status must be one of ('draft', 'accepted', 'superseded', 'rejected'), got None": 1,
-      "ERROR arch/plan-001-core-plan-loop.md: missing section '## Contracts'": 1,
-      "ERROR arch/plan-001-core-plan-loop.md: missing section '## Rollback'": 1,
-      "ERROR arch/plan-001-core-plan-loop.md: missing section '## Shared modules'": 1,
-      "ERROR arch/plan-001-core-plan-loop.md: missing section '## Ticket cuts'": 1,
-      "ERROR tickets/T-001-01-bootstrap.md: AC-5 is too short to be testable: 'Vitest runs'": 1,
-      "ERROR tickets/T-001-01-bootstrap.md: contract 'arch/CONTRACTS.md' is not declared in arch/CONTRACTS.md": 1,
-      "ERROR tickets/T-001-01-bootstrap.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-02-schema.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-04-errors-and-clock.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-05-auth-core.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-13-google-clients.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-22-proposal-scoring.md: requirements: is empty (cite F-/N- ids from the spec)": 1,
-      "ERROR tickets/T-001-29-e2e.md: requirements: is empty (cite F-/N- ids from the spec)": 1
+      "ERROR tickets/T-001-01-bootstrap.md: AC-5 is too short to be testable: 'Vitest runs'": 1
     },
     "trace": {
       "T-001-01/AC-1: done but proof is none": 1,
