@@ -337,7 +337,7 @@ type JoinBody = {
 };
 
 describe("GET /v1/join/{token}", () => {
-  it("returns 404 for an unknown token and on success attaches the plan to hp_link and uses the opening body shape", async () => {
+  it("T-001-94/AC-1 T-001-14/AC-1 returns 404 for an unknown token and on success attaches the plan to hp_link and uses the opening body shape", async () => {
     const email = track(uniqueEmail("org"));
     const organizer = await register(email, "Omar");
     const plan = await openPlan(organizer.token);
@@ -394,7 +394,7 @@ describe("GET /v1/join/{token}", () => {
     expect(logs.join("\n")).not.toContain(linkToken);
   });
 
-  it("T-001-71/AC-1 when next is join, preview has title, organizer display name, timezone, windows, budget, and step names, and omits option labels, counts, threshold, statuses, starting points, and any itinerary", async () => {
+  it("T-001-94/AC-1 T-001-14/AC-2 T-001-71/AC-1 when next is join, preview has title, organizer display name, timezone, windows, budget, and step names, and omits option labels, counts, threshold, statuses, starting points, and any itinerary", async () => {
     const email = track(uniqueEmail("preview"));
     const organizer = await register(email, "Omar");
     const plan = await openPlan(organizer.token, {
@@ -664,7 +664,7 @@ describe("POST /v1/join/{token}", () => {
     expect(cookieValue(otherGuest!, "hp_guest")).not.toBe(guestToken);
   });
 
-  it("T-001-71/AC-6 account join requires hp_session, uses the account display name, returns 401 missing_session without a session, and returns an existing participant with 200 instead of creating another", async () => {
+  it("T-001-94/AC-1 T-001-14/AC-5 T-001-71/AC-6 account join requires hp_session, uses the account display name, returns 401 missing_session without a session, and returns an existing participant with 200 instead of creating another", async () => {
     const orgEmail = track(uniqueEmail("org"));
     const memberEmail = track(uniqueEmail("acc"));
     const organizer = await register(orgEmail, "Omar");
@@ -796,7 +796,7 @@ describe("POST /v1/join/{token}", () => {
     expect(await participantCount(plan.id)).toBe(PARTICIPANT_CAP);
   });
 
-  it("a new participant receives a distinguisher from the contract alphabet, unique among participants and pending invitations on that plan", async () => {
+  it("T-001-94/AC-1 T-001-14/AC-7 a new participant receives a distinguisher from the contract alphabet, unique among participants and pending invitations on that plan", async () => {
     const orgEmail = track(uniqueEmail("dist"));
     const invitedEmail = track(uniqueEmail("inv"));
     const organizer = await register(orgEmail, "Omar");

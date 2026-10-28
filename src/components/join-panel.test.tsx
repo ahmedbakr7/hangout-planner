@@ -280,13 +280,13 @@ describe("JoinPanel", () => {
     expect(getCall(fetchMock, JOIN_GET)?.credentials).toBe("same-origin");
   });
 
-  it("omits option labels, answered count, threshold, other people's statuses, starting points, and any itinerary", async () => {
+  it("T-001-94/AC-5 T-001-18/AC-2 omits option labels, answered count, threshold, other people's statuses, starting points, and any itinerary", async () => {
     await renderLoaded({ token: JOIN_TOKEN });
     expectForbiddenPreviewAbsent();
     expect(screen.queryByText("3")).toBeNull();
   });
 
-  it("offers join with an account and join without an account, with a display name field and no password on the without-account path", async () => {
+  it("T-001-94/AC-5 T-001-18/AC-3 offers join with an account and join without an account, with a display name field and no password on the without-account path", async () => {
     await renderLoaded({ token: JOIN_TOKEN }, { me: "out" });
     const account = screen.getByRole("link", { name: "Join with an account" });
     expect(account.getAttribute("href")).toBe(`/account?next=/join/${JOIN_TOKEN}`);
@@ -480,7 +480,7 @@ describe("JoinPanel", () => {
     });
   });
 
-  it("T-001-50/AC-3 a direct hit on the wrong path for this plan redirects to next", async () => {
+  it("T-001-94/AC-5 T-001-18/AC-6 T-001-50/AC-3 a direct hit on the wrong path for this plan redirects to next", async () => {
     stubFetch({ me: "in", opening: "organizer" });
     renderJoin({ token: JOIN_TOKEN });
     await waitFor(() => {
