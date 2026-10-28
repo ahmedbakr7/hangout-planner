@@ -25,6 +25,8 @@ import {
   PUT,
 } from "./route";
 import { setGoogleClientOptions } from "@/server/response/google";
+import { PATCH as patchPlanRoute } from "../route";
+import { POST as postAttemptRoute } from "../proposal-attempts/route";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -1295,7 +1297,16 @@ describe("GET/PUT /v1/plans/{planId}/response", () => {
     const quirkyStart = { ...startCafe, displayName: { text: "  Maadi — المعادي, Cairo " } };
     setGoogleClientOptions({ apiKey: "test-places-key", fetch: detailsFetch(quirkyStart) });
     const body = {
-      ...completeBody(shape),
+      windows: [
+        { window_id: shape.windows[0]!.id, kind: "busy" },
+        {
+          window_id: shape.windows[1]!.id,
+          kind: "free",
+          earliest_local: "10:30",
+          latest_local: "13:00",
+        },
+      ],
+      start_place_id: startCafe.id,
       picks: [
         {
           step_id: shape.steps[0]!.id,
@@ -1779,7 +1790,8 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
     });
   });
 
-  it("HP_PROPOSAL_ENABLED=0 records venue_data and does not call Google", async () => {
+  // T-001-24 names /v1/...; the route is /api/v1/... (ADR-0003). This handler serves that path.
+  it("T-001-95/AC-5 T-001-24/AC-6 HP_PROPOSAL_ENABLED=0 records venue_data and does not call Google", async () => {
     const organizer = await register(track(uniqueEmail("flag")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token, { threshold: 1 });
@@ -1820,6 +1832,381 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
         block_venue_data: true,
       },
     ]);
+  });
+
+  // T-001-24 names /v1/...; the route is /api/v1/... (ADR-0003), so these tests send /api/v1 paths.
+  it("T-001-95/AC-5 T-001-24/AC-1 PUT response runs an attempt only after a first completion commits and makes answered_count equal the threshold, then returns the resulting plan_state; a save while blocked does not run an attempt", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const hana = await register(track(uniqueEmail("hana")), "Hana");
+    const ziad = await register(track(uniqueEmail("ziad")), "Ziad");
+    const plan = await openPlan(organizer.token, { threshold: 2 });
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    const hanaId = await seedAccountParticipant(plan.id, hana.account.id, "Hana", "k7m2");
+    await seedAccountParticipant(plan.id, ziad.account.id, "Ziad", "z9q1");
+    const shape = await planShape(plan.id);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    const put = (cookie: string, body: unknown) =>
+      PUT(jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", body, { cookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+
+    // An incomplete save: no attempt.
+    const draft = await put(`hp_session=${nour.token}`, {
+      windows: [{ window_id: shape.windows[0]!.id, kind: "busy" }],
+    });
+    expect(draft.status).toBe(200);
+    expect(await draft.json()).toEqual({
+      complete: false,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect(await runCount(plan.id)).toBe(0);
+
+    // A first completion that leaves the count below the threshold: no attempt.
+    const firstBelow = await put(`hp_session=${nour.token}`, completeBody(shape));
+    expect(await firstBelow.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "collecting",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect(await runCount(plan.id)).toBe(0);
+
+    // Editing an already complete response is not a first completion: no attempt.
+    const edit = await put(`hp_session=${nour.token}`, completeBody(shape));
+    expect(await edit.json()).toEqual({
+      complete: true,
+      first_completion: false,
+      plan_state: "collecting",
+    });
+    expect(await runCount(plan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // The first completion that makes answered_count equal the threshold runs one attempt.
+    const meets = await put(`hp_session=${hana.token}`, completeBody(shape));
+    expect(meets.status).toBe(200);
+    expect(await meets.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "proposed",
+    });
+    expect(await answeredCount(plan.id)).toBe(2);
+    expect(await planState(plan.id)).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+    // The attempt saw the committed completion: the completing member is in the cohort.
+    const cohort = await sql<{ participant_id: string }[]>`
+      SELECT participant_id FROM proposal_cohort
+      WHERE proposal_id IN (SELECT id FROM proposals WHERE plan_id = ${plan.id})
+      ORDER BY participant_id
+    `;
+    expect(cohort.map((row) => row.participant_id)).toEqual([nourId, hanaId].sort());
+
+    // While blocked, even a first completion that lands on the threshold runs no attempt.
+    await sql`UPDATE plans SET state = 'blocked', threshold = 3 WHERE id = ${plan.id}`;
+    captured.length = 0;
+    const blocked = await put(`hp_session=${ziad.token}`, completeBody(shape));
+    expect(blocked.status).toBe(200);
+    expect(await blocked.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "blocked",
+    });
+    expect(await answeredCount(plan.id)).toBe(3);
+    expect(await planState(plan.id)).toBe("blocked");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(captured).toEqual([]);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-4 the run locks the plan row; a lock younger than 20 seconds returns 409 attempt_in_progress after the triggering write has committed; a lock older than 20 seconds is taken over", async () => {
+    const organizer = await register(track(uniqueEmail("lock")), "Omar");
+    const youngMember = await register(track(uniqueEmail("young")), "Nour");
+    const oldMember = await register(track(uniqueEmail("old")), "Hana");
+    const youngPlan = await openPlan(organizer.token, { threshold: 1 });
+    const oldPlan = await openPlan(organizer.token, { threshold: 1 });
+    const youngId = await seedAccountParticipant(youngPlan.id, youngMember.account.id, "Nour");
+    await seedAccountParticipant(oldPlan.id, oldMember.account.id, "Hana", "k7m2");
+    const youngShape = await planShape(youngPlan.id);
+    const oldShape = await planShape(oldPlan.id);
+    const frozen = new Date("2026-09-26T12:00:00.000Z");
+    setClock(frozen);
+    // A lock taken 19.999 seconds ago is younger than 20 seconds.
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${new Date(frozen.getTime() - ATTEMPT_LOCK_MS + 1)}
+      WHERE id = ${youngPlan.id}
+    `;
+    const captured: string[] = [];
+    const lockSeen: boolean[] = [];
+    const fake = attemptGoogleFetch(captured);
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: async (request, init) => {
+        // Observe the plan row while the run is calling Google.
+        const rows = await sql<{ attempt_lock: boolean }[]>`
+          SELECT attempt_lock FROM plans WHERE id = ${oldPlan.id}
+        `;
+        lockSeen.push(rows[0]?.attempt_lock ?? false);
+        return fake(request, init);
+      },
+    });
+
+    const young = await PUT(
+      jsonRequest(`/api/v1/plans/${youngPlan.id}/response`, "PUT", completeBody(youngShape), {
+        cookie: `hp_session=${youngMember.token}`,
+      }),
+      { params: Promise.resolve({ planId: youngPlan.id }) },
+    );
+    expect(young.status).toBe(409);
+    expect(await young.json()).toEqual({
+      error: {
+        code: "conflict",
+        reason: "attempt_in_progress",
+        message: "a proposal attempt is already in progress",
+        fields: [],
+      },
+    });
+    // The triggering write committed before the 409.
+    expect(await answeredCount(youngPlan.id)).toBe(1);
+    expect((await storedResponse(youngId)).response).toMatchObject({
+      complete: true,
+      start_google_place_id: startCafe.id,
+    });
+    expect(await planState(youngPlan.id)).toBe("collecting");
+    expect(await runCount(youngPlan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // A lock taken 20.001 seconds ago is older than 20 seconds and is taken over.
+    await sql`
+      UPDATE plans
+      SET attempt_lock = true, attempt_lock_at = ${new Date(frozen.getTime() - ATTEMPT_LOCK_MS - 1)}
+      WHERE id = ${oldPlan.id}
+    `;
+    const takeover = await PUT(
+      jsonRequest(`/api/v1/plans/${oldPlan.id}/response`, "PUT", completeBody(oldShape), {
+        cookie: `hp_session=${oldMember.token}`,
+      }),
+      { params: Promise.resolve({ planId: oldPlan.id }) },
+    );
+    expect(takeover.status).toBe(200);
+    expect(await takeover.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "proposed",
+    });
+    expect(await planState(oldPlan.id)).toBe("proposed");
+    expect(await runCount(oldPlan.id)).toBe(1);
+    expectNoLiveGoogle(captured);
+    // While the run worked, the plan row held its lock; it is released when the run ends.
+    expect(lockSeen.length).toBeGreaterThan(0);
+    expect(lockSeen.every(Boolean)).toBe(true);
+    const lock = await sql<{ attempt_lock: boolean }[]>`
+      SELECT attempt_lock FROM plans WHERE id = ${oldPlan.id}
+    `;
+    expect(lock[0]?.attempt_lock).toBe(false);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-5 the attempts route returns 429 after 20 runs per plan per rolling hour and does not change the plan; a completion or budget raise that finds the hour full does not call Google, finishes as venue_data, and still returns 200 for the committed write", async () => {
+    const organizer = await register(track(uniqueEmail("cap")), "Omar");
+    const member = await register(track(uniqueEmail("member")), "Nour");
+    const plan = await openPlan(organizer.token, { threshold: 1 });
+    const participantId = await seedAccountParticipant(plan.id, member.account.id, "Nour");
+    const shape = await planShape(plan.id);
+    const orgCookie = `hp_session=${organizer.token}`;
+    const frozen = new Date();
+    setClock(frozen);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    await seedHourRuns(plan.id, PROPOSAL_ATTEMPT_HOUR_CAP, new Date(frozen.getTime() - 59 * 60_000));
+    const latestRun = async () =>
+      (
+        await sql<
+          { outcome: string; block_time: boolean; block_budget: boolean; block_venue_data: boolean }[]
+        >`
+          SELECT outcome, block_time, block_budget, block_venue_data
+          FROM proposal_runs WHERE plan_id = ${plan.id}
+          ORDER BY started_at DESC, id DESC LIMIT 1
+        `
+      )[0];
+    const planRow = async () =>
+      (
+        await sql<
+          { state: string; budget_amount_minor: number; threshold: number; answered_count: number; updated_at: Date }[]
+        >`
+          SELECT state, budget_amount_minor, threshold, answered_count, updated_at
+          FROM plans WHERE id = ${plan.id}
+        `
+      )[0];
+    const attempt = () =>
+      postAttemptRoute(
+        jsonRequest(`/api/v1/plans/${plan.id}/proposal-attempts`, "POST", {}, { cookie: orgCookie }),
+        { params: Promise.resolve({ planId: plan.id }) },
+      );
+
+    // A completion that finds the hour full: 200 for the committed write, venue_data, no Google.
+    const completed = await PUT(
+      jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", completeBody(shape), {
+        cookie: `hp_session=${member.token}`,
+      }),
+      { params: Promise.resolve({ planId: plan.id }) },
+    );
+    expect(completed.status).toBe(200);
+    expect(await completed.json()).toEqual({
+      complete: true,
+      first_completion: true,
+      plan_state: "blocked",
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect((await storedResponse(participantId)).response?.complete).toBe(true);
+    expect(captured).toEqual([]);
+    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 1);
+    expect(await latestRun()).toEqual({
+      outcome: "blocked",
+      block_time: false,
+      block_budget: false,
+      block_venue_data: true,
+    });
+
+    // The attempts route with the hour full: 429 and the plan does not change.
+    const before = await planRow();
+    const limited = await attempt();
+    expect(limited.status).toBe(429);
+    expect(await limited.json()).toEqual({
+      error: { code: "rate_limited", message: "too many proposal attempts", fields: [] },
+    });
+    expect(await planRow()).toEqual(before);
+    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 1);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(0);
+    expect(captured).toEqual([]);
+
+    // A budget raise while blocked that finds the hour full: 200 for the committed write, venue_data, no Google.
+    const raised = await patchPlanRoute(
+      jsonRequest(
+        `/api/v1/plans/${plan.id}`,
+        "PATCH",
+        { budget: { amount_minor: 90_000, currency: "EGP" } },
+        { cookie: orgCookie },
+      ),
+      { params: Promise.resolve({ planId: plan.id }) },
+    );
+    expect(raised.status).toBe(200);
+    const raisedBody = (await raised.json()) as {
+      state: string;
+      budget: { amount_minor: number; currency: string };
+    };
+    expect(raisedBody.budget).toEqual({ amount_minor: 90_000, currency: "EGP" });
+    expect(raisedBody.state).toBe("blocked");
+    expect(Number((await planRow())?.budget_amount_minor)).toBe(90_000);
+    expect(captured).toEqual([]);
+    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 2);
+    expect(await latestRun()).toEqual({
+      outcome: "blocked",
+      block_time: false,
+      block_budget: false,
+      block_venue_data: true,
+    });
+
+    // The hour is rolling: once every counted run is older than an hour, the route runs again.
+    setClock(new Date(frozen.getTime() + 61 * 60_000));
+    const rolled = await attempt();
+    expect(rolled.status).toBe(200);
+    expect(((await rolled.json()) as { state: string }).state).toBe("proposed");
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+  });
+
+  it("T-001-95/AC-5 T-001-24/AC-8 handler tests use Postgres and the fake Google clients, and keep plan validation, response counting, and the no-write-on-invalid rules", async () => {
+    const networkCalls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      networkCalls.push(String(input));
+      throw new Error(`unit tests must not call the network: ${String(input)}`);
+    });
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const nour = await register(track(uniqueEmail("nour")), "Nour");
+    const hana = await register(track(uniqueEmail("hana")), "Hana");
+    const plan = await openPlan(organizer.token, { threshold: 3 });
+    const nourId = await seedAccountParticipant(plan.id, nour.account.id, "Nour", "a3k9");
+    await seedAccountParticipant(plan.id, hana.account.id, "Hana", "k7m2");
+    const shape = await planShape(plan.id);
+    const orgCookie = `hp_session=${organizer.token}`;
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    const patch = (body: unknown) =>
+      patchPlanRoute(jsonRequest(`/api/v1/plans/${plan.id}`, "PATCH", body, { cookie: orgCookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+    const put = (cookie: string, body: unknown) =>
+      PUT(jsonRequest(`/api/v1/plans/${plan.id}/response`, "PUT", body, { cookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+    const thresholdNow = async () =>
+      Number(
+        (await sql<{ threshold: number }[]>`SELECT threshold FROM plans WHERE id = ${plan.id}`)[0]
+          ?.threshold,
+      );
+
+    // Plan validation still holds: an invalid patch is 400, writes nothing, runs nothing.
+    const invalidPatch = await patch({ title: "", threshold: 2 });
+    expect(invalidPatch.status).toBe(400);
+    expect(await invalidPatch.json()).toMatchObject({
+      error: { code: "validation_failed", fields: [{ path: "title" }] },
+    });
+    expect(await thresholdNow()).toBe(3);
+    expect(await planState(plan.id)).toBe("collecting");
+    expect(await runCount(plan.id)).toBe(0);
+
+    // No write on an invalid response.
+    const invalidPut = await put(`hp_session=${nour.token}`, {
+      ...completeBody(shape),
+      windows: [
+        {
+          window_id: shape.windows[0]!.id,
+          kind: "free",
+          earliest_local: "17:00",
+          latest_local: "22:00",
+        },
+        completeBody(shape).windows[1]!,
+      ],
+    });
+    expect(invalidPut.status).toBe(400);
+    expect(await storedResponse(nourId)).toEqual({ response: null, windows: [], picks: [] });
+    expect(await answeredCount(plan.id)).toBe(0);
+
+    // Response counting still holds: first completions count once each, an edit does not.
+    expect((await (await put(`hp_session=${nour.token}`, completeBody(shape))).json())).toMatchObject({
+      first_completion: true,
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    expect((await (await put(`hp_session=${nour.token}`, completeBody(shape))).json())).toMatchObject({
+      first_completion: false,
+    });
+    expect(await answeredCount(plan.id)).toBe(1);
+    await put(`hp_session=${hana.token}`, completeBody(shape));
+    expect(await answeredCount(plan.id)).toBe(2);
+    expect(await runCount(plan.id)).toBe(0);
+    expect(captured).toEqual([]);
+
+    // Lowering the threshold onto the count runs against Postgres and the fake Google clients only.
+    const lowered = await patch({ threshold: 2 });
+    expect(lowered.status).toBe(200);
+    expect(((await lowered.json()) as { state: string }).state).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(1);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+    expect(networkCalls).toEqual([]);
   });
 });
 

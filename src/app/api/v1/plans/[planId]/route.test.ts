@@ -1069,6 +1069,51 @@ describe("PATCH /v1/plans/{planId} attempt trigger", () => {
     expectNoLiveGoogle(captured);
   });
 
+  // T-001-24 names /v1/...; the route is /api/v1/... (ADR-0003), so this test sends the /api/v1 path.
+  it("T-001-95/AC-5 T-001-24/AC-2 PATCH runs an attempt when it lowers the threshold onto answered_count while collecting, or raises the budget while blocked, and the returned plan includes the new state", async () => {
+    const organizer = await register(track(uniqueEmail("org")), "Omar");
+    const cookie = `hp_session=${organizer.token}`;
+    const plan = await openPlan(organizer.token);
+    await seedTwoComplete(plan.id);
+    const captured: string[] = [];
+    setProposalAttemptGoogleOptions({
+      apiKey: "test-places-key",
+      fetch: attemptGoogleFetch(captured),
+    });
+    const patch = (body: unknown) =>
+      PATCH(jsonRequest(`/api/v1/plans/${plan.id}`, "PATCH", body, { cookie }), {
+        params: Promise.resolve({ planId: plan.id }),
+      });
+    const storedState = async () =>
+      (await sql<{ state: string }[]>`SELECT state FROM plans WHERE id = ${plan.id}`)[0]?.state;
+
+    // Collecting, threshold 3, answered 2: lowering it onto the count runs one attempt.
+    expect(await storedState()).toBe("collecting");
+    const lowered = await patch({ threshold: 2 });
+    expect(lowered.status).toBe(200);
+    const loweredBody = (await lowered.json()) as OrganizerPlanBody;
+    expect(loweredBody.threshold).toBe(2);
+    expect(loweredBody.answered_count).toBe(2);
+    expect(loweredBody.state).toBe("proposed");
+    expect(await storedState()).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(1);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+
+    // Blocked: raising the budget runs one more attempt, and the returned plan carries its state.
+    await sql`UPDATE plans SET state = 'blocked' WHERE id = ${plan.id}`;
+    captured.length = 0;
+    const raised = await patch({ budget: { amount_minor: 90_000, currency: "EGP" } });
+    expect(raised.status).toBe(200);
+    const raisedBody = (await raised.json()) as OrganizerPlanBody;
+    expect(raisedBody.budget).toEqual({ amount_minor: 90_000, currency: "EGP" });
+    expect(raisedBody.state).toBe("proposed");
+    expect(await storedState()).toBe("proposed");
+    expect(await runCount(plan.id)).toBe(2);
+    expect(captured.length).toBeGreaterThan(0);
+    expectNoLiveGoogle(captured);
+  });
+
   it("returns 409 attempt_in_progress for a young lock after the patch has committed, and takes over a lock older than 20s", async () => {
     const organizer = await register(track(uniqueEmail("lock")), "Omar");
     const cookie = `hp_session=${organizer.token}`;

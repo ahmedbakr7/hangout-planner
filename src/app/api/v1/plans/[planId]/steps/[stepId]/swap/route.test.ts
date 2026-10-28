@@ -733,7 +733,7 @@ describe("POST /v1/plans/{planId}/steps/{stepId}/swap", () => {
     expect(cohortDinner?.my_signal).toBe("unset");
   });
 
-  it("leaves time and other steps' places and alternative lists unchanged and does not call Places", async () => {
+  it("T-001-95/AC-6 T-001-25/AC-2 leaves time and other steps' places and alternative lists unchanged and does not call Places", async () => {
     const seeded = await seedProposedPlan();
     const before = await snapshot(seeded.planId);
     const captured: string[] = [];
@@ -759,7 +759,7 @@ describe("POST /v1/plans/{planId}/steps/{stepId}/swap", () => {
     expect(captured.length).toBeGreaterThan(0);
   });
 
-  it("returns 409 not_an_alternative for a place that is not one of that step's alternatives and leaves the proposal unchanged", async () => {
+  it("T-001-95/AC-6 T-001-25/AC-3 returns 409 not_an_alternative for a place that is not one of that step's alternatives and leaves the proposal unchanged", async () => {
     const seeded = await seedProposedPlan();
     const before = await snapshot(seeded.planId);
     const captured: string[] = [];
@@ -802,7 +802,7 @@ describe("POST /v1/plans/{planId}/steps/{stepId}/swap", () => {
     expect(captured).toEqual([]);
   });
 
-  it("returns 409 route_unavailable when a touched leg cannot be routed and leaves the previous place, legs, signals, and alternatives", async () => {
+  it("T-001-95/AC-6 T-001-25/AC-4 returns 409 route_unavailable when a touched leg cannot be routed and leaves the previous place, legs, signals, and alternatives", async () => {
     const seeded = await seedProposedPlan();
     const before = await snapshot(seeded.planId);
     const captured: string[] = [];
@@ -827,7 +827,7 @@ describe("POST /v1/plans/{planId}/steps/{stepId}/swap", () => {
     expectFakeRoutesOnly(captured);
   });
 
-  it("after a successful swap, like_count and dislike_count are 0 and a cohort member's my_signal on that step is unset", async () => {
+  it("T-001-95/AC-6 T-001-25/AC-5 after a successful swap, like_count and dislike_count are 0 and a cohort member's my_signal on that step is unset", async () => {
     const seeded = await seedProposedPlan();
     const captured: string[] = [];
     setGoogleClientOptions({
@@ -975,5 +975,100 @@ describe("POST /v1/plans/{planId}/steps/{stepId}/swap", () => {
     expect(lockedSnap.legs).toEqual(before.legs);
     expect(lockedSnap.signals).toEqual(before.signals);
     expect(captured).toEqual([]);
+  });
+
+  it("T-001-95/AC-6 T-001-25/AC-1 swap of a stored alternative replaces that step's place, refreshes the touching legs and fairness_warning, deletes that step's signals and replaces that step's alternatives from the remaining stored pool", async () => {
+    const seeded = await seedProposedPlan();
+    const before = await snapshot(seeded.planId);
+    expect(before.proposal?.fairness_warning).toBe(false);
+    expect(before.legs).toEqual([
+      { from_step_id: seeded.dinnerId, to_step_id: seeded.coffeeId, duration_seconds: ORIGINAL_LEG_SECONDS },
+    ]);
+    expect(before.signals.filter((row) => row.step_id === seeded.dinnerId)).toHaveLength(2);
+
+    // First swap: a start trip of 4000s to Dinner B makes the chain unfair.
+    const captured: string[] = [];
+    setGoogleClientOptions({ apiKey: "test-routes-key", fetch: routesFetch(captured, "unfair") });
+    const first = await swapPost(seeded.planId, seeded.dinnerId, DINNER_B.id, {
+      cookie: `hp_session=${seeded.organizerToken}`,
+    });
+    expect(first.status).toBe(200);
+    expect(((await first.json()) as OrganizerProposalBody).proposal?.fairness_warning).toBe(true);
+
+    const afterFirst = await snapshot(seeded.planId);
+    const swapped = afterFirst.steps.find((row) => row.step_id === seeded.dinnerId);
+    // amount_minor is a bigint column, which the raw test client returns as a string.
+    expect({ ...swapped, amount_minor: Number(swapped?.amount_minor) }).toEqual({
+      step_id: seeded.dinnerId,
+      google_place_id: DINNER_B.id,
+      place_name: DINNER_B.name,
+      amount_minor: DINNER_B.amount,
+    });
+    expect(afterFirst.legs).toEqual([
+      { from_step_id: seeded.dinnerId, to_step_id: seeded.coffeeId, duration_seconds: ROUTED_SECONDS },
+    ]);
+    expect(afterFirst.proposal?.fairness_warning).toBe(true);
+    expect(afterFirst.signals.filter((row) => row.step_id === seeded.dinnerId)).toEqual([]);
+    expect(afterFirst.signals.filter((row) => row.step_id === seeded.coffeeId)).toEqual(
+      before.signals.filter((row) => row.step_id === seeded.coffeeId),
+    );
+    // The new list comes from the stored pool without the now-current place; the old place rejoins it.
+    const pool = [DINNER_A.id, DINNER_B.id, DINNER_C.id, DINNER_D.id, DINNER_E.id];
+    const firstAlts = afterFirst.alts.filter((row) => row.step_id === seeded.dinnerId);
+    expect(firstAlts.map((row) => row.google_place_id)).toEqual([DINNER_A.id, DINNER_C.id, DINNER_D.id]);
+    expect(firstAlts.map((row) => row.position)).toEqual([0, 1, 2]);
+    expect(firstAlts.every((row) => pool.includes(row.google_place_id))).toBe(true);
+    expect(firstAlts.some((row) => row.google_place_id === DINNER_B.id)).toBe(false);
+    expectFakeRoutesOnly(captured);
+
+    // Second swap to a place from the new list: every trip is equal, so the warning is refreshed off.
+    const capturedAgain: string[] = [];
+    setGoogleClientOptions({ apiKey: "test-routes-key", fetch: routesFetch(capturedAgain, "ok") });
+    const second = await swapPost(seeded.planId, seeded.dinnerId, DINNER_C.id, {
+      cookie: `hp_session=${seeded.organizerToken}`,
+    });
+    expect(second.status).toBe(200);
+    const afterSecond = await snapshot(seeded.planId);
+    expect(afterSecond.proposal?.fairness_warning).toBe(false);
+    expect(afterSecond.steps.find((row) => row.step_id === seeded.dinnerId)?.google_place_id).toBe(
+      DINNER_C.id,
+    );
+    expect(
+      afterSecond.alts
+        .filter((row) => row.step_id === seeded.dinnerId)
+        .map((row) => row.google_place_id),
+    ).toEqual([DINNER_A.id, DINNER_B.id, DINNER_D.id]);
+    expectFakeRoutesOnly(capturedAgain);
+  });
+
+  it("T-001-95/AC-6 T-001-25/AC-8 the swap handler runs on Postgres with the fake Routes client and never calls routes.googleapis.com", async () => {
+    const networkCalls: string[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      networkCalls.push(String(input));
+      throw new Error(`unit tests must not call the network: ${String(input)}`);
+    });
+    const seeded = await seedProposedPlan();
+    const fakeCalls: string[] = [];
+    setGoogleClientOptions({ apiKey: "test-routes-key", fetch: routesFetch(fakeCalls, "ok") });
+
+    const response = await swapPost(seeded.planId, seeded.dinnerId, DINNER_B.id, {
+      cookie: `hp_session=${seeded.organizerToken}`,
+    });
+    expect(response.status).toBe(200);
+    // The fake Routes client answered the leg; the real network saw nothing.
+    expect(fakeCalls.length).toBeGreaterThan(0);
+    expectFakeRoutesOnly(fakeCalls);
+    expect(networkCalls).toEqual([]);
+    expect(networkCalls.some((url) => url.includes("routes.googleapis.com"))).toBe(false);
+    // The swap is stored in Postgres, read back through a separate connection.
+    const stored = await sql<{ google_place_id: string; duration_seconds: number }[]>`
+      SELECT s.google_place_id, l.duration_seconds
+      FROM proposal_steps s
+      JOIN proposal_legs l ON l.proposal_id = s.proposal_id AND l.from_step_id = s.step_id
+      WHERE s.proposal_id = ${seeded.proposalId} AND s.step_id = ${seeded.dinnerId}
+    `;
+    expect(stored.map((row) => ({ ...row }))).toEqual([
+      { google_place_id: DINNER_B.id, duration_seconds: ROUTED_SECONDS },
+    ]);
   });
 });

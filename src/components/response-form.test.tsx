@@ -4,6 +4,7 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import en from "../../messages/en.json";
 import { ResponseForm } from "@/components/response-form";
+import RespondError from "@/app/plans/[planId]/respond/error";
 
 const { router } = vi.hoisted(() => ({
   router: {
@@ -935,5 +936,462 @@ describe("ResponseForm attempt_in_progress", () => {
     expect(classTokens(alert)).toContain("text-destructive");
     expect(router.replace).not.toHaveBeenCalled();
     expect(requestLines(fetchMock)).toEqual([`PUT ${RESPONSE_PUT}`]);
+  });
+});
+
+// T-001-95 AC-2: one test per shipped T-001-21 AC, each asserting every clause of that AC.
+describe("T-001-95 response form coverage", () => {
+  const nileHit = { google_place_id: "ChIJ-nile", name: "Nile Corniche" };
+  const otherHit = { google_place_id: "ChIJ-helio", name: "Heliopolis Square" };
+
+  function stubFlow(planState: "collecting" | "blocked", puts: unknown[]) {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url.startsWith(SEARCH_PREFIX) && method === "GET") {
+        return jsonResponse(200, { results: [nileHit, otherHit] });
+      }
+      if (url === RESPONSE_PUT && method === "PUT") {
+        const next = puts.shift();
+        if (next instanceof Response) {
+          return next;
+        }
+        return jsonResponse(
+          200,
+          next ?? { complete: false, first_completion: false, plan_state: planState },
+        );
+      }
+      throw new Error(`unexpected fetch ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function putBodies(fetchMock: ReturnType<typeof stubFlow>): Record<string, unknown>[] {
+    return fetchMock.mock.calls
+      .filter(([, init]) => (init?.method ?? "GET").toUpperCase() === "PUT")
+      .map(([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>);
+  }
+
+  function secondWindow(): HTMLElement {
+    const fieldset = screen.getByText("2026-10-03 17:00-22:00").closest("fieldset");
+    if (!fieldset) {
+      throw new Error("missing second window fieldset");
+    }
+    return fieldset;
+  }
+
+  async function confirmNile(): Promise<void> {
+    fireEvent.change(screen.getByLabelText(/approximate/i), { target: { value: "Nile" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    const hit = await screen.findByText("Nile Corniche");
+    const item = hit.closest("li");
+    if (!item) {
+      throw new Error("missing search result item");
+    }
+    fireEvent.click(within(item).getByRole("button", { name: "Confirm this place" }));
+  }
+
+  function fillValidWindows(): void {
+    fireEvent.click(within(firstWindow()).getByLabelText("Free"));
+    fireEvent.change(within(firstWindow()).getByLabelText("Earliest"), {
+      target: { value: "19:00" },
+    });
+    fireEvent.change(within(firstWindow()).getByLabelText("Latest"), {
+      target: { value: "21:30" },
+    });
+    fireEvent.click(within(secondWindow()).getByLabelText("Busy"));
+  }
+
+  function expectEveryFieldEditable(): void {
+    const inputs = Array.from(document.querySelectorAll("form input")) as HTMLInputElement[];
+    expect(inputs.length).toBeGreaterThan(0);
+    for (const input of inputs) {
+      expect(input.disabled, input.name || input.id).toBe(false);
+    }
+    expect((screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+    expect((screen.getByRole("button", { name: "Search" }) as HTMLButtonElement).disabled).toBe(
+      false,
+    );
+  }
+
+  it("T-001-95/AC-2 T-001-21/AC-2 answered count, threshold, other participants and other starting points are absent, and no map is shown", () => {
+    stubFetch();
+    const view = renderForm({
+      ...collectingBody,
+      answered_count: 47,
+      threshold: 63,
+      participants: [
+        { display_name: "Secret Person", start: { name: "Helwan rooftop" } },
+        { display_name: "Hidden Guest", start: { name: "Giza ferry" } },
+      ],
+      other_starting_points: [{ name: "Zamalek dock" }],
+      map: { url: "https://maps.example/secret", image: "map.png" },
+      map_url: "https://maps.example/secret",
+    });
+    // The surface itself renders.
+    expect(screen.getByText("Thursday in Maadi")).toBeTruthy();
+    expect(screen.getByLabelText(/approximate/i)).toBeTruthy();
+
+    const text = view.container.textContent ?? "";
+    // Answered count and threshold.
+    expect(text).not.toContain("47");
+    expect(text).not.toContain("63");
+    expect(text).not.toMatch(/answered/i);
+    expect(text).not.toMatch(/threshold/i);
+    // Other participants.
+    expect(text).not.toContain("Secret Person");
+    expect(text).not.toContain("Hidden Guest");
+    // Other starting points.
+    expect(text).not.toContain("Helwan rooftop");
+    expect(text).not.toContain("Giza ferry");
+    expect(text).not.toContain("Zamalek dock");
+    // No map.
+    expect(text).not.toMatch(/map/i);
+    expect(view.container.querySelector("img, iframe, canvas, object, embed")).toBeNull();
+    expect(
+      view.container.querySelector("[href*='maps'], [src*='maps'], [aria-label*='map' i]"),
+    ).toBeNull();
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("T-001-95/AC-2 T-001-21/AC-3 confirming a search result shows that place's name; an incomplete save and a complete save both keep the fields editable while collecting and while blocked", async () => {
+    for (const state of ["collecting", "blocked"] as const) {
+      const fetchMock = stubFlow(state, [
+        { complete: false, first_completion: false, plan_state: state },
+        { complete: true, first_completion: true, plan_state: state },
+      ]);
+      renderForm({ ...collectingBody, plan_state: state });
+
+      // Confirming a result shows that place's name, not the other result's.
+      await confirmNile();
+      expect(screen.getByText("Nile Corniche")).toBeTruthy();
+      expect(screen.queryByText("Heliopolis Square")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Confirm this place" })).toBeNull();
+
+      // Incomplete save: the second window and the coffee step are unanswered.
+      fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+      fireEvent.click(within(dinnerStep()).getByLabelText("Koshary"));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      expect(await screen.findByText("This response is not complete yet.")).toBeTruthy();
+      expectEveryFieldEditable();
+      expect(screen.getByText("Nile Corniche")).toBeTruthy();
+
+      // Complete save.
+      fillValidWindows();
+      fireEvent.click(within(coffeeStep()).getByLabelText("Ahwa"));
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+      expect(await screen.findByText("Answers saved.")).toBeTruthy();
+      expectEveryFieldEditable();
+      expect(screen.getByText("Nile Corniche")).toBeTruthy();
+
+      const bodies = putBodies(fetchMock);
+      expect(bodies).toHaveLength(2);
+      expect(bodies[0]?.start_place_id, state).toBe("ChIJ-nile");
+      expect(bodies[1], state).toEqual({
+        windows: [
+          {
+            window_id: windowOne.id,
+            kind: "free",
+            earliest_local: "19:00",
+            latest_local: "21:30",
+          },
+          { window_id: windowTwo.id, kind: "busy" },
+        ],
+        picks: [
+          { step_id: dinner.id, option_id: dinner.options[0]?.id },
+          { step_id: coffee.id, option_id: coffee.options[0]?.id },
+        ],
+        start_place_id: "ChIJ-nile",
+      });
+      expect(router.replace).not.toHaveBeenCalled();
+      cleanup();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("T-001-95/AC-2 T-001-21/AC-4 a save failure keeps the entered values and the previous answered count and uses text-destructive; a save missing a valid window, a start, or one step's label stays incomplete and identifies that field", async () => {
+    // Save failure.
+    const failMock = stubFlow("collecting", [
+      jsonResponse(500, {
+        error: { code: "upstream", message: "save failed", fields: [] },
+        answered_count: 99,
+      }),
+    ]);
+    const failed = renderForm(collectingBody);
+    expect(failed.container.textContent ?? "").not.toMatch(/answered/i);
+    fillValidWindows();
+    await confirmNile();
+    fireEvent.change(screen.getByLabelText(/approximate/i), {
+      target: { value: "unsent query" },
+    });
+    fireEvent.click(within(dinnerStep()).getByLabelText("Grills"));
+    fireEvent.click(within(coffeeStep()).getByLabelText("Specialty"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(en.errors.code.upstream);
+    expect(classTokens(alert)).toContain("text-destructive");
+    expect(putBodies(failMock)).toHaveLength(1);
+    expect((within(firstWindow()).getByLabelText("Free") as HTMLInputElement).checked).toBe(true);
+    expect((within(firstWindow()).getByLabelText("Earliest") as HTMLInputElement).value).toBe(
+      "19:00",
+    );
+    expect((within(firstWindow()).getByLabelText("Latest") as HTMLInputElement).value).toBe(
+      "21:30",
+    );
+    expect((within(secondWindow()).getByLabelText("Busy") as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText(/approximate/i) as HTMLInputElement).value).toBe(
+      "unsent query",
+    );
+    expect(screen.getByText("Nile Corniche")).toBeTruthy();
+    expect((within(dinnerStep()).getByLabelText("Grills") as HTMLInputElement).checked).toBe(true);
+    expect((within(coffeeStep()).getByLabelText("Specialty") as HTMLInputElement).checked).toBe(
+      true,
+    );
+    // The previous answered count stands: the failure's count is not shown and no count appears.
+    const textAfter = failed.container.textContent ?? "";
+    expect(textAfter).not.toContain("99");
+    expect(textAfter).not.toMatch(/answered/i);
+    expect(screen.queryByText("Answers saved.")).toBeNull();
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // Missing a valid window: stays incomplete and marks that window's time.
+    const windowMock = stubFlow("collecting", []);
+    renderForm(collectingBody);
+    fireEvent.click(within(firstWindow()).getByLabelText("Free"));
+    fireEvent.change(within(firstWindow()).getByLabelText("Earliest"), {
+      target: { value: "17:00" },
+    });
+    fireEvent.change(within(firstWindow()).getByLabelText("Latest"), {
+      target: { value: "21:00" },
+    });
+    fireEvent.click(within(secondWindow()).getByLabelText("Busy"));
+    await confirmNile();
+    fireEvent.click(within(dinnerStep()).getByLabelText("Koshary"));
+    fireEvent.click(within(coffeeStep()).getByLabelText("Ahwa"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("This response is not complete yet.")).toBeTruthy();
+    expect(screen.queryByText("Answers saved.")).toBeNull();
+    expect(within(firstWindow()).getByText("This time is outside the window.")).toBeTruthy();
+    expect(within(firstWindow()).getByLabelText("Earliest").getAttribute("aria-invalid")).toBe(
+      "true",
+    );
+    expect(screen.getByLabelText(/approximate/i).getAttribute("aria-invalid")).toBeNull();
+    expect(screen.queryByText("Choose one option.")).toBeNull();
+    expect(putBodies(windowMock)).toHaveLength(0);
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // Missing a start: stays incomplete and marks the start control.
+    const startMock = stubFlow("collecting", [
+      { complete: false, first_completion: false, plan_state: "collecting" },
+    ]);
+    renderForm(collectingBody);
+    fillValidWindows();
+    fireEvent.click(within(dinnerStep()).getByLabelText("Koshary"));
+    fireEvent.click(within(coffeeStep()).getByLabelText("Ahwa"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("This response is not complete yet.")).toBeTruthy();
+    expect(screen.queryByText("Answers saved.")).toBeNull();
+    expect(screen.getByLabelText(/approximate/i).getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById("hp-start-search-error")?.textContent).toBe(
+      en.errors.fields.required,
+    );
+    expect(within(firstWindow()).getByLabelText("Earliest").getAttribute("aria-invalid")).toBeNull();
+    expect(screen.queryByText("Choose one option.")).toBeNull();
+    expect(putBodies(startMock)[0]).not.toHaveProperty("start_place_id");
+    cleanup();
+    vi.unstubAllGlobals();
+
+    // Missing one step's label: stays incomplete and marks that step only.
+    const pickMock = stubFlow("collecting", [
+      { complete: false, first_completion: false, plan_state: "collecting" },
+    ]);
+    renderForm(collectingBody);
+    fillValidWindows();
+    await confirmNile();
+    fireEvent.click(within(dinnerStep()).getByLabelText("Koshary"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("This response is not complete yet.")).toBeTruthy();
+    expect(screen.queryByText("Answers saved.")).toBeNull();
+    expect(within(coffeeStep()).getByText("Choose one option.")).toBeTruthy();
+    expect(within(dinnerStep()).queryByText("Choose one option.")).toBeNull();
+    expect(screen.getByLabelText(/approximate/i).getAttribute("aria-invalid")).toBeNull();
+    expect(putBodies(pickMock)[0]?.picks).toEqual([
+      { step_id: dinner.id, option_id: dinner.options[0]?.id },
+    ]);
+  });
+
+  it("T-001-95/AC-2 T-001-21/AC-5 an open that finds the plan proposed shows the proposal surface, and locked shows the confirmed surface", async () => {
+    // The server open redirects in page.tsx (see page.test.tsx); this is the client open after
+    // Retry, both for the 409 reasons and for a 200 document whose plan_state has moved on.
+    const cases = [
+      { response: getBody("proposed"), href: `/plans/${PLAN_ID}/proposal` },
+      { response: getBody("locked"), href: `/plans/${PLAN_ID}/confirmed` },
+      {
+        response: { status: 200, body: { ...collectingBody, plan_state: "proposed" } },
+        href: `/plans/${PLAN_ID}/proposal`,
+      },
+      {
+        response: { status: 200, body: { ...collectingBody, plan_state: "locked" } },
+        href: `/plans/${PLAN_ID}/confirmed`,
+      },
+    ];
+    for (const { response, href } of cases) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => jsonResponse(response.status, response.body)),
+      );
+      renderForm(null);
+      fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+      await waitFor(() => {
+        expect(router.replace).toHaveBeenCalledWith(href);
+      });
+      expect(router.replace).toHaveBeenCalledTimes(1);
+      expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+      expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+      expect(screen.queryByRole("alert")).toBeNull();
+      cleanup();
+      vi.unstubAllGlobals();
+      router.replace.mockReset();
+    }
+  });
+
+  it("T-001-95/AC-2 T-001-21/AC-6 switching language keeps every unsaved response input", async () => {
+    stubFlow("collecting", []);
+    renderForm(collectingBody);
+    fillValidWindows();
+    await confirmNile();
+    fireEvent.change(screen.getByLabelText(/approximate/i), {
+      target: { value: "still typing" },
+    });
+    fireEvent.click(within(dinnerStep()).getByLabelText("Grills"));
+    fireEvent.click(within(coffeeStep()).getByLabelText("Specialty"));
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ar" } });
+    expect(document.cookie).toMatch(/(?:^|; )hp_locale=ar(?:;|$)/);
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(screen.getByRole("button", { name: "حفظ" })).toBeTruthy();
+    expect((within(firstWindow()).getByLabelText("متاح") as HTMLInputElement).checked).toBe(true);
+    expect((within(firstWindow()).getByLabelText("أقرب وقت") as HTMLInputElement).value).toBe(
+      "19:00",
+    );
+    expect((within(firstWindow()).getByLabelText("آخر وقت") as HTMLInputElement).value).toBe(
+      "21:30",
+    );
+    expect((within(secondWindow()).getByLabelText("مشغول") as HTMLInputElement).checked).toBe(
+      true,
+    );
+    expect(
+      (screen.getByLabelText("نقطة الانطلاق التقريبية") as HTMLInputElement).value,
+    ).toBe("still typing");
+    expect(screen.getByText("Nile Corniche")).toBeTruthy();
+    expect((within(dinnerStep()).getByLabelText("Grills") as HTMLInputElement).checked).toBe(true);
+    expect((within(coffeeStep()).getByLabelText("Specialty") as HTMLInputElement).checked).toBe(
+      true,
+    );
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "en" } });
+    expect(document.documentElement.dir).toBe("ltr");
+    expect((within(firstWindow()).getByLabelText("Earliest") as HTMLInputElement).value).toBe(
+      "19:00",
+    );
+    expect((screen.getByLabelText(/approximate/i) as HTMLInputElement).value).toBe(
+      "still typing",
+    );
+    expect(screen.getByText("Nile Corniche")).toBeTruthy();
+    expect((within(coffeeStep()).getByLabelText("Specialty") as HTMLInputElement).checked).toBe(
+      true,
+    );
+  });
+
+  it("T-001-95/AC-2 T-001-21/AC-7 a failed open uses text-destructive for this plan and omits another plan's title, people, and places", async () => {
+    const otherSteps = [
+      {
+        id: "stp_zzzzzzzzzzzzzzzzzzzzzz",
+        name: "Sunset Walk",
+        options: [{ id: "opt_zzzzzzzzzzzzzzzzzzzzzz", label: "Corniche Kiosk" }],
+      },
+    ];
+    const otherPlan = {
+      ...collectingBody,
+      title: "Plan B rooftop",
+      steps: otherSteps,
+      response: { complete: false, windows: [], start: { name: "Zamalek Marina" }, picks: [] },
+    };
+    const otherPlanStrings = [
+      "Plan B rooftop",
+      "Sunset Walk",
+      "Corniche Kiosk",
+      "Zamalek Marina",
+      "Hidden Host",
+      "Secret Person",
+      "Secret Cafe",
+    ];
+    const expectNoOtherPlan = (text: string) => {
+      for (const leak of otherPlanStrings) {
+        expect(text).not.toContain(leak);
+      }
+    };
+
+    // Plan B opens first in this browser.
+    stubFetch();
+    const first = render(
+      <NextIntlClientProvider locale="en" messages={en}>
+        <ResponseForm planId="pln_otherplanbbbbbbbbbbb" initialResponse={otherPlan} />
+      </NextIntlClientProvider>,
+    );
+    expect(first.container.textContent).toContain("Plan B rooftop");
+    cleanup();
+
+    // Plan A's open finds nothing.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(500, {
+          ...leakedFail,
+          title: "Plan B rooftop",
+          steps: otherSteps,
+          start: { name: "Zamalek Marina" },
+        }),
+      ),
+    );
+    const failed = renderForm(null);
+    let alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe(en.errors.code.not_found);
+    expect(classTokens(alert)).toContain("text-destructive");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(en.respond.title);
+    expectNoOtherPlan(failed.container.textContent ?? "");
+    expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+
+    // Plan A's reload fails with a body carrying another plan's data.
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toBe(en.errors.code.upstream);
+    });
+    alert = screen.getByRole("alert");
+    expect(classTokens(alert)).toContain("text-destructive");
+    expectNoOtherPlan(failed.container.textContent ?? "");
+    expect(screen.queryByLabelText(/approximate/i)).toBeNull();
+    cleanup();
+
+    // Plan A's server load throws: the route boundary is used.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const boundary = render(
+        <NextIntlClientProvider locale="en" messages={en}>
+          <RespondError error={new Error("load failed for Plan B rooftop")} retry={vi.fn()} />
+        </NextIntlClientProvider>,
+      );
+      const boundaryAlert = screen.getByRole("alert");
+      expect(boundaryAlert.textContent).toBe(en.errors.code.upstream);
+      expect(classTokens(boundaryAlert)).toContain("text-destructive");
+      expectNoOtherPlan(boundary.container.textContent ?? "");
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

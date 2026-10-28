@@ -58,6 +58,24 @@ describe("respond page", () => {
     expect(form.props.initialResponse).toEqual(view);
   });
 
+  it("T-001-95/AC-2 T-001-21/AC-5 an open while proposed shows the proposal surface, and while locked the confirmed surface; collecting and blocked stay on the response form", async () => {
+    await expect(open({ kind: "proposed" })).rejects.toThrow(
+      "NEXT_REDIRECT /plans/pln_a/proposal",
+    );
+    await expect(open({ kind: "locked" })).rejects.toThrow(
+      "NEXT_REDIRECT /plans/pln_a/confirmed",
+    );
+    expect(loadResponsePage).toHaveBeenCalledTimes(2);
+    for (const call of loadResponsePage.mock.calls) {
+      expect(call[0]).toBe("pln_a");
+    }
+    for (const planState of ["collecting", "blocked"]) {
+      const view = { title: "Thursday in Maadi", plan_state: planState };
+      const tree = await open({ kind: "ok", view });
+      expect(tree.props.children.props.initialResponse).toEqual(view);
+    }
+  });
+
   it("T-001-40/AC-4 passes no initial data when the plan is not found", async () => {
     const tree = await open({ kind: "not_found" });
     expect(tree.props.children.props.initialResponse).toBeNull();

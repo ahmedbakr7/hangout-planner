@@ -503,7 +503,7 @@ describe("PUT /v1/plans/{planId}/steps/{stepId}/signal", () => {
     expectNoGoogle();
   });
 
-  it("the organizer and a non-cohort participant get 403 not_cohort; a stranger gets 404 with the envelope only; missing X-HP-Request: 1 returns 403 csrf and writes nothing; a non-proposed or locked plan does not change", async () => {
+  it("T-001-95/AC-6 T-001-25/AC-7 the organizer and a non-cohort participant get 403 not_cohort; a stranger gets 404 with the envelope only; missing X-HP-Request: 1 returns 403 csrf and writes nothing; a non-proposed or locked plan does not change", async () => {
     const seeded = await seedProposedPlan();
     const before = await snapshot(seeded.planId);
 
