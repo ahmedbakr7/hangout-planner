@@ -24,7 +24,7 @@ describe("package.json", () => {
     devDependencies?: Record<string, string>;
   };
 
-  it("declares Node 22 in engines", () => {
+  it("T-001-91/AC-1 T-001-01/AC-1 declares Node 22 in engines", () => {
     expect(pkg.engines?.node).toBe("22");
   });
 
@@ -90,7 +90,7 @@ describe("tsconfig.json", () => {
     compilerOptions?: { strict?: boolean; paths?: Record<string, string[]> };
   };
 
-  it("is TypeScript strict and maps @/ to src/", () => {
+  it("T-001-91/AC-1 T-001-01/AC-4 is TypeScript strict and maps @/ to src/", () => {
     expect(tsconfig.compilerOptions?.strict).toBe(true);
     expect(tsconfig.compilerOptions?.paths?.["@/*"]).toEqual(["./src/*"]);
   });

@@ -9,7 +9,7 @@ import {
 } from "./money";
 
 describe("CURRENCIES", () => {
-  it("is EGP, USD, SAR, and AED, each with exponent 2", () => {
+  it("T-001-91/AC-3 T-001-03/AC-2 is EGP, USD, SAR, and AED, each with exponent 2", () => {
     expect(CURRENCIES).toEqual([
       { code: "EGP", exponent: 2 },
       { code: "USD", exponent: 2 },

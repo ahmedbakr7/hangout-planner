@@ -159,6 +159,74 @@ describe("authorize", () => {
     ).toBeNull();
   });
 
+  it("T-001-91/AC-5 T-001-05/AC-5 T-001-05/AC-6 returns the first match among organizer, participant, invited, and link reader, in that order, and no role for anyone else", () => {
+    const everything: PlanAuthzFacts = facts({
+      sessionAccountId: organizerId,
+      accountHasParticipant: true,
+      guestOwnsParticipant: true,
+      accountHasInvitation: true,
+      linkIncludesPlan: true,
+      requestJoinToken: joinToken,
+    });
+    // Each step removes the facts of the role above it; the next role in the order wins.
+    const ladder: [string, PlanAuthzFacts, ReturnType<typeof authorize>][] = [
+      ["organizer", everything, "organizer"],
+      ["participant", { ...everything, sessionAccountId: memberId }, "participant"],
+      [
+        "invited",
+        { ...everything, sessionAccountId: memberId, accountHasParticipant: false, guestOwnsParticipant: false },
+        "invited",
+      ],
+      [
+        "link reader",
+        {
+          ...everything,
+          sessionAccountId: memberId,
+          accountHasParticipant: false,
+          guestOwnsParticipant: false,
+          accountHasInvitation: false,
+        },
+        "link_reader",
+      ],
+      [
+        "anyone else",
+        {
+          ...everything,
+          sessionAccountId: memberId,
+          accountHasParticipant: false,
+          guestOwnsParticipant: false,
+          accountHasInvitation: false,
+          linkIncludesPlan: false,
+          requestJoinToken: null,
+        },
+        null,
+      ],
+    ];
+    expect(ladder.map(([name, input]) => [name, authorize(input)])).toEqual(
+      ladder.map(([name, , expected]) => [name, expected]),
+    );
+    expect(ladder.map(([, , expected]) => expected)).toEqual([
+      "organizer",
+      "participant",
+      "invited",
+      "link_reader",
+      null,
+    ]);
+
+    // Each role on its own, with nothing above it.
+    expect(authorize(facts({ sessionAccountId: organizerId }))).toBe("organizer");
+    expect(authorize(facts({ sessionAccountId: memberId, accountHasParticipant: true }))).toBe("participant");
+    expect(authorize(facts({ guestOwnsParticipant: true }))).toBe("participant");
+    expect(authorize(facts({ sessionAccountId: memberId, accountHasInvitation: true }))).toBe("invited");
+    expect(authorize(facts({ linkIncludesPlan: true }))).toBe("link_reader");
+    expect(authorize(facts({ requestJoinToken: joinToken }))).toBe("link_reader");
+
+    // No role for anyone else: a stranger account, no session, or a wrong join token.
+    expect(authorize(facts())).toBeNull();
+    expect(authorize(facts({ sessionAccountId: memberId }))).toBeNull();
+    expect(authorize(facts({ requestJoinToken: generateJoinToken() }))).toBeNull();
+  });
+
   it("returns the first match among organizer, participant, invited, and link reader", () => {
     const all: PlanAuthzFacts = facts({
       sessionAccountId: organizerId,

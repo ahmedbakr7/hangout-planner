@@ -56,6 +56,28 @@ describe("generateId / isId", () => {
     }
   });
 
+  it("T-001-91/AC-3 T-001-03/AC-3 ids are prefix_ plus 22 lowercase base32 characters, and the prefixes are acc_, pln_, win_, stp_, opt_, prt_, and inv_", () => {
+    expect([...ID_PREFIXES]).toEqual(["acc_", "pln_", "win_", "stp_", "opt_", "prt_", "inv_"]);
+    for (const prefix of ID_PREFIXES) {
+      for (let i = 0; i < 16; i += 1) {
+        const id = generateId(prefix);
+        expect(id).toMatch(new RegExp(`^${prefix}[a-z2-7]{22}$`));
+        expect(isId(id, prefix)).toBe(true);
+      }
+    }
+    const body = "abcdefghijklmnopqrstuv";
+    for (const prefix of ID_PREFIXES) {
+      expect(isId(`${prefix}${body}`)).toBe(true);
+    }
+    for (const other of ["ses_", "gst_", "lnk_", "prp_", "jt_", "acc", "pln-"]) {
+      expect(isId(`${other}${body}`)).toBe(false);
+    }
+    expect(isId(`acc_${body.toUpperCase()}`)).toBe(false);
+    expect(isId(`acc_${body.slice(1)}`)).toBe(false);
+    expect(isId(`acc_${body}a`)).toBe(false);
+    expect(isId(`acc_${"abcdefghijklmnopqrstu"}1`)).toBe(false);
+  });
+
   it("rejects the wrong prefix, length, case, or alphabet", () => {
     const body = "a".repeat(22);
     expect(isId(`acc_${body}`)).toBe(true);
@@ -86,7 +108,7 @@ describe("generateOpaqueId", () => {
 });
 
 describe("generateJoinToken / isJoinToken", () => {
-  it("is jt_ plus 43 unpadded base64url characters", () => {
+  it("T-001-91/AC-3 T-001-03/AC-4 is jt_ plus 43 unpadded base64url characters", () => {
     const token = generateJoinToken();
     expect(token.startsWith(JOIN_TOKEN_PREFIX)).toBe(true);
     const body = token.slice(JOIN_TOKEN_PREFIX.length);
@@ -111,7 +133,7 @@ describe("generateJoinToken / isJoinToken", () => {
 });
 
 describe("generateDistinguisher / isDistinguisher", () => {
-  it("is four characters from abcdefghjkmnpqrstuvwxyz23456789", () => {
+  it("T-001-91/AC-3 T-001-03/AC-5 is four characters from abcdefghjkmnpqrstuvwxyz23456789", () => {
     expect(DISTINGUISHER_ALPHABET).toBe("abcdefghjkmnpqrstuvwxyz23456789");
     expect(DISTINGUISHER_LENGTH).toBe(4);
     const distinguisher = generateDistinguisher();

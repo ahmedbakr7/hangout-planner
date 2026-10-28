@@ -139,6 +139,27 @@ describe("httpError envelope", () => {
     expect(copied.body.error.fields).toEqual([{ path: "email", code: "bad_email" }]);
   });
 
+  it("T-001-91/AC-4 T-001-04/AC-3 the helper only emits 400, 401, 403, 404, 409, 429, and 503", () => {
+    const emitted: number[] = [];
+    for (const status of [400, 401, 403, 404, 409, 429, 503] as const) {
+      const reason = (REASONS_BY_STATUS[status] as readonly string[])[0];
+      const result = httpError(status, {
+        message: `status ${status}`,
+        ...(reason ? { reason: reason as never } : {}),
+      });
+      expect(result.status).toBe(status);
+      expect(result.body.error.code).toBe(ERROR_CODE_BY_STATUS[status]);
+      emitted.push(result.status);
+    }
+    expect(emitted).toEqual([400, 401, 403, 404, 409, 429, 503]);
+
+    for (const status of [100, 200, 201, 204, 301, 302, 402, 405, 410, 422, 500, 502, 504]) {
+      expect(() =>
+        httpError(status as (typeof ERROR_STATUSES)[number], { message: "not an error status" }),
+      ).toThrow(/unsupported error status/);
+    }
+  });
+
   it("rejects statuses outside 400, 401, 403, 404, 409, 429, and 503", () => {
     for (const status of [200, 201, 204, 422, 500]) {
       expect(() =>
