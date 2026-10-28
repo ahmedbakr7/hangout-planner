@@ -51,6 +51,8 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 | Unit test | `<file>.test.ts` beside the module | `src/server/plans/edit-rules.test.ts` |
 | Handler-level test | `e2e/<name>.e2e.ts` (test play, or a `type: test` ticket's build, ADR-0017) | `e2e/attempt-in-progress.e2e.ts` |
 | Real-stack proof for a shipped (`done`) ticket | A `type: test` ticket (a done ticket's own test play is refused). Its tests go in `e2e/shipped-<area>.e2e.ts` (or `browser/shipped-<area>.spec.ts`), and each title starts with the new ticket's tag and then the shipped ticket's tag, then the behaviour. The test asserts every clause of the shipped AC, through the routes and Postgres or a browser | `e2e/shipped-lock-confirmed.e2e.ts` (`T-001-90/AC-3 T-001-28/AC-2 ...`) |
+| Helper shared by two or more `e2e/` files | `e2e/<name>.ts`, with no `.e2e.` in the name, so the e2e suite (`include: e2e/**/*.e2e.ts`) does not run it as a test file. Extracting a copy that already exists is its own ticket, which lists the helper under `test_files` (ADR-0016, ADR-0017); a ticket that needs a helper another file already has imports it once it is shared | `e2e/db-cleanup.ts`, `e2e/route-server.ts`, `e2e/teardown.ts` |
+| Forcing a random or generated value in a test (an id collision, a token) | A partial `vi.mock` of the module that exports the generator: `vi.hoisted` spy, `vi.mock("<module>", async (importOriginal) => ({ ...actual, fn: spy }))`, the spy defaulting to the real function, reset in `finally` | `src/app/api/v1/join/[token]/route.test.ts` (`T-001-94/AC-1 T-001-14/AC-7`); `src/components/invite-panel.test.tsx` |
 
 ### Use X, not Y
 
@@ -61,3 +63,4 @@ Rules for new and changed code. Some older files still break them (ADR-0006); ne
 - `authorize()` before any read or write, not inline role checks.
 - `httpError` / `errorResponse` and the codes in `errors.ts`, not ad hoc `NextResponse.json({ error })`.
 - Google calls through `src/server/google/places.ts` / `routes.ts`, not `fetch` to Google.
+- In a test, a value an AC states (a limit, count or duration) as the AC's literal, not production's own constant, and both sides of a boundary (`T-001-95/AC-5 T-001-24/AC-5` in `src/app/api/v1/plans/[planId]/response/route.test.ts`: 19 runs allowed, 20 refused). A test that would pass by chance, such as a random id that rarely collides, does not prove an AC.
