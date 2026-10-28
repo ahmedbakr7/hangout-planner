@@ -18,7 +18,7 @@ Change this lock only by a superseding ADR.
 - Forms: one primary submit per surface. Field errors use `error.fields[].path` and `error.fields[].code`. A 400 or 500 leaves the inputs as the person typed them. Money inputs are decimal strings; the client converts to `amount_minor` with integer arithmetic from the currency exponent. The wire field is `amount_minor` plus `currency`.
 - i18n: next-intl. Chrome keys only. Authored plan text is data and is rendered as stored. Missing Arabic key → English string, layout stays RTL. Language switch updates `hp_locale` and the messages around the current form without clearing it. Return path after the account gate is an allow-listed relative path: `/`, `/plans/new`, `/invitations`, or `/join/` plus a join token.
 - Design tokens / UI kit (ADR-0002): load `design/DESIGN.md`. Hex and raw sizes appear only in the theme CSS. Map product tokens into shadcn variables (`--background`, `--card`, `--foreground`, `--muted-foreground`, `--border`, `--primary` ← brand accent `#0e6b4f`, `--destructive`, `--warning`, `--success`, `--ring`). Components use semantic Tailwind classes (`bg-background`, `text-foreground`, `bg-primary`, …). Kit is shadcn/ui + Radix. Logical CSS / logical utilities. Forward icons flip under `[dir=rtl]`. Focus uses `--ring`.
-- Testing: component tests next to the file (`*.test.tsx`) on Vitest. e2e is the test agent's. Build does not add e2e.
+- Testing: component tests next to the file (`*.test.tsx`) on Vitest. Real-stack tests (`e2e/`, `browser/`) are written by the test play or by a `type: test` ticket's build; a feature ticket's build does not add them (ADR-0017).
 
 ## Build agent rules
 
@@ -41,10 +41,12 @@ Copy the named example; if nothing here or in the ticket settles it, stop and re
 |---|---|---|
 | Page | `src/app/<route>/page.tsx`, a Server Component: awaits `params` / `searchParams`, loads its first data through the surface loader (ADR-0007), renders one component | `src/app/plans/[planId]/page.tsx` |
 | Screen logic, writes, refetch after writes | `src/components/<screen>.tsx` (`"use client"`): first render from the page's initial data, then `fetch` to `/api/v1/...` | `src/components/organizer-plan.tsx`; `src/components/response-form.tsx` for writes |
-| Page load failure: a converted page whose loader throws | `src/app/<route>/error.tsx` (`"use client"`, `{ error, retry }`): the screen's load error text in `role="alert"`, a retry button that calls `retry()` (it re-runs the server load; `reset()` does not), `console.error(error)` once | `src/app/plans/[planId]/error.tsx` |
+| Page load failure: a converted page whose loader throws | `src/app/<route>/error.tsx` (`"use client"`, `{ error, retry }`) renders `RouteLoadError` from `src/components/route-load-error.tsx` with the screen's own title, load error text and retry label. The component shows the text in `role="alert"`, calls `retry()` from its button (it re-runs the server load; `reset()` does not) and logs `console.error(error)` once; the boundary adds none of these itself | `src/app/plans/[planId]/error.tsx` (T-001-85) |
 | Shared client hook | `src/components/use-<name>.ts` (`"use client"`), test beside it as `use-<name>.test.tsx` | `src/components/use-session-slide.ts` (ADR-0009, from T-001-44) |
 | UI primitive | `src/components/ui/<name>.tsx` (shadcn) | `src/components/ui/button.tsx` |
 | Component test | `<file>.test.tsx` beside the file | `src/components/response-form.test.tsx` |
+| Real-stack test of a page's server load (test play, or a `type: test` ticket's build, ADR-0017) | `e2e/<route>-server-load.e2e.ts`: seed through the route server and Postgres, mock `next/headers` cookies and `next/navigation`, `await` the page's default export and render the element it returns. Rendering a screen component with stubbed data proves no load | `e2e/organizer-plan-server-load.e2e.ts` (`openPage`) |
+| Browser test (same plays) | `browser/<name>.spec.ts`, Playwright against `next start` (ADR-0010) | `browser/create-and-invite.spec.ts`; `browser/shipped-plans-shell.spec.ts` for `<html>` `lang` / `dir` |
 | Chrome text | `messages/en.json` and `messages/ar.json`, read with `useTranslations` | `src/components/response-form.tsx` |
 | Pure helper shared by pages and client components | `src/lib/<name>.ts` (no `"use client"`, no import from `src/server/`), test beside it as `<name>.test.ts` | `src/lib/plan-paths.ts` (T-001-50) |
 | Class merging | `cn()` from `src/lib/utils.ts` | `src/components/ui/button.tsx` |
