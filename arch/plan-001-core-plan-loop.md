@@ -19,7 +19,7 @@ Next command after tickets are accepted: `/build <id>` in a new session, one tic
 
 | Cut | Type | Risk | Depends | Skills |
 |---|---|---|---|---|
-| C01 bootstrap | backend | low | — | build, backend-patterns |
+| C01 bootstrap | chore | low | — | build, backend-patterns |
 | C02 schema | backend | low | C01 | build, backend-patterns |
 | C03 money and ids | backend | low | C01 | build, backend-patterns |
 | C04 errors and clock | backend | low | C01 | build, backend-patterns |
@@ -55,7 +55,7 @@ C20 stores a completing response and the answered count. It does not call `runPr
 
 ## Contracts
 
-Every route, page, table, event and Google call this plan adds is written in `arch/CONTRACTS.md`: `## HTTP` (routes), `## Screens` (pages), `## Tables`, `## Events`, `## External Google`, and `## UI-only` for requirements with no contract. Each ticket's `contracts:` names its heading there. The requirement-to-cut table is `## Requirement map` below; it marks the UI-only requirements.
+Every route, page, table, event and Google call this plan adds is written in `arch/CONTRACTS.md`: `## HTTP` (routes), `## Screens` (pages), `## Tables`, `## Events`, `## External Google`, and `## UI-only` for requirements with no contract. Each ticket's `contracts:` names its heading there; a chore ticket that owns no contract (C01) lists none. The requirement-to-cut table is `## Requirement map` below; it marks the UI-only requirements.
 
 ## Shared modules
 
@@ -63,9 +63,9 @@ Each module below has one owner ticket. Later tickets import it and do not copy 
 
 | Module | Owner ticket | Exposes |
 |---|---|---|
-| `src/server/db/client.ts` | T-001-01 | `createDb`, `db`, `closeDatabase` |
+| `src/server/db/client.ts` | T-001-01 | `createDb`, `db`, `closeDatabase`. Amended by T-001-68 (one client) |
 | `src/server/money.ts` | T-001-03 | `CURRENCIES`, `isCurrencyCode`, `isAmountMinor`, `parseMoney` |
-| `src/server/ids.ts` | T-001-03 | `generateId`, `isId`, `generateJoinToken`, `generateDistinguisher` |
+| `src/server/ids.ts` | T-001-03 | `generateId`, `isId`, `generateJoinToken`, `generateDistinguisher`, `generateOpaqueId` (added by T-001-68) |
 | `src/server/http/errors.ts` | T-001-04 | `httpError`, `isErrorStatus`, error code tables |
 | `src/server/clock.ts` | T-001-04 | `now`, `setClock`, `resetClock` |
 | `src/server/auth/password.ts` | T-001-05 | `hashPassword`, `verifyPassword` |
@@ -150,27 +150,27 @@ Schema tables are the CONTRACTS table list and nothing else. `src/server/` does 
 
 | Id | Where |
 |---|---|
-| F-001-1, F-001-2, N-001-1 | UI-only. C07, C08 |
+| F-001-1, F-001-2, N-001-1 | UI-only. C07, C08; C29 e2e for F-001-2, N-001-1 |
 | F-001-3 | Stored strings returned as entered. C10, C20 |
 | F-001-4 | UI-only. C08, C11, C19, C21 |
-| F-001-5, F-001-6, F-001-7, N-001-2 | C03, C10, attempt filter in C23 |
-| F-001-8 | C23 |
-| F-001-9, N-001-3 | C06, C08, authz on each route |
-| F-001-10, F-001-11, N-001-17, N-001-18, N-001-20 | C14, C15, C18 |
+| F-001-5, F-001-6, F-001-7, N-001-2 | C03, C10, attempt filter in C23; C13 for N-001-2 |
+| F-001-8 | C13 Places client, C23 |
+| F-001-9, N-001-3 | C05 auth core, C06, C08, authz on each route; C29 e2e for F-001-9 |
+| F-001-10, F-001-11, N-001-17, N-001-18, N-001-20 | C14, C15, C18; C02 schema for N-001-20 |
 | F-001-12, F-001-13, F-001-14, N-001-4 | C10, C11 |
 | F-001-15, N-001-13 | C09, C10, C12 |
 | F-001-16, N-001-19 | C16, C19. Copy failure is UI-only |
-| F-001-17, F-001-18, F-001-19 | C16, C17, C19. Identifier is account email |
+| F-001-17, F-001-18, F-001-19 | C16, C17, C19; C02 schema for F-001-18. Identifier is account email |
 | F-001-20–F-001-23, N-001-6, N-001-7 | C20, C21 |
 | F-001-24, F-001-27, N-001-5 | C10, C12. Collision display is UI-only on top of `distinguisher` |
-| F-001-25, F-001-26, F-001-38, F-001-40 | C23, C24 |
-| F-001-28–F-001-33, N-001-8, N-001-9, N-001-10 | C23, C25, C27. Block and fairness sentences are UI-only |
-| F-001-34, F-001-35, N-001-11, N-001-12 | C26, C28 |
-| F-001-36 | C15, C28 |
+| F-001-25, F-001-26, F-001-38, F-001-40 | C23, C24; C22 scoring for F-001-26 |
+| F-001-28–F-001-33, N-001-8, N-001-9, N-001-10 | C23, C25, C27; C13 Routes client for F-001-30; C22 scoring for F-001-30, N-001-8. Block and fairness sentences are UI-only |
+| F-001-34, F-001-35, N-001-11, N-001-12 | C26, C28; C29 e2e for N-001-12 |
+| F-001-36 | C15, C28, C29 e2e |
 | F-001-37, N-001-14 | C10, C11 |
 | F-001-39 | C14 guest cookie |
 | F-001-41, N-001-16 | UI-only. C27, C28 |
-| N-001-15 | 404 envelope. C06 onward, and each page's error state |
+| N-001-15 | 404 envelope. C04 error envelope, C06 onward, and each page's error state |
 
 ## Test strategy
 
