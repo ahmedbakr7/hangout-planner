@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("Arabic chrome fallback", () => {
-  it("renders a missing Arabic key as English while dir stays rtl", () => {
+  it("T-001-92/AC-1 T-001-07/AC-6 renders a missing Arabic key as English while dir stays rtl", () => {
     expect(dirForLocale("ar")).toBe("rtl");
     expect(lookup(messagesForLocale("ar"), ["common", "create"])).toBe("Create");
     expect(
@@ -73,6 +73,66 @@ describe("Arabic chrome fallback", () => {
     expect(lookup(merged, ["Account", "requiredToOrganize"])).toBe(
       "An account is required to organize a plan.",
     );
+  });
+
+  it("T-001-92/AC-1 T-001-07/AC-5 messages/en.json and messages/ar.json hold chrome strings for the slice surfaces", () => {
+    // The namespaces the slice surfaces read with useTranslations: home, create, organizer plan,
+    // invite, invitations, join, respond, proposal, confirmed, account, plus shared chrome.
+    const surfaces = [
+      "Home",
+      "Create",
+      "plans",
+      "invite",
+      "invitations",
+      "join",
+      "respond",
+      "proposal",
+      "confirmed",
+      "Account",
+      "common",
+      "errors",
+    ];
+    const arabicScript = /[؀-ۿ]/;
+
+    function leaves(tree: MessageTree, prefix: string[] = []): [string[], string][] {
+      return Object.entries(tree).flatMap(([key, value]) =>
+        typeof value === "string" ? [[[...prefix, key], value] as [string[], string]] : leaves(value, [...prefix, key]),
+      );
+    }
+
+    const enTree = en as MessageTree;
+    const arTree = ar as MessageTree;
+    const enKeys = new Set(leaves(enTree).map(([path]) => path.join(".")));
+    for (const [path] of leaves(arTree)) {
+      expect(enKeys.has(path.join(".")), `ar-only key ${path.join(".")}`).toBe(true);
+    }
+
+    for (const surface of surfaces) {
+      const enSection = enTree[surface];
+      const arSection = arTree[surface];
+      expect(typeof enSection, `en ${surface}`).toBe("object");
+      expect(typeof arSection, `ar ${surface}`).toBe("object");
+      const enLeaves = leaves(enSection as MessageTree, [surface]);
+      const arLeaves = leaves(arSection as MessageTree, [surface]);
+      expect(enLeaves.length, `en ${surface}`).toBeGreaterThan(0);
+      expect(arLeaves.length, `ar ${surface}`).toBeGreaterThan(0);
+      for (const [path, value] of [...enLeaves, ...arLeaves]) {
+        expect(value.trim().length, path.join(".")).toBeGreaterThan(0);
+      }
+      expect(
+        enLeaves.some(([, value]) => !arabicScript.test(value)),
+        `en ${surface} has English chrome`,
+      ).toBe(true);
+      expect(
+        arLeaves.some(([, value]) => arabicScript.test(value)),
+        `ar ${surface} has Arabic chrome`,
+      ).toBe(true);
+      // Each surface key resolves to a string in both locales.
+      for (const [path] of enLeaves) {
+        expect(typeof lookup(messagesForLocale("en"), path)).toBe("string");
+        expect(typeof lookup(messagesForLocale("ar"), path)).toBe("string");
+      }
+    }
   });
 
   it("T-001-66/AC-8 keeps the gate usable in an RTL layout when an Arabic key is missing", async () => {

@@ -492,4 +492,77 @@ describe("AccountGate", () => {
       "keep@example.com",
     );
   });
+
+  it("T-001-92/AC-2 T-001-08/AC-1 signed out, the gate says an account is required to organize, and a join next offers a way back to join without an account", async () => {
+    // Signed out (GET /api/v1/me is 401) with no next: the requirement, no join link.
+    const plain = await renderSignedOut();
+    expect(fetchUrls(plain)).toEqual(["/api/v1/me"]);
+    expect(screen.getByText(en.Account.requiredToOrganize)).toBeTruthy();
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+    expect(screen.getByRole("button", { name: en.Account.submitSignIn })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: en.Account.joinWithoutAccount })).toBeNull();
+    cleanup();
+
+    // A next that is not a join path offers no join link either.
+    await renderSignedOut("/plans/new");
+    expect(screen.getByText(en.Account.requiredToOrganize)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: en.Account.joinWithoutAccount })).toBeNull();
+    cleanup();
+
+    // Signed out with a join next: the requirement and a link back to that join path.
+    const joining = await renderSignedOut(JOIN_PATH);
+    expect(fetchUrls(joining)).toEqual(["/api/v1/me"]);
+    expect(screen.getByText(en.Account.requiredToOrganize)).toBeTruthy();
+    const back = screen.getByRole("link", { name: en.Account.joinWithoutAccount });
+    expect(back.getAttribute("href")).toBe(JOIN_PATH);
+    expect(screen.queryByText(/Signed in as/)).toBeNull();
+  });
+
+  it("T-001-92/AC-2 T-001-08/AC-3 after success the gate continues to create, join, home, or invitations, and opened while signed in it shows the display name and a way home", async () => {
+    async function signInWith(next: string): Promise<void> {
+      stubFetch({ me: "out", sessions: "ok" });
+      renderGate(next);
+      await screen.findByText(en.Account.requiredToOrganize);
+      fireEvent.change(screen.getByLabelText(en.Account.email), { target: { value: "nour@example.com" } });
+      fireEvent.change(screen.getByLabelText(en.Account.password), { target: { value: "a-secret-pass" } });
+      fireEvent.click(screen.getByRole("button", { name: en.Account.submitSignIn }));
+    }
+
+    for (const next of ["/plans/new", JOIN_PATH, "/", "/invitations"]) {
+      router.push.mockReset();
+      await signInWith(next);
+      await waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith(next);
+      });
+      expect(router.push).toHaveBeenCalledTimes(1);
+      cleanup();
+    }
+
+    // Registration success continues the same way.
+    for (const next of ["/plans/new", JOIN_PATH, "/", "/invitations"]) {
+      router.push.mockReset();
+      stubFetch({ me: "out", accounts: "ok" });
+      renderGate(next);
+      await screen.findByText(en.Account.requiredToOrganize);
+      fireEvent.click(screen.getByRole("tab", { name: en.Account.register }));
+      fireEvent.change(screen.getByLabelText(en.Account.email), { target: { value: "nour@example.com" } });
+      fireEvent.change(screen.getByLabelText(en.Account.password), { target: { value: "a-secret-pass" } });
+      fireEvent.change(screen.getByLabelText(en.Account.displayName), { target: { value: "Nour" } });
+      fireEvent.click(screen.getByRole("button", { name: en.Account.submitRegister }));
+      await waitFor(() => {
+        expect(router.push).toHaveBeenCalledWith(next);
+      });
+      cleanup();
+    }
+
+    // Already signed in: the display name and a link home, and no redirect on its own.
+    router.push.mockReset();
+    stubFetch({ me: "in" });
+    renderGate("/plans/new");
+    expect(await screen.findByText(en.Account.signedInAs.replace("{name}", "Nour"))).toBeTruthy();
+    const home = screen.getByRole("link", { name: en.Account.goHome });
+    expect(home.getAttribute("href")).toBe("/");
+    expect(screen.queryByText(en.Account.requiredToOrganize)).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
+  });
 });
