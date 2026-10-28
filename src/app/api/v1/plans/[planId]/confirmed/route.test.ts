@@ -536,7 +536,7 @@ function assertOmitted(body: unknown): void {
 }
 
 describe("GET /v1/plans/{planId}/confirmed", () => {
-  it("allows the organizer, a participant, an invited account, or a link reader; when the plan is not locked those callers get 409 not_locked and anyone else gets 404", async () => {
+  it("T-001-96/AC-1 T-001-26/AC-3 allows the organizer, a participant, an invited account, or a link reader; when the plan is not locked those callers get 409 not_locked and anyone else gets 404", async () => {
     expect(databaseUrl.startsWith("postgres://")).toBe(true);
     const seeded = await seedProposedPlan();
     const orgCookie = `hp_session=${seeded.organizerToken}`;
@@ -619,7 +619,7 @@ describe("GET /v1/plans/{planId}/confirmed", () => {
     expect(await asLink.json()).toEqual(expectedConfirmed(seeded));
   });
 
-  it("the confirmed document includes plan_id, title, state locked, time, steps with place name and amount, legs, and cohort display names, and omits option labels, signals, starting points, budget editing, threshold, and invite send", async () => {
+  it("T-001-96/AC-1 T-001-26/AC-4 the confirmed document includes plan_id, title, state locked, time, steps with place name and amount, legs, and cohort display names, and omits option labels, signals, starting points, budget editing, threshold, and invite send", async () => {
     const seeded = await seedProposedPlan();
     await lockPlan(seeded.planId);
     const response = await confirmedGet(

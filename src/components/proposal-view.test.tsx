@@ -479,7 +479,7 @@ describe("ProposalView", () => {
     expect(screen.queryByText("3 of 3 can make this time.")).toBeNull();
   });
 
-  it("each step shows the step name, option label, place name, and per-person amount with currency; legs show a travel duration; starting points and a map are absent", async () => {
+  it("T-001-96/AC-2 T-001-27/AC-4 each step shows the step name, option label, place name, and per-person amount with currency; legs show a travel duration; starting points and a map are absent", async () => {
     await renderLoaded();
     const dinner = stepItem("Dinner");
     expect(within(dinner).getByText("Dinner")).toBeTruthy();
@@ -496,7 +496,7 @@ describe("ProposalView", () => {
     expect(screen.queryByText("Helwan rooftop")).toBeNull();
   });
 
-  it("the fairness warning uses text-warning, talks about travel time, includes no amount and no currency, and does not hide lock", async () => {
+  it("T-001-96/AC-2 T-001-27/AC-5 the fairness warning uses text-warning, talks about travel time, includes no amount and no currency, and does not hide lock", async () => {
     await renderLoaded({
       get: proposedBody({}, { fairness_warning: true }),
     });
@@ -704,7 +704,7 @@ describe("ProposalView", () => {
     expectNoInstall();
   });
 
-  it("T-001-39/AC-6 a load failure uses text-destructive and retry refetches and omits another plan's places; a locked refetch shows the confirmed surface", async () => {
+  it("T-001-96/AC-2 T-001-27/AC-8 T-001-39/AC-6 a load failure uses text-destructive and retry refetches and omits another plan's places; a locked refetch shows the confirmed surface", async () => {
     let gets = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -850,5 +850,177 @@ describe("ProposalView", () => {
     expect(DINNER_SWAP).toBe(`/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/swap`);
     expect(DINNER_SIGNAL).toBe(`/api/v1/plans/${PLAN_ID}/steps/${DINNER_ID}/signal`);
     expect(LOCK_POST).toBe(`/api/v1/plans/${PLAN_ID}/lock`);
+  });
+
+  it("T-001-96/AC-2 T-001-27/AC-6 the organizer sees at most 3 alternatives on a step; zero alternatives keeps the place and says there is no alternative; swap updates that place and that step's counts show as none; lock uses bg-primary and is present only while proposed", async () => {
+    const alt = (n: string, amount: number) => ({
+      google_place_id: `ChIJ-alt-${n.toLowerCase()}`,
+      name: `Alt ${n}`,
+      amount_minor: amount,
+      currency: "EGP",
+    });
+    const fetchMock = await renderLoaded({
+      get: proposedBody(
+        {},
+        {
+          steps: [
+            organizerStep({
+              like_count: 1,
+              dislike_count: 2,
+              alternatives: [alt("One", 8000), alt("Two", 7000), alt("Three", 6000), alt("Four", 5000)],
+            }),
+            coffeeStep({ like_count: 3, dislike_count: 1, alternatives: [] }),
+          ],
+        },
+      ),
+      swap: proposedBody(
+        {},
+        {
+          steps: [
+            organizerStep({
+              place: { name: "Alt One", amount_minor: 8000, currency: "EGP" },
+              like_count: 0,
+              dislike_count: 0,
+              alternatives: [alt("Two", 7000), alt("Three", 6000)],
+            }),
+            coffeeStep({ like_count: 3, dislike_count: 1, alternatives: [] }),
+          ],
+        },
+      ),
+    });
+
+    // At most 3 alternatives on a step, each with its own swap control.
+    const dinner = stepItem("Dinner");
+    for (const name of ["Alt One", "Alt Two", "Alt Three"]) {
+      expect(within(dinner).getByText(name), name).toBeTruthy();
+    }
+    expect(screen.queryByText("Alt Four")).toBeNull();
+    expect(within(dinner).getAllByRole("button", { name: "Use this place" })).toHaveLength(3);
+    expect(within(dinner).getByText("1 / 2")).toBeTruthy();
+
+    // Zero alternatives keeps the place and says there is no alternative.
+    const coffee = stepItem("Coffee");
+    expect(within(coffee).getByText("Cilantro")).toBeTruthy();
+    expect(within(coffee).getByText("There is no alternative.")).toBeTruthy();
+    expect(within(coffee).queryByRole("button", { name: "Use this place" })).toBeNull();
+    expect(within(coffee).getByText("3 / 1")).toBeTruthy();
+
+    // Lock is the primary action while proposed.
+    expect(classTokens(screen.getByRole("button", { name: "Lock this outing" }))).toContain("bg-primary");
+
+    fireEvent.click(within(dinner).getAllByRole("button", { name: "Use this place" })[0] as HTMLElement);
+    await waitFor(() => {
+      expect(screen.queryByText("Abu Tarek")).toBeNull();
+    });
+    const swapped = fetchMock.mock.calls.find((call) => String(call[0]) === DINNER_SWAP);
+    expect(JSON.parse(String(swapped?.[1]?.body))).toEqual({ google_place_id: "ChIJ-alt-one" });
+
+    // The swapped step shows the new place and its counts as none; the other step keeps its place and counts.
+    const dinnerAfter = stepItem("Dinner");
+    expect(within(dinnerAfter).getByText("Alt One")).toBeTruthy();
+    expect(within(dinnerAfter).getByText("80.00 EGP")).toBeTruthy();
+    expect(within(dinnerAfter).getByText("No likes or dislikes yet.")).toBeTruthy();
+    expect(within(dinnerAfter).queryByText("1 / 2")).toBeNull();
+    const coffeeAfter = stepItem("Coffee");
+    expect(within(coffeeAfter).getByText("Cilantro")).toBeTruthy();
+    expect(within(coffeeAfter).getByText("3 / 1")).toBeTruthy();
+    expect(classTokens(screen.getByRole("button", { name: "Lock this outing" }))).toContain("bg-primary");
+
+    // Blocked, in each of its forms, and collecting data omit lock.
+    for (const block of [
+      { time: true, budget: false, venue_data: false },
+      { time: false, budget: true, venue_data: false },
+      { time: false, budget: false, venue_data: true },
+      { time: true, budget: true, venue_data: false },
+    ]) {
+      cleanup();
+      stubFetch();
+      renderView(blockedBody(block));
+      expect(screen.getAllByRole("alert").length, JSON.stringify(block)).toBeGreaterThan(0);
+      expect(screen.queryByRole("button", { name: "Lock this outing" }), JSON.stringify(block)).toBeNull();
+    }
+    cleanup();
+    stubFetch();
+    renderView(collectingBody());
+    expect(screen.queryByRole("button", { name: "Lock this outing" })).toBeNull();
+    expect(screen.queryByText("Abu Tarek")).toBeNull();
+
+    // A locked plan leaves for the confirmed surface and shows no lock.
+    cleanup();
+    router.replace.mockReset();
+    stubFetch({ get: "locked" });
+    renderView(null);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(`/plans/${PLAN_ID}/confirmed`);
+    });
+    expect(screen.queryByRole("button", { name: "Lock this outing" })).toBeNull();
+  });
+
+  it("T-001-96/AC-2 T-001-27/AC-7 a cohort member sees their own signal and no counts, swap, or lock; a joined person outside the cohort sees the itinerary without signal controls; chrome names Google Places and Google Maps routing and offers no native-app install step", async () => {
+    const memberStep = (step: Record<string, unknown>, mySignal: string) => ({
+      step_id: step.step_id,
+      name: step.name,
+      option_label: step.option_label,
+      place: step.place,
+      my_signal: mySignal,
+    });
+    const fetchMock = stubFetch({ signal: { signal: "dislike" } });
+    renderView(
+      proposedBody(
+        {},
+        { steps: [memberStep(organizerStep(), "like"), memberStep(coffeeStep(), "unset")] },
+      ),
+    );
+    expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+
+    // Their own signal, per step.
+    const pressed = (step: HTMLElement, name: string) =>
+      within(step).getByRole("button", { name }).getAttribute("aria-pressed");
+    expect(pressed(stepItem("Dinner"), "Like")).toBe("true");
+    expect(pressed(stepItem("Dinner"), "Dislike")).toBe("false");
+    expect(pressed(stepItem("Dinner"), "Clear signal")).toBe("false");
+    expect(pressed(stepItem("Coffee"), "Clear signal")).toBe("true");
+    expect(pressed(stepItem("Coffee"), "Like")).toBe("false");
+
+    // No counts, no swap, no lock.
+    expect(screen.queryByText(/^\d+ \/ \d+$/)).toBeNull();
+    expect(screen.queryByText("No likes or dislikes yet.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Use this place" })).toBeNull();
+    expect(screen.queryByText("There is no alternative.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lock this outing" })).toBeNull();
+    expect(screen.getByText("Places from Google Places. Travel times from Google Maps routing.")).toBeTruthy();
+    expectNoInstall();
+
+    fireEvent.click(within(stepItem("Dinner")).getByRole("button", { name: "Dislike" }));
+    await waitFor(() => {
+      expect(pressed(stepItem("Dinner"), "Dislike")).toBe("true");
+    });
+    expect(pressed(stepItem("Dinner"), "Like")).toBe("false");
+    const signaled = fetchMock.mock.calls.find((call) => String(call[0]) === DINNER_SIGNAL);
+    expect(JSON.parse(String(signaled?.[1]?.body))).toEqual({ signal: "dislike" });
+    expect(screen.queryByText(/^\d+ \/ \d+$/)).toBeNull();
+
+    // A joined person outside the cohort: the itinerary, and no signal controls.
+    cleanup();
+    stubFetch();
+    const visitorStep = (step: Record<string, unknown>) => ({
+      step_id: step.step_id,
+      name: step.name,
+      option_label: step.option_label,
+      place: step.place,
+    });
+    renderView(proposedBody({}, { steps: [visitorStep(organizerStep()), visitorStep(coffeeStep())] }));
+    expect(await screen.findByText("Abu Tarek")).toBeTruthy();
+    expect(screen.getByText("2026-10-02 18:30 Africa/Cairo")).toBeTruthy();
+    expect(within(stepItem("Dinner")).getByText("120.00 EGP")).toBeTruthy();
+    expect(within(stepItem("Coffee")).getByText("Cilantro")).toBeTruthy();
+    expect(screen.getByText("14 min")).toBeTruthy();
+    for (const name of ["Like", "Dislike", "Clear signal", "Use this place", "Lock this outing"]) {
+      expect(screen.queryByRole("button", { name }), name).toBeNull();
+    }
+    expect(screen.queryByText(/^\d+ \/ \d+$/)).toBeNull();
+    expect(screen.getByText("Places from Google Places. Travel times from Google Maps routing.")).toBeTruthy();
+    expectNoInstall();
   });
 });
