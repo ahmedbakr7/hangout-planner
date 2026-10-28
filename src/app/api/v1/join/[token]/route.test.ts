@@ -27,6 +27,21 @@ import {
 } from "./route";
 import { closeDatabase } from "@/server/join/db";
 
+// Partial mock: only generateDistinguisher becomes a spy, defaulting to the
+// real implementation, so a test can force the collision path through the
+// real route. Pattern copied from src/components/invite-panel.test.tsx.
+const { distinguisherSpy, realDistinguisher } = vi.hoisted(() => ({
+  distinguisherSpy: vi.fn<() => string>(),
+  realDistinguisher: { current: (() => "") as () => string },
+}));
+
+vi.mock("@/server/ids", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/server/ids")>();
+  realDistinguisher.current = actual.generateDistinguisher;
+  distinguisherSpy.mockImplementation(actual.generateDistinguisher);
+  return { ...actual, generateDistinguisher: distinguisherSpy };
+});
+
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
@@ -829,5 +844,55 @@ describe("POST /v1/join/{token}", () => {
     expect(new Set(values).size).toBe(values.length);
     expect(values).not.toContain("a3k9");
     expect(pending.map((row) => row.distinguisher)).toEqual(["a3k9"]);
+  });
+
+  it("T-001-94/AC-1 T-001-14/AC-7 the route skips distinguishers already taken by a participant and a pending invitation on that plan", async () => {
+    const orgEmail = track(uniqueEmail("collide"));
+    const invitedEmail = track(uniqueEmail("pending"));
+    const organizer = await register(orgEmail, "Omar");
+    const invited = await register(invitedEmail, "Hana");
+    const plan = await openPlan(organizer.token);
+
+    await sql`
+      INSERT INTO invitations (id, plan_id, account_id, distinguisher)
+      VALUES (${generateId("inv_")}, ${plan.id}, ${invited.account.id}, 'a3k9')
+    `;
+    await seedGuestParticipant(plan.id, "Ziad", "k7m2");
+
+    const free = "q8w4";
+    try {
+      distinguisherSpy.mockClear();
+      distinguisherSpy
+        .mockReturnValueOnce("a3k9")
+        .mockReturnValueOnce("k7m2")
+        .mockReturnValueOnce(free);
+
+      const response = await joinPost(plan.token, {
+        kind: "anonymous",
+        display_name: "Nour",
+      });
+      expect(response.status).toBe(201);
+      const body = (await response.json()) as JoinBody;
+      expect(body.participant.distinguisher).toBe(free);
+      expect(isDistinguisher(body.participant.distinguisher)).toBe(true);
+      expect(body.participant.distinguisher).toMatch(
+        /^[abcdefghjkmnpqrstuvwxyz23456789]{4}$/,
+      );
+      expect(distinguisherSpy).toHaveBeenCalledTimes(3);
+
+      const stored = await sql<{ distinguisher: string }[]>`
+        SELECT distinguisher FROM participants
+        WHERE id = ${body.participant.id}
+      `;
+      expect(stored.map((row) => row.distinguisher)).toEqual([free]);
+      const all = await sql<{ distinguisher: string }[]>`
+        SELECT distinguisher FROM participants WHERE plan_id = ${plan.id}
+        ORDER BY distinguisher
+      `;
+      expect(all.map((row) => row.distinguisher)).toEqual(["k7m2", free]);
+    } finally {
+      distinguisherSpy.mockReset();
+      distinguisherSpy.mockImplementation(realDistinguisher.current);
+    }
   });
 });

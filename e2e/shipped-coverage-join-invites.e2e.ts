@@ -1028,4 +1028,48 @@ describe("invite UI (T-001-19)", () => {
     }
     expect(await invitationCount(plan.id)).toBe(1);
   });
+
+  it("T-001-94/AC-6 T-001-19/AC-5 while locked the invite surface is absent: the organizer's open redirects to confirmed and GET invite returns neither the link nor the invitations", async () => {
+    const organizer = await signUp("Omar");
+    const nour = await signUp("Nour");
+    const hana = await signUp("Hana");
+    const plan = await createPlan(organizer.cookies, { title: "Thursday in Maadi" });
+    expect((await invite(organizer.cookies, plan.id, nour.email)).status).toBe(200);
+    expect((await invite(organizer.cookies, plan.id, hana.email)).status).toBe(200);
+    expect((await joinPlan(plan.id, nour.cookies)).status).toBe(201);
+
+    // Control: before the lock the organizer's read carries the link and both rows.
+    const before = await readInvite(organizer.cookies, plan.id);
+    expect(before.status).toBe(200);
+    const beforeText = await before.text();
+    expect(beforeText).toContain(plan.joinPath);
+    expect(beforeText).toContain("Nour");
+    expect(beforeText).toContain("Hana");
+
+    await setState(plan.id, "locked");
+    const confirmed = `/plans/${plan.id}/confirmed`;
+    const stored = await snapshot(plan.id);
+
+    // Opening /plans/{planId}/invite as the organizer: the page redirects and renders no InvitePanel.
+    redirectMock.mockClear();
+    cookieJar.value = organizer.cookies;
+    await expect(InvitePage({ params: Promise.resolve({ planId: plan.id }) })).rejects.toThrow(
+      `NEXT_REDIRECT ${confirmed}`,
+    );
+    expect(redirectMock).toHaveBeenCalledTimes(1);
+    expect(redirectMock).toHaveBeenCalledWith(confirmed);
+
+    // GET /api/v1/plans/{planId}/invite: an error envelope with no link and no invitations.
+    const locked = await readInvite(organizer.cookies, plan.id);
+    expect(locked.status).toBe(409);
+    const lockedText = await locked.text();
+    const body = JSON.parse(lockedText) as Envelope;
+    expectEnvelopeOnly(body, "conflict", "plan_locked");
+    expect(body).not.toHaveProperty("join_path");
+    expect(body).not.toHaveProperty("invitations");
+    for (const leak of [plan.joinPath, plan.token, "/join/", "Nour", "Hana", nour.email, hana.email]) {
+      expect(lockedText, leak).not.toContain(leak);
+    }
+    expect(await snapshot(plan.id)).toEqual(stored);
+  });
 });
