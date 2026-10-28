@@ -16,7 +16,7 @@ skills:
   - build
   - backend-patterns
 contracts: "arch/CONTRACTS.md#External Google"
-requirements: []
+requirements: [F-001-8, N-001-2, F-001-30]
 acceptance_criteria:
   - "AC-1: Places calls send X-Goog-Api-Key and the contracted field masks, never a wildcard; start search and start details omit priceRange; the venue mask includes places.priceRange"
   - "AC-2: Tests parse priceRange.startPrice as amount_minor = units * 100 + nanos / 10000000 with exact integer division, and a place that only has priceLevel does not qualify"

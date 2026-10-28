@@ -19,7 +19,7 @@ skills:
   - build
   - backend-patterns
 contracts: "arch/CONTRACTS.md#Authz"
-requirements: []
+requirements: [F-001-9, N-001-3]
 acceptance_criteria:
   - "AC-1: Passwords are hashed with argon2id"
   - "AC-2: HP_HASH_TEST=1 is the only weaker argon2 setting, and tests are the only place it is set"

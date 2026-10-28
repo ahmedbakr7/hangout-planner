@@ -16,7 +16,7 @@ skills:
   - build
   - backend-patterns
 contracts: "arch/CONTRACTS.md#Error envelope"
-requirements: []
+requirements: [N-001-15]
 acceptance_criteria:
   - "AC-1: The helper builds the error envelope with code, message, and fields, and fields is always an array"
   - "AC-2: reason is omitted when the code is enough, and message is log text rather than product chrome"
