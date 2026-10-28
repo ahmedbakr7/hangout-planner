@@ -100,16 +100,16 @@ describe("PLAN_STATES", () => {
 });
 
 describe("editableFor", () => {
-  it("collecting with answered_count 0 allows title, timezone, windows, steps, and currency, budget any, and threshold any", () => {
+  it("T-001-92/AC-3 T-001-09/AC-1 collecting with answered_count 0 allows title, timezone, windows, steps, and currency, budget any, and threshold any", () => {
     expect(editableFor("collecting", 0)).toEqual(OPEN_COLLECTING);
   });
 
-  it("collecting with answered_count at least 1 allows title, budget raise, and threshold lower, and freezes the rest", () => {
+  it("T-001-92/AC-3 T-001-09/AC-2 collecting with answered_count at least 1 allows title, budget raise, and threshold lower, and freezes the rest", () => {
     expect(editableFor("collecting", 1)).toEqual(ANSWERED_COLLECTING);
     expect(editableFor("collecting", 4)).toEqual(ANSWERED_COLLECTING);
   });
 
-  it("blocked allows title and budget raise, and freezes the rest; proposed allows title and freezes the rest", () => {
+  it("T-001-92/AC-3 T-001-09/AC-3 blocked allows title and budget raise, and freezes the rest; proposed allows title and freezes the rest", () => {
     expect(editableFor("blocked", 0)).toEqual(BLOCKED);
     expect(editableFor("blocked", 2)).toEqual(BLOCKED);
     expect(editableFor("proposed", 0)).toEqual(PROPOSED);
@@ -249,6 +249,52 @@ describe("validatePlanPatch", () => {
     expectOk(validatePlanPatch(any, { threshold: 50 }));
     expectFrozen(validatePlanPatch(any, { threshold: 0 }), ["threshold"]);
     expectFrozen(validatePlanPatch(any, { threshold: 101 }), ["threshold"]);
+  });
+
+  it("T-001-92/AC-3 T-001-09/AC-4 budget raise requires the same currency and a strictly greater amount_minor; threshold lower requires an integer at least answered_count and at most the stored threshold; threshold any allows an integer 1 through 100", () => {
+    // Budget "raise": in collecting with an answer and in blocked.
+    for (const plan of [
+      stored({ answeredCount: 1, threshold: 4 }),
+      stored({ state: "blocked", answeredCount: 2, threshold: 4 }),
+    ]) {
+      expect(editableFor(plan.state, plan.answeredCount).budget).toBe("raise");
+      // Same currency and strictly greater: legal.
+      expectOk(validatePlanPatch(plan, { budget: { amount_minor: 50_001, currency: "EGP" } }));
+      expectOk(validatePlanPatch(plan, { budget: { amount_minor: 90_000, currency: "EGP" } }));
+      // Not strictly greater: equal or lower is frozen.
+      expectFrozen(validatePlanPatch(plan, { budget: { amount_minor: 50_000, currency: "EGP" } }), ["budget"]);
+      expectFrozen(validatePlanPatch(plan, { budget: { amount_minor: 49_999, currency: "EGP" } }), ["budget"]);
+      // Another currency is frozen even when the amount is greater, for every other listed currency.
+      for (const currency of ["USD", "SAR", "AED"]) {
+        expectFrozen(
+          validatePlanPatch(plan, { budget: { amount_minor: 90_000, currency } }),
+          ["budget", "currency"],
+        );
+      }
+    }
+
+    // Threshold "lower": an integer from answered_count up to the stored threshold.
+    const lower = stored({ answeredCount: 2, threshold: 5 });
+    expect(editableFor(lower.state, lower.answeredCount).threshold).toBe("lower");
+    for (const threshold of [2, 3, 4, 5]) {
+      expectOk(validatePlanPatch(lower, { threshold }));
+    }
+    expectFrozen(validatePlanPatch(lower, { threshold: 1 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(lower, { threshold: 6 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(lower, { threshold: 3.5 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(lower, { threshold: "3" }), ["threshold"]);
+
+    // Threshold "any": an integer 1 through 100.
+    const any = stored({ threshold: 3 });
+    expect(editableFor(any.state, any.answeredCount).threshold).toBe("any");
+    for (const threshold of [1, 2, 3, 4, 50, 99, 100]) {
+      expectOk(validatePlanPatch(any, { threshold }));
+    }
+    expectFrozen(validatePlanPatch(any, { threshold: 0 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(any, { threshold: 101 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(any, { threshold: -1 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(any, { threshold: 2.5 }), ["threshold"]);
+    expectFrozen(validatePlanPatch(any, { threshold: "7" }), ["threshold"]);
   });
 
   it("a frozen key, an illegal budget change, a currency change while currency is frozen, or a threshold outside the current mode is field_frozen and describes no write", () => {

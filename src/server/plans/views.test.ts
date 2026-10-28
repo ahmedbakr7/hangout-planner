@@ -142,7 +142,7 @@ describe("organizerPlanView", () => {
     );
   });
 
-  it("includes no starting points, step picks, or itinerary", () => {
+  it("T-001-92/AC-3 T-001-09/AC-6 includes no starting points, step picks, or itinerary", () => {
     const source = {
       ...organizerSource(),
       starting_points: [
@@ -251,7 +251,7 @@ describe("participantResponseView", () => {
     expect(jsonKeys(view.response.start as object)).toEqual(["name"]);
   });
 
-  it("omits other participants, other starting points, the answered count, and the threshold", () => {
+  it("T-001-92/AC-3 T-001-09/AC-7 omits other participants, other starting points, the answered count, and the threshold", () => {
     const source = {
       ...participantSource(),
       threshold: 3,

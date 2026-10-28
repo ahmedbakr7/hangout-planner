@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("LanguageControl", () => {
-  it("updates hp_locale and keeps unsaved input in the surrounding form", () => {
+  it("T-001-92/AC-2 T-001-08/AC-5 updates hp_locale and keeps unsaved input in the surrounding form", () => {
     renderControl(<SurroundingForm />);
 
     const notes = screen.getByLabelText("Notes") as HTMLInputElement;
