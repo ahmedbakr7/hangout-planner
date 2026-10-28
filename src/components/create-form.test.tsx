@@ -273,6 +273,171 @@ describe("CreateForm", () => {
     expect(screen.queryByLabelText("Approximate starting place")).toBeNull();
   });
 
+  it("T-001-93/AC-1 T-001-11/AC-4 create is one form in the order title, when, budget, steps, threshold; currency defaults to EGP; the timezone starts from the environment and stays editable; there is no venue search and no map", async () => {
+    const realOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+    const zoneSpy = vi
+      .spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions")
+      .mockImplementation(function (this: Intl.DateTimeFormat) {
+        return { ...realOptions.call(this), timeZone: "Asia/Riyadh" };
+      });
+    try {
+      const fetchMock = await renderSignedInForm();
+      fireEvent.click(screen.getByRole("button", { name: "Add a day window" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add a step" }));
+
+      // one form
+      const forms = document.querySelectorAll("form");
+      expect(forms).toHaveLength(1);
+      const form = forms[0] as HTMLFormElement;
+
+      // sections in the order title, when, budget, steps, threshold, each holding its fields
+      const sections = Array.from(form.querySelectorAll("section"));
+      expect(sections.map((section) => section.querySelector("h2")?.textContent)).toEqual([
+        "Title",
+        "When",
+        "Budget",
+        "Steps",
+        "Threshold",
+      ]);
+      const sectionOf = (label: string): number =>
+        sections.indexOf(screen.getByLabelText(label).closest("section") as HTMLElement);
+      expect(sectionOf("Plan title")).toBe(0);
+      expect(sectionOf("Timezone")).toBe(1);
+      expect(sectionOf("Date")).toBe(1);
+      expect(sectionOf("Start")).toBe(1);
+      expect(sectionOf("End")).toBe(1);
+      expect(sectionOf("Per-person amount")).toBe(2);
+      expect(sectionOf("Currency")).toBe(2);
+      expect(sectionOf("Step name")).toBe(3);
+      expect(sectionOf("Answered threshold")).toBe(4);
+      for (const input of Array.from(document.querySelectorAll("input"))) {
+        expect(input.closest("form"), input.id).toBe(form);
+      }
+      expect(screen.getByLabelText("Currency").closest("form")).toBe(form);
+
+      // currency defaults to EGP
+      expect((screen.getByLabelText("Currency") as HTMLSelectElement).value).toBe("EGP");
+
+      // the timezone starts from the environment and stays editable
+      const timezone = screen.getByLabelText("Timezone") as HTMLInputElement;
+      expect(timezone.value).toBe("Asia/Riyadh");
+      expect(timezone.disabled).toBe(false);
+      expect(timezone.readOnly).toBe(false);
+      fireEvent.change(timezone, { target: { value: "Africa/Cairo" } });
+      expect(timezone.value).toBe("Africa/Cairo");
+
+      // no venue search and no map
+      expect(screen.queryByRole("searchbox")).toBeNull();
+      expect(document.querySelector("input[type=search]")).toBeNull();
+      expect(screen.queryByRole("button", { name: /search/i })).toBeNull();
+      expect(screen.queryByText(/venue/i)).toBeNull();
+      expect(screen.queryByLabelText(/venue|place/i)).toBeNull();
+      expect(screen.queryByText(/map/i)).toBeNull();
+      expect(screen.queryByRole("img")).toBeNull();
+      expect(document.querySelector("iframe, canvas, svg[role=img]")).toBeNull();
+      expect(fetchMock.mock.calls.map((call) => String(call[0]))).toEqual(["/api/v1/me"]);
+    } finally {
+      zoneSpy.mockRestore();
+    }
+  });
+
+  it("T-001-93/AC-1 T-001-11/AC-5 an invalid submit creates no plan, identifies each invalid field, and keeps the entered values; a save failure keeps the entered values, uses text-destructive, and does not navigate", async () => {
+    const fetchMock = await renderSignedInForm({ plansPost: "fail" });
+
+    function errorText(input: HTMLElement): string | null {
+      const id = input.getAttribute("aria-describedby");
+      return id ? (document.getElementById(id)?.textContent ?? null) : null;
+    }
+    function value(label: string, index = 0): string {
+      return (screen.getAllByLabelText(label)[index] as HTMLInputElement).value;
+    }
+
+    // Invalid: blank title, blank timezone, end before start, zero amount,
+    // a step with one option, threshold 0.
+    fireEvent.change(screen.getByLabelText("Plan title"), { target: { value: "   " } });
+    fireEvent.change(screen.getByLabelText("Timezone"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add a day window" }));
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-02" } });
+    fireEvent.change(screen.getByLabelText("Start"), { target: { value: "18:00" } });
+    fireEvent.change(screen.getByLabelText("End"), { target: { value: "17:00" } });
+    fireEvent.change(screen.getByLabelText("Per-person amount"), { target: { value: "0" } });
+    fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "USD" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add a step" }));
+    fireEvent.change(screen.getByLabelText("Step name"), { target: { value: "Dinner" } });
+    fireEvent.change(screen.getAllByLabelText("Option label")[0] as HTMLElement, {
+      target: { value: "Koshary" },
+    });
+    fireEvent.change(screen.getByLabelText("Answered threshold"), { target: { value: "0" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    // creates no plan
+    expect(postCall(fetchMock, "/api/v1/plans")).toBeUndefined();
+    expect(router.push).not.toHaveBeenCalled();
+
+    // identifies each invalid field, and only those
+    const invalid: Array<[HTMLElement, string]> = [
+      [screen.getByLabelText("Plan title"), en.errors.fields.required],
+      [screen.getByLabelText("Timezone"), en.errors.fields.required],
+      [screen.getByLabelText("End"), en.errors.fields.end_before_start],
+      [screen.getByLabelText("Per-person amount"), en.errors.fields.not_positive],
+      [screen.getAllByLabelText("Option label")[1] as HTMLElement, en.errors.fields.required],
+      [screen.getByLabelText("Answered threshold"), en.errors.fields.below_min],
+    ];
+    for (const [input, message] of invalid) {
+      expect(input.getAttribute("aria-invalid"), input.id).toBe("true");
+      expect(errorText(input), input.id).toBe(message);
+    }
+    for (const label of ["Date", "Start", "Step name", "Currency"]) {
+      expect(screen.getByLabelText(label).getAttribute("aria-invalid"), label).toBeNull();
+    }
+
+    // keeps the entered values
+    expect(value("Plan title")).toBe("   ");
+    expect(value("Timezone")).toBe("");
+    expect(value("Date")).toBe("2026-10-02");
+    expect(value("Start")).toBe("18:00");
+    expect(value("End")).toBe("17:00");
+    expect(value("Per-person amount")).toBe("0");
+    expect((screen.getByLabelText("Currency") as HTMLSelectElement).value).toBe("USD");
+    expect(value("Step name")).toBe("Dinner");
+    expect(value("Option label", 0)).toBe("Koshary");
+    expect(value("Option label", 1)).toBe("");
+    expect(value("Answered threshold")).toBe("0");
+
+    // Fix every field; the save then fails on the server.
+    fireEvent.change(screen.getByLabelText("Plan title"), { target: { value: "Thursday in Maadi" } });
+    fireEvent.change(screen.getByLabelText("Timezone"), { target: { value: "Africa/Cairo" } });
+    fireEvent.change(screen.getByLabelText("End"), { target: { value: "23:00" } });
+    fireEvent.change(screen.getByLabelText("Per-person amount"), { target: { value: "500.00" } });
+    fireEvent.change(screen.getAllByLabelText("Option label")[1] as HTMLElement, {
+      target: { value: "Grills" },
+    });
+    fireEvent.change(screen.getByLabelText("Answered threshold"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    const alert = await screen.findByText(en.errors.code.upstream);
+    expect(postCall(fetchMock, "/api/v1/plans")).toBeDefined();
+    // uses text-destructive
+    expect(alert.getAttribute("role")).toBe("alert");
+    expect(classTokens(alert)).toContain("text-destructive");
+    // keeps the entered values
+    expect(value("Plan title")).toBe("Thursday in Maadi");
+    expect(value("Timezone")).toBe("Africa/Cairo");
+    expect(value("Date")).toBe("2026-10-02");
+    expect(value("Start")).toBe("18:00");
+    expect(value("End")).toBe("23:00");
+    expect(value("Per-person amount")).toBe("500.00");
+    expect((screen.getByLabelText("Currency") as HTMLSelectElement).value).toBe("USD");
+    expect(value("Step name")).toBe("Dinner");
+    expect(value("Option label", 0)).toBe("Koshary");
+    expect(value("Option label", 1)).toBe("Grills");
+    expect(value("Answered threshold")).toBe("3");
+    // does not navigate
+    expect(router.push).not.toHaveBeenCalled();
+    expect(router.refresh).not.toHaveBeenCalled();
+  });
+
   it("an invalid submit creates no plan, identifies each invalid field, and keeps the entered values", async () => {
     const fetchMock = await renderSignedInForm();
 
@@ -503,6 +668,59 @@ describe("CreateForm", () => {
     await waitFor(() => {
       expect(router.push).toHaveBeenCalledWith("/plans/new");
     });
+  });
+
+  it("T-001-93/AC-1 T-001-11/AC-8 switching language keeps unsaved create input", async () => {
+    const fetchMock = await renderSignedInForm();
+    fillValidForm();
+    fireEvent.change(screen.getByLabelText("Currency"), { target: { value: "SAR" } });
+
+    const byId = (id: string): string =>
+      (document.getElementById(id) as HTMLInputElement | HTMLSelectElement).value;
+    const entered = {
+      "hp-title": "Thursday in Maadi",
+      "hp-timezone": "Africa/Cairo",
+      "hp-window-0-date": "2026-10-02",
+      "hp-window-0-start": "18:00",
+      "hp-window-0-end": "23:00",
+      "hp-amount": "500.00",
+      "hp-currency": "SAR",
+      "hp-step-0-name": "Dinner",
+      "hp-step-0-option-0": "Koshary",
+      "hp-step-0-option-1": "Grills",
+      "hp-step-0-option-2": "",
+      "hp-step-0-option-3": "",
+      "hp-threshold": "3",
+    };
+    const expectEntered = (): void => {
+      for (const [id, expected] of Object.entries(entered)) {
+        expect(byId(id), id).toBe(expected);
+      }
+    };
+    expectEntered();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "Language" }), {
+      target: { value: "ar" },
+    });
+    // The chrome switched to Arabic RTL ...
+    expect(document.cookie).toMatch(/(?:^|; )hp_locale=ar(?:;|$)/);
+    expect(document.documentElement.lang).toBe("ar");
+    expect(document.documentElement.dir).toBe("rtl");
+    expect(screen.getByLabelText("عنوان الخطة")).toBe(document.getElementById("hp-title"));
+    expect(screen.queryByLabelText("Plan title")).toBeNull();
+    // ... and every unsaved input is kept.
+    expectEntered();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "اللغة" }), {
+      target: { value: "en" },
+    });
+    expect(document.documentElement.dir).toBe("ltr");
+    expect(screen.getByLabelText("Plan title")).toBe(document.getElementById("hp-title"));
+    expectEntered();
+
+    // Nothing was saved: switching sends no plan write.
+    expect(postCall(fetchMock, "/api/v1/plans")).toBeUndefined();
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("switching language keeps unsaved create input", async () => {

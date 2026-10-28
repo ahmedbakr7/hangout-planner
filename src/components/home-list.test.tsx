@@ -204,6 +204,40 @@ describe("HomeList", () => {
     expect(plansCalls).toBe(1);
   });
 
+  it("T-001-93/AC-1 T-001-11/AC-2 a home load failure uses text-destructive, offers retry, keeps create available, and does not show the empty-state sentence or another account's plan", async () => {
+    const fetchMock = stubFetch({ me: "in", plans: "fail" });
+    renderHome({ plans: "not a list" });
+
+    function expectLoadFailure(): void {
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toBe(en.Home.loadError);
+      expect(classTokens(alert)).toContain("text-destructive");
+      // offers retry
+      expect(screen.getByRole("button", { name: en.Home.retry })).toBeTruthy();
+      // keeps create available
+      const create = getCreateLink();
+      expect(create.getAttribute("href")).toBe("/plans/new");
+      expect(classTokens(create)).toContain("bg-primary");
+      // no empty-state sentence
+      expect(screen.queryByText(en.Home.empty)).toBeNull();
+      // no other account's plan
+      expect(screen.queryByText("Someone else's private plan")).toBeNull();
+      expect(screen.queryByRole("listitem")).toBeNull();
+    }
+
+    expectLoadFailure();
+
+    // The retry fails too, with another account's plan in the failed body.
+    fireEvent.click(screen.getByRole("button", { name: en.Home.retry }));
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.filter((call) => String(call[0]) === "/api/v1/plans"),
+      ).toHaveLength(1);
+    });
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expectLoadFailure();
+  });
+
   it("T-001-45/AC-2 initial data shows the plan rows and makes no plans request on first render", async () => {
     const fetchMock = stubFetch({ me: "in", plans: "leak" });
     renderHome({ plans: [collecting, blocked, proposed, locked], truncated: false });

@@ -291,7 +291,7 @@ describe("OrganizerPlan", () => {
     expect(alexAnswered.querySelector(".text-success")?.textContent).toBe("answered");
   });
 
-  it("shows the distinguisher only when another row in that list has the same display name, and the list has no starting points and no step picks", async () => {
+  it("T-001-93/AC-2 T-001-12/AC-2 shows the distinguisher only when another row in that list has the same display name, and the list has no starting points and no step picks", async () => {
     stubPlanFetch(collectingId, { get: basePlan(collectingId) });
     renderPlan(collectingId);
 
@@ -311,7 +311,7 @@ describe("OrganizerPlan", () => {
     expect(participantItem("Alex", 0).textContent).not.toContain("Grills");
   });
 
-  it("while collecting there is no itinerary, and the waiting copy uses text-muted-foreground", async () => {
+  it("T-001-93/AC-2 T-001-12/AC-3 while collecting there is no itinerary, and the waiting copy uses text-muted-foreground", async () => {
     renderPlan(
       collectingId,
       basePlan(collectingId, {
@@ -339,7 +339,7 @@ describe("OrganizerPlan", () => {
     ).not.toContain("bg-primary");
   });
 
-  it("while blocked or proposed the same counts remain and there is a way to the proposal surface; the itinerary is not duplicated on this page", async () => {
+  it("T-001-93/AC-2 T-001-12/AC-4 while blocked or proposed the same counts remain and there is a way to the proposal surface; the itinerary is not duplicated on this page", async () => {
     renderPlan(
       blockedId,
       basePlan(blockedId, {
@@ -498,7 +498,7 @@ describe("OrganizerPlan", () => {
     });
   });
 
-  it("an invite action is present while collecting, blocked, or proposed", async () => {
+  it("T-001-93/AC-2 T-001-12/AC-6 an invite action is present while collecting, blocked, or proposed", async () => {
     stubPlanFetch(collectingId, { get: basePlan(collectingId) });
     renderPlan(collectingId);
     const collectingInvite = await screen.findByRole("link", { name: "Invite" });
@@ -598,6 +598,42 @@ describe("OrganizerPlan", () => {
     expect(screen.queryByText("Someone else's private plan")).toBeNull();
     expect(screen.queryByText("Secret Person")).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("T-001-93/AC-2 T-001-12/AC-8 a load failure uses text-destructive and retry and omits any other plan's title, people, and places", async () => {
+    const fetchMock = stubPlanFetch(collectingId, { get: "fail" });
+    // The first data holds another plan: the page treats it as a failed load.
+    renderPlan(collectingId, leakedPlan);
+
+    function expectFailureWithoutOtherPlan(): void {
+      const alert = screen.getByRole("alert");
+      expect(alert.textContent).toBe(en.plans.loadError);
+      expect(classTokens(alert)).toContain("text-destructive");
+      const retry = screen.getByRole("button", { name: en.plans.retry });
+      expect(classTokens(retry)).not.toContain("bg-primary");
+      // title
+      expect(screen.queryByText("Someone else's private plan")).toBeNull();
+      // people
+      expect(screen.queryByText("Secret Person")).toBeNull();
+      expect(screen.queryByText("zzzz")).toBeNull();
+      expect(screen.queryByRole("listitem")).toBeNull();
+      // places
+      expect(screen.queryByText("Secret Cafe")).toBeNull();
+      expect(screen.queryByText("Hidden venue")).toBeNull();
+      expect(screen.queryByLabelText("Plan title")).toBeNull();
+    }
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expectFailureWithoutOtherPlan();
+
+    // A retry whose GET fails with another plan in its body still shows only the error.
+    fireEvent.click(screen.getByRole("button", { name: en.plans.retry }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expectFailureWithoutOtherPlan();
+    expect(router.replace).not.toHaveBeenCalled();
   });
 
   it("T-001-36/AC-2 shows the title and threshold from initial data and makes no GET request on its first render", async () => {
