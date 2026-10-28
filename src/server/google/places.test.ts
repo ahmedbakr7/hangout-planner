@@ -180,6 +180,65 @@ describe("parseStartPrice", () => {
   });
 });
 
+describe("startPrice parsing and priceLevel", () => {
+  it("T-001-91/AC-7 T-001-13/AC-2 parses priceRange.startPrice as amount_minor = units * 100 + nanos / 10000000 with exact integer division, and a place that only has priceLevel does not qualify", () => {
+    const cases: [units: number | string, nanos: number, amountMinor: number | null][] = [
+      [90, 0, 9000],
+      ["12", 50_000_000, 1205],
+      [10, 500_000_000, 1050],
+      [0, 10_000_000, 1],
+      [7, 990_000_000, 799],
+      ["1234567", 120_000_000, 123456712],
+      // nanos that do not divide exactly by 10000000 are not a minor-unit amount
+      [10, 1, null],
+      [10, 15_000_000, null],
+      [10, 9_999_999, null],
+    ];
+    for (const [units, nanos, amountMinor] of cases) {
+      const parsed = parseStartPrice({ currencyCode: "EGP", units, nanos });
+      expect(parsed, `${units} units ${nanos} nanos`).toEqual(
+        amountMinor === null ? null : { amountMinor, currencyCode: "EGP" },
+      );
+      if (amountMinor !== null) {
+        expect(Number.isInteger(parsed!.amountMinor)).toBe(true);
+        expect(parsed!.amountMinor).toBe(Number(units) * 100 + nanos / 10_000_000);
+      }
+    }
+
+    // The venue qualifies on priceRange.startPrice, through the same rule.
+    const venue = venueFromPlace(
+      {
+        ...pricedVenue,
+        priceRange: { startPrice: { currencyCode: "EGP", units: "12", nanos: 50_000_000 } },
+      },
+      "EGP",
+    );
+    expect(venue?.amountMinor).toBe(1205);
+
+    // priceLevel alone does not qualify, at any level.
+    for (const level of [
+      "PRICE_LEVEL_FREE",
+      "PRICE_LEVEL_INEXPENSIVE",
+      "PRICE_LEVEL_MODERATE",
+      "PRICE_LEVEL_EXPENSIVE",
+      "PRICE_LEVEL_VERY_EXPENSIVE",
+    ]) {
+      expect(
+        venueFromPlace(
+          {
+            id: "ChIJ-level",
+            displayName: { text: "Level Only" },
+            location: { latitude: 30, longitude: 31 },
+            priceLevel: level,
+          },
+          "EGP",
+        ),
+        level,
+      ).toBeNull();
+    }
+  });
+});
+
 describe("venueFromPlace", () => {
   it("qualifies on startPrice and ignores endPrice", () => {
     expect(venueFromPlace(pricedVenue, "EGP")).toEqual({

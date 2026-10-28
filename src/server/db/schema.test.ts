@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTableColumns, getTableName, isTable } from "drizzle-orm";
@@ -155,7 +155,7 @@ describe("schema.ts", () => {
 });
 
 describe("drizzle/0001_init.sql", () => {
-  it("is the only migration file and has no down migration", () => {
+  it("T-001-91/AC-2 T-001-02/AC-4 is the only migration file and has no down migration", () => {
     expect(readdirSync(resolve(root, "drizzle"))).toEqual(["0001_init.sql"]);
   });
 });
@@ -215,6 +215,50 @@ describe("migration on Postgres", () => {
       ORDER BY table_name
     `;
     expect(rows.map((row) => row.table_name)).toEqual(CONTRACT_TABLES);
+  });
+
+  it("T-001-91/AC-2 T-001-02/AC-3 applies the migration on the Postgres named by DATABASE_URL", async () => {
+    const url = new URL(databaseUrl!);
+    const where = await sql<{ db: string; port: number }[]>`
+      SELECT current_database() AS db, inet_server_port() AS port
+    `;
+    expect(where[0]!.db).toBe(decodeURIComponent(url.pathname.slice(1)));
+    if (where[0]!.port !== null) {
+      expect(String(where[0]!.port)).toBe(url.port || "5432");
+    }
+    const version = await sql<{ server_version_num: string }[]>`SHOW server_version_num`;
+    expect(Number(version[0]!.server_version_num)).toBeGreaterThan(0);
+
+    // The schema was empty before beforeAll ran the migration file; now it holds its tables.
+    const tables = await sql<{ table_name: string }[]>`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = ${schemaName} AND table_type = 'BASE TABLE'
+      ORDER BY table_name
+    `;
+    expect(tables.map((row) => row.table_name)).toEqual(CONTRACT_TABLES);
+    const accounts = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM accounts`;
+    expect(accounts[0]!.n).toBe(3);
+  });
+
+  it("T-001-91/AC-2 T-001-02/AC-2 the migration creates no table that arch/CONTRACTS.md does not name", async () => {
+    const contracts = readFileSync(resolve(root, "arch/CONTRACTS.md"), "utf8");
+    const start = contracts.indexOf("\n## Tables");
+    expect(start).toBeGreaterThan(-1);
+    const section = contracts.slice(start, contracts.indexOf("\n## ", start + 1));
+    const named = new Set(
+      section
+        .split("\n")
+        .map((line) => /^\| `([a-z_]+)` \|/.exec(line)?.[1])
+        .filter((name): name is string => name !== undefined),
+    );
+    expect(named.size).toBeGreaterThan(0);
+
+    const created = await sql<{ table_name: string; table_type: string }[]>`
+      SELECT table_name, table_type FROM information_schema.tables
+      WHERE table_schema = ${schemaName}
+    `;
+    expect(created.length).toBeGreaterThan(0);
+    expect(created.map((row) => row.table_name).filter((name) => !named.has(name))).toEqual([]);
   });
 
   it("creates every CONTRACTS column on those tables", async () => {
