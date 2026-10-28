@@ -2012,7 +2012,7 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
     expect(lock[0]?.attempt_lock).toBe(false);
   });
 
-  it("T-001-95/AC-5 T-001-24/AC-5 the attempts route returns 429 after 20 runs per plan per rolling hour and does not change the plan; a completion or budget raise that finds the hour full does not call Google, finishes as venue_data, and still returns 200 for the committed write", async () => {
+  it("T-001-95/AC-5 T-001-24/AC-5 the attempts route returns 429 after 20 runs per plan per rolling hour (19 still runs) and does not change the plan; a completion or budget raise that finds the hour full does not call Google, finishes as venue_data, and still returns 200 for the committed write", async () => {
     const organizer = await register(track(uniqueEmail("cap")), "Omar");
     const member = await register(track(uniqueEmail("member")), "Nour");
     const plan = await openPlan(organizer.token, { threshold: 1 });
@@ -2026,7 +2026,18 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
       apiKey: "test-places-key",
       fetch: attemptGoogleFetch(captured),
     });
-    await seedHourRuns(plan.id, PROPOSAL_ATTEMPT_HOUR_CAP, new Date(frozen.getTime() - 59 * 60_000));
+    // The cap is the AC's literal 20, not production's constant, so a changed cap fails this test.
+    const hourCap = 20;
+    await seedHourRuns(plan.id, hourCap, new Date(frozen.getTime() - 59 * 60_000));
+    const runsInHour = async (at: Date) =>
+      Number(
+        (
+          await sql<{ count: string }[]>`
+            SELECT count(*)::text AS count FROM proposal_runs
+            WHERE plan_id = ${plan.id} AND started_at > ${new Date(at.getTime() - 60 * 60_000)}
+          `
+        )[0]?.count ?? 0,
+      );
     const latestRun = async () =>
       (
         await sql<
@@ -2068,7 +2079,7 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
     expect(await answeredCount(plan.id)).toBe(1);
     expect((await storedResponse(participantId)).response?.complete).toBe(true);
     expect(captured).toEqual([]);
-    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 1);
+    expect(await runCount(plan.id)).toBe(hourCap + 1);
     expect(await latestRun()).toEqual({
       outcome: "blocked",
       block_time: false,
@@ -2084,7 +2095,7 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
       error: { code: "rate_limited", message: "too many proposal attempts", fields: [] },
     });
     expect(await planRow()).toEqual(before);
-    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 1);
+    expect(await runCount(plan.id)).toBe(hourCap + 1);
     expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(0);
     expect(captured).toEqual([]);
 
@@ -2107,7 +2118,7 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
     expect(raisedBody.state).toBe("blocked");
     expect(Number((await planRow())?.budget_amount_minor)).toBe(90_000);
     expect(captured).toEqual([]);
-    expect(await runCount(plan.id)).toBe(PROPOSAL_ATTEMPT_HOUR_CAP + 2);
+    expect(await runCount(plan.id)).toBe(hourCap + 2);
     expect(await latestRun()).toEqual({
       outcome: "blocked",
       block_time: false,
@@ -2115,13 +2126,37 @@ describe("PUT /v1/plans/{planId}/response attempt trigger", () => {
       block_venue_data: true,
     });
 
-    // The hour is rolling: once every counted run is older than an hour, the route runs again.
-    setClock(new Date(frozen.getTime() + 61 * 60_000));
+    // Boundary at exactly 20: move past every earlier run, then fill the rolling hour with
+    // one run 59 minutes old and 19 runs 30 minutes old. The attempts route answers 429.
+    const later = new Date(frozen.getTime() + 61 * 60_000);
+    setClock(later);
+    expect(await runsInHour(later)).toBe(0);
+    await seedHourRuns(plan.id, 1, new Date(later.getTime() - 59 * 60_000));
+    await seedHourRuns(plan.id, hourCap - 1, new Date(later.getTime() - 30 * 60_000));
+    expect(await runsInHour(later)).toBe(20);
+    const beforeAtTwenty = await planRow();
+    const atTwenty = await attempt();
+    expect(atTwenty.status).toBe(429);
+    expect(await atTwenty.json()).toEqual({
+      error: { code: "rate_limited", message: "too many proposal attempts", fields: [] },
+    });
+    expect(await planRow()).toEqual(beforeAtTwenty);
+    expect(await runsInHour(later)).toBe(20);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(0);
+    expect(captured).toEqual([]);
+
+    // Boundary at 19: the hour is rolling, so two minutes later the 59-minute-old run leaves it,
+    // 19 runs remain, and the attempts route runs an attempt instead of answering 429.
+    const rolledAt = new Date(later.getTime() + 2 * 60_000);
+    setClock(rolledAt);
+    expect(await runsInHour(rolledAt)).toBe(19);
     const rolled = await attempt();
     expect(rolled.status).toBe(200);
     expect(((await rolled.json()) as { state: string }).state).toBe("proposed");
     expect(captured.length).toBeGreaterThan(0);
     expectNoLiveGoogle(captured);
+    expect(await runsInHour(rolledAt)).toBe(20);
+    expect(await sql`SELECT id FROM proposals WHERE plan_id = ${plan.id}`).toHaveLength(1);
   });
 
   it("T-001-95/AC-5 T-001-24/AC-8 handler tests use Postgres and the fake Google clients, and keep plan validation, response counting, and the no-write-on-invalid rules", async () => {
