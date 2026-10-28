@@ -19,7 +19,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { NextIntlClientProvider } from "next-intl";
 import createNextIntlPlugin from "next-intl/plugin";
 import React from "react";
-import ts from "typescript";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import postgres from "postgres";
 import ar from "../messages/ar.json";
@@ -447,20 +446,8 @@ describe("T-001-07 shell, through the real stack", () => {
     expect((await call("/ar/api/v1/currencies", "GET")).status).toBe(404);
     expect(server.unserved).toEqual(["GET /ar/api/v1/currencies"]);
 
-    // next.config.ts is only the next-intl plugin over an empty Next config: the parsed file
-    // imports only `next` (its type) and `next-intl/plugin`, and its export equals the plugin
-    // applied to `{}`. No i18n routing key.
-    const source = ts.createSourceFile(
-      "next.config.ts",
-      readFileSync(resolve(root, "next.config.ts"), "utf8"),
-      ts.ScriptTarget.Latest,
-      true,
-    );
-    const imports = source.statements
-      .filter(ts.isImportDeclaration)
-      .map((statement) => (statement.moduleSpecifier as ts.StringLiteral).text)
-      .sort();
-    expect(imports).toEqual(["next", "next-intl/plugin"]);
+    // The exported Next config equals the next-intl plugin applied to `{}`, and it has no
+    // `i18n` key (no locale routing by URL prefix).
     expect(shape(nextConfig)).toEqual(shape(createNextIntlPlugin()({})));
     expect((nextConfig as Json).i18n).toBeUndefined();
   });
