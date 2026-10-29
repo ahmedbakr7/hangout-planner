@@ -59,16 +59,28 @@ const databaseExists = async (name: string): Promise<boolean> => {
   return rows.length === 1;
 };
 
-const dropCreated = async (): Promise<void> => {
-  for (const name of created) {
-    await admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
+// Drops every name, empties the set whatever happened, and rejects with the first drop error.
+const dropAll = async (names: Set<string>, drop: (name: string) => Promise<unknown>): Promise<void> => {
+  let failure: { error: unknown } | null = null;
+  try {
+    for (const name of names) {
+      try {
+        await drop(name);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  } finally {
+    names.clear();
   }
-  created.clear();
-  for (const role of roles) {
-    await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
-  }
-  roles.clear();
+  if (failure !== null) throw failure.error;
 };
+
+const dropDatabases = () => dropAll(created, (name) => admin.unsafe(`DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`));
+const dropRoles = () => dropAll(roles, (role) => admin.unsafe(`DROP ROLE IF EXISTS "${role}"`));
+
+// The role drops run even when a database drop threw; the database error is the one rethrown.
+const dropCreated = (): Promise<void> => cleanupThenClose(dropDatabases, dropRoles);
 
 // A LOGIN CREATEDB role whose password really authenticates: under scram-sha-256 a made-up
 // password in DATABASE_URL fails at login, before the step under test. Dropped after its databases.
@@ -309,5 +321,18 @@ describe("scripts/run-env.mjs against the real Postgres", () => {
     expect(result.output).not.toContain(raw);
     expect(result.output).not.toContain("URIError");
     expect(await databaseExists(name)).toBe(false);
+  });
+
+  it("T-001-97/AC-2 cleanup still drops the tracked roles and empties both sets when a database drop throws", async () => {
+    const role = new URL(await urlForNewRole(PASSWORD)).username;
+    track('hp_run_bad"name');
+    try {
+      await expect(dropCreated()).rejects.toMatchObject({ code: "42601" });
+      expect(await admin`SELECT 1 FROM pg_roles WHERE rolname = ${role}`).toHaveLength(0);
+      expect(created.size).toBe(0);
+      expect(roles.size).toBe(0);
+    } finally {
+      await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+    }
   });
 });
