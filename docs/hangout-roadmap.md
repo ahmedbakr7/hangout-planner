@@ -1,6 +1,6 @@
 # Hangout roadmap
 
-Date: 2026-10-28. Main: `3dfb91b`, kit pin `27c9f92` (tag v5.5.0, ADR-0016).
+Date: 2026-10-29. Main: `82c77b7`, kit pin `27c9f92` (tag v5.5.0, ADR-0016).
 
 **Status: active.** The kit released lanes, areas and amendments, forge approvals, evidence in CI and derived status (ADR-0001), plus the v2 baseline, waivers and strictness presets (ADR-0002). T-001-33 ran end to end under the then-current v1.5.0 pin (#73, re-merged as #74); findings are in `docs/sdlc-pilot-report.md`.
 
@@ -55,7 +55,8 @@ Date: 2026-10-28. Main: `3dfb91b`, kit pin `27c9f92` (tag v5.5.0, ADR-0016).
 ## Decisions the lead owes
 
 - Move to the kit default `real_stack = ["e2e"]` (item 5).
-- Done 2026-10-23: jscpd threshold lowered from 10 to 9 (`commands.duplication`). Production-code duplication is 8.6%, down from 9.7% at the 2026-10-02 baseline; at 8 the check fails. What is left: `.ts` 749 lines (7.7%, 35 clones), `.tsx` 723 lines (14.5%, 30 clones, e.g. `account-gate.tsx` and `create-form.tsx`), with no ticket yet.
+- Shared `e2e/` test helper (the open line in item 6): how a `type: test` ticket lists a test helper shared by several `e2e/` files. T-001-98 is drafted outside the repo and waits on this decision. ADR-0017 and the `skills/backend-patterns` row say `test_files`, but kit v5.5.0 lint rejects `test_files` on a `type: test` ticket ("the ticket has no test play"). The options are a new ADR that has such a ticket list the helper under `files:` (its build already writes `e2e/**`), or a kit change that lets lint accept `test_files` there.
+- Done 2026-10-23: jscpd threshold lowered from 10 to 9 (`commands.duplication`). Production-code duplication is 8.6%, down from 9.7% at the 2026-10-02 baseline; at 8 the check fails. What is left: `.ts` 749 lines (7.7%, 35 clones), `.tsx` 723 lines (14.5%, 30 clones, e.g. `account-gate.tsx` and `create-form.tsx`), with no ticket yet. Ticketed 2026-10-29 (refactor lane): T-001-99 moves the nine `readJson` copies and eight `parseError` copies into `src/lib/api-error.ts`; T-001-100 moves the six `FieldBlock` copies into `src/components/field-block.tsx`. The in-file clones in `join-panel`, `invite-panel` and `create-form` stay unticketed.
 - Decided 2026-10-20: proposal and run ids (`prp_`, `prn_`, 32 hex) are declared in CONTRACTS § Identifiers; ADR-0008's reading for the join route (item 10); browser-test ports from the environment (ADR-0012, item 21); self-hosted fonts (item 22). `/join/{token}` keeps client loading (ADR-0008, 2026-10-12).
 
 ## Running it
