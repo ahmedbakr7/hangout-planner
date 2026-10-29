@@ -5,7 +5,7 @@ type: frontend
 lane: refactor
 status: ready
 risk: low
-depends_on: [T-001-50, T-001-51, T-001-52, T-001-53, T-001-55, T-001-56, T-001-77, T-001-78, T-001-79, T-001-85, T-001-92, T-001-93, T-001-94, T-001-95]
+depends_on: [T-001-50, T-001-51, T-001-52, T-001-53, T-001-55, T-001-56, T-001-77, T-001-78, T-001-79, T-001-85, T-001-92, T-001-93, T-001-94, T-001-95, T-001-96]
 files:
   - "src/lib/api-error.ts"
   - "src/lib/api-error.test.ts"
@@ -19,6 +19,7 @@ files:
   - "src/components/proposal-view.tsx"
   - "src/components/response-form.tsx"
   - "src/components/account-gate.test.tsx"
+  - "src/components/confirmed-view.test.tsx"
   - "src/components/create-form.test.tsx"
   - "src/components/invite-panel.test.tsx"
   - "src/components/join-panel.test.tsx"
