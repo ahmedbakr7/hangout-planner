@@ -1080,3 +1080,56 @@ describe("InvitePanel error bodies", () => {
     expect(numberReason.markup).toBe(empty.markup);
   });
 });
+
+describe("InvitePanel field blocks", () => {
+  async function renderReady() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === INVITE_POST && method === "POST") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_failed",
+              message: "invalid fields",
+              fields: [{ path: "email", code: "bad_email" }],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderInvite();
+    await screen.findByText(shareUrl());
+    return container;
+  }
+
+  it("T-001-100/AC-1 the invite email label points at its input and the server's email error shows in one p after the input", async () => {
+    const container = await renderReady();
+    expect(container.querySelector("#hp-invite-email-error")).toBeNull();
+    fireEvent.change(screen.getByLabelText(en.invite.email), {
+      target: { value: "hana@example" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.invite.send }));
+    await screen.findByText(en.errors.fields.bad_email);
+    const input = container.querySelector("input#hp-invite-email") as HTMLInputElement;
+    const label = container.querySelector('label[for="hp-invite-email"]');
+    expect(label?.getAttribute("for")).toBe(input.id);
+    const errors = container.querySelectorAll("#hp-invite-email-error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].tagName).toBe("P");
+    expect(errors[0].textContent).toBe(en.errors.fields.bad_email);
+    expect(
+      input.compareDocumentPosition(errors[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("T-001-100/AC-2 the invite email field with no error renders no error element and keeps its translated label", async () => {
+    const container = await renderReady();
+    expect(container.querySelector("#hp-invite-email-error")).toBeNull();
+    expect(container.querySelector('label[for="hp-invite-email"]')?.textContent).toBe(
+      en.invite.email,
+    );
+  });
+});
