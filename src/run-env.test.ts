@@ -109,16 +109,44 @@ beforeAll(async () => {
   await admin`SELECT 1`;
 });
 
-afterEach(async () => {
-  for (const name of created) {
-    await dropDatabase(name);
+const dropRole = (role: string) => admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+
+// Drops every name, empties the set whatever happened, and rejects with the first drop error.
+const dropAll = async (names: Set<string>, drop: (name: string) => Promise<unknown>): Promise<void> => {
+  let failure: { error: unknown } | null = null;
+  try {
+    for (const name of names) {
+      try {
+        await drop(name);
+      } catch (error) {
+        failure ??= { error };
+      }
+    }
+  } finally {
+    names.clear();
   }
-  created.clear();
-  for (const role of roles) {
-    await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+  if (failure !== null) throw failure.error;
+};
+
+// Databases first, then their roles: the role step runs even when a database drop threw, and the
+// first database error wins over a role error.
+const dropCreated = async (): Promise<void> => {
+  let failure: { error: unknown } | null = null;
+  try {
+    await dropAll(created, dropDatabase);
+  } catch (error) {
+    failure = { error };
+  } finally {
+    try {
+      await dropAll(roles, dropRole);
+    } catch (error) {
+      failure ??= { error };
+    }
   }
-  roles.clear();
-});
+  if (failure !== null) throw failure.error;
+};
+
+afterEach(dropCreated);
 
 afterAll(async () => {
   try {
@@ -366,5 +394,18 @@ describe("scripts/run-env.mjs", () => {
     expect(result.status, result.output).toBe(0);
     expect(await databaseExists(name)).toBe(false);
     expect(await databaseExists(other)).toBe(true);
+  });
+
+  it("T-001-97/AC-1 cleanup still drops the tracked roles and empties both sets when a database drop throws", async () => {
+    const role = new URL(await urlForNewRole(PASSWORD)).username;
+    track('hp_run_bad"name');
+    try {
+      await expect(dropCreated()).rejects.toMatchObject({ code: "42601" });
+      expect(await admin`SELECT 1 FROM pg_roles WHERE rolname = ${role}`).toHaveLength(0);
+      expect(created.size).toBe(0);
+      expect(roles.size).toBe(0);
+    } finally {
+      await admin.unsafe(`DROP ROLE IF EXISTS "${role}"`);
+    }
   });
 });
