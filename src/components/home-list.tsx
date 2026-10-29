@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { readJson } from "@/lib/api-error";
 
 type SessionState = "checking" | "signed_out" | "signed_in";
 type LoadState = "idle" | "loading" | "loaded" | "error";
@@ -90,14 +91,6 @@ function parsePlans(body: unknown): HomePlan[] | null {
     }
   }
   return rows;
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
 }
 
 function planHref(plan: HomePlan): string {

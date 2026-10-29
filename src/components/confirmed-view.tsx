@@ -10,16 +10,12 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { parseError, readJson } from "@/lib/api-error";
 import { planPath } from "@/lib/plan-paths";
 
 const BUDGET_EXPONENT = 2;
 
 type LoadState = "loading" | "loaded" | "error" | "redirecting";
-
-type ParsedError = {
-  code?: string;
-  reason?: string;
-};
 
 type OpeningNext = "organizer" | "respond" | "proposal" | "confirmed" | "join";
 
@@ -53,29 +49,6 @@ export type ConfirmedViewProps = {
   planId: string;
   initialDoc: unknown;
 };
-
-function parseError(body: unknown): ParsedError {
-  if (typeof body !== "object" || body === null) {
-    return {};
-  }
-  const error = (body as { error?: unknown }).error;
-  if (typeof error !== "object" || error === null) {
-    return {};
-  }
-  const record = error as { code?: unknown; reason?: unknown };
-  return {
-    code: typeof record.code === "string" ? record.code : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-  };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
 
 function toHm(value: string): string {
   return value.length >= 5 ? value.slice(0, 5) : value;

@@ -10,6 +10,7 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { parseError, readJson, type ParsedError } from "@/lib/api-error";
 
 const BUDGET_EXPONENT = 2;
 const ALTERNATIVE_CAP = 3;
@@ -23,11 +24,6 @@ type PlanState = "collecting" | "blocked" | "proposed" | "locked";
 type LoadState = "loading" | "loaded" | "error" | "redirecting";
 type SignalValue = "like" | "dislike" | "unset";
 type Viewer = "organizer" | "cohort" | "visitor";
-
-type ParsedError = {
-  code?: string;
-  reason?: string;
-};
 
 type BlockFlags = {
   time: boolean;
@@ -101,29 +97,6 @@ function isPlanState(value: unknown): value is PlanState {
 
 function isSignal(value: unknown): value is SignalValue {
   return value === "like" || value === "dislike" || value === "unset";
-}
-
-function parseError(body: unknown): ParsedError {
-  if (typeof body !== "object" || body === null) {
-    return {};
-  }
-  const error = (body as { error?: unknown }).error;
-  if (typeof error !== "object" || error === null) {
-    return {};
-  }
-  const record = error as { code?: unknown; reason?: unknown };
-  return {
-    code: typeof record.code === "string" ? record.code : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-  };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
 }
 
 function toHm(value: string): string {

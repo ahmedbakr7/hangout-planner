@@ -566,3 +566,82 @@ describe("AccountGate", () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 });
+
+describe("AccountGate error bodies", () => {
+  type Shown = { alerts: string[]; fields: string[]; markup: string };
+
+  async function signInAnswering(response: () => Response): Promise<Shown> {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(401, missingSession);
+        }
+        if (url === "/api/v1/sessions" && method === "POST") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderGate("/plans/new");
+    await screen.findByText(en.Account.requiredToOrganize);
+    fireEvent.change(screen.getByLabelText(en.Account.email), {
+      target: { value: "nour@example" },
+    });
+    fireEvent.change(screen.getByLabelText(en.Account.password), {
+      target: { value: "a-secret-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.Account.submitSignIn }));
+    await screen.findByRole("alert");
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("button", { name: en.Account.submitSignIn }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false);
+    });
+    const shown: Shown = {
+      alerts: screen.getAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await signInAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await signInAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.Account.signInError]);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+
+  it("T-001-99/AC-2 malformed fields entries beside a valid one show the same field errors as the valid one alone", async () => {
+    const envelope = (fields: unknown[]) => ({
+      error: {
+        code: "validation_failed",
+        message: "invalid",
+        fields,
+      },
+    });
+    const valid = { path: "email", code: "bad_email" };
+    const mixed = await signInAnswering(() =>
+      jsonResponse(
+        400,
+        envelope([valid, { path: 1, code: "bad_email" }, "junk", null]),
+      ),
+    );
+    const alone = await signInAnswering(() => jsonResponse(400, envelope([valid])));
+    expect(alone.fields).toEqual([`hp-email-error:${en.errors.fields.bad_email}`]);
+    expect(mixed.fields).toEqual(alone.fields);
+    expect(mixed.alerts).toEqual(alone.alerts);
+    expect(mixed.markup).toBe(alone.markup);
+  });
+});

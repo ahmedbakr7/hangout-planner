@@ -17,6 +17,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  parseError,
+  readJson,
+  type FieldError,
+  type ParsedError,
+} from "@/lib/api-error";
 
 const BUDGET_EXPONENT = 2;
 const PLACE_SEARCH_Q_MIN = 1;
@@ -26,17 +32,6 @@ const ATTEMPT_IN_PROGRESS = "attempt_in_progress";
 type PlanState = "collecting" | "blocked" | "proposed" | "locked";
 type LoadState = "loading" | "loaded" | "error" | "redirecting";
 type WindowKind = "busy" | "free";
-
-type FieldError = {
-  path: string;
-  code: string;
-};
-
-type ParsedError = {
-  code?: string;
-  reason?: string;
-  fields: FieldError[];
-};
 
 type PlanWindow = {
   id: string;
@@ -81,47 +76,6 @@ export type ResponseFormProps = {
   planId: string;
   initialResponse: unknown;
 };
-
-function parseError(body: unknown): ParsedError {
-  if (typeof body !== "object" || body === null) {
-    return { fields: [] };
-  }
-  const error = (body as { error?: unknown }).error;
-  if (typeof error !== "object" || error === null) {
-    return { fields: [] };
-  }
-  const record = error as {
-    code?: unknown;
-    reason?: unknown;
-    fields?: unknown;
-  };
-  const fields: FieldError[] = [];
-  if (Array.isArray(record.fields)) {
-    for (const field of record.fields) {
-      if (typeof field !== "object" || field === null) {
-        continue;
-      }
-      const path = (field as { path?: unknown }).path;
-      const code = (field as { code?: unknown }).code;
-      if (typeof path === "string" && typeof code === "string") {
-        fields.push({ path, code });
-      }
-    }
-  }
-  return {
-    code: typeof record.code === "string" ? record.code : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-    fields,
-  };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
 
 function isPlanState(value: unknown): value is PlanState {
   return (

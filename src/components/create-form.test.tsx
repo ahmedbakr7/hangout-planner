@@ -753,3 +753,69 @@ describe("CreateForm", () => {
     );
   });
 });
+
+describe("CreateForm error bodies", () => {
+  type Shown = { alerts: string[]; fields: string[]; markup: string };
+
+  async function createAnswering(response: () => Response): Promise<Shown> {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(200, nourAccount);
+        }
+        if (url === "/api/v1/plans" && method === "POST") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderCreate();
+    await screen.findByLabelText("Plan title");
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Create" }));
+    await screen.findByRole("alert");
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("button", { name: "Create" }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+    const shown: Shown = {
+      alerts: screen.getAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await createAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await createAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.Create.saveError]);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+
+  it("T-001-99/AC-2 malformed fields entries beside a valid one show the same field errors as the valid one alone", async () => {
+    const envelope = (fields: unknown[]) => ({
+      error: { code: "validation_failed", message: "invalid fields", fields },
+    });
+    const valid = { path: "title", code: "required" };
+    const mixed = await createAnswering(() =>
+      jsonResponse(400, envelope([valid, { path: 1, code: "required" }, "junk", null])),
+    );
+    const alone = await createAnswering(() => jsonResponse(400, envelope([valid])));
+    expect(alone.fields).toEqual([`hp-title-error:${en.errors.fields.required}`]);
+    expect(mixed.fields).toEqual(alone.fields);
+    expect(mixed.alerts).toEqual(alone.alerts);
+    expect(mixed.markup).toBe(alone.markup);
+  });
+});

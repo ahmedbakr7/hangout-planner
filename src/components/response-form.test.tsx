@@ -1395,3 +1395,52 @@ describe("T-001-95 response form coverage", () => {
     }
   });
 });
+
+describe("ResponseForm error bodies", () => {
+  type Shown = { alerts: string[]; fields: string[]; markup: string };
+
+  async function saveAnswering(response: () => Response): Promise<Shown> {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === RESPONSE_PUT && method === "PUT") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderForm(collectingBody);
+    await screen.findByLabelText(/approximate/i);
+    fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("alert");
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled,
+      ).toBe(false);
+    });
+    const shown: Shown = {
+      alerts: screen.getAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await saveAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await saveAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.respond.saveError]);
+    expect(empty.fields.length).toBeGreaterThan(0);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+});
