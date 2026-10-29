@@ -645,3 +645,62 @@ describe("AccountGate error bodies", () => {
     expect(mixed.markup).toBe(alone.markup);
   });
 });
+
+describe("AccountGate field blocks", () => {
+  async function signInWithBadEmail() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(401, missingSession);
+        }
+        if (url === "/api/v1/sessions" && method === "POST") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_failed",
+              message: "invalid",
+              fields: [{ path: "email", code: "bad_email" }],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderGate("/plans/new");
+    await screen.findByText(en.Account.requiredToOrganize);
+    const before = container.querySelector("#hp-email-error");
+    fireEvent.change(screen.getByLabelText(en.Account.email), {
+      target: { value: "nour@example" },
+    });
+    fireEvent.change(screen.getByLabelText(en.Account.password), {
+      target: { value: "a-secret-pass" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.Account.submitSignIn }));
+    await screen.findByText(en.errors.fields.bad_email);
+    return { container, before };
+  }
+
+  it("T-001-100/AC-1 the email label points at its input and the server's email error shows in one p after the input", async () => {
+    const { container, before } = await signInWithBadEmail();
+    expect(before).toBeNull();
+    const input = container.querySelector("input#hp-email") as HTMLInputElement;
+    const label = container.querySelector('label[for="hp-email"]');
+    expect(label?.getAttribute("for")).toBe(input.id);
+    const errors = container.querySelectorAll("#hp-email-error");
+    expect(errors).toHaveLength(1);
+    const error = errors[0];
+    expect(error.tagName).toBe("P");
+    expect(error.textContent).toBe(en.errors.fields.bad_email);
+    expect(input.compareDocumentPosition(error) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("T-001-100/AC-2 a field without an error renders no error element and keeps its translated label", async () => {
+    const { container } = await signInWithBadEmail();
+    expect(container.querySelector("#hp-password-error")).toBeNull();
+    const label = container.querySelector('label[for="hp-password"]');
+    expect(label?.textContent).toBe(en.Account.password);
+    expect(container.querySelector('label[for="hp-email"]')?.textContent).toBe(en.Account.email);
+  });
+});

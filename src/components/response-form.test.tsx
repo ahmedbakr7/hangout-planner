@@ -1444,3 +1444,59 @@ describe("ResponseForm error bodies", () => {
     expect(notJson.markup).toBe(empty.markup);
   });
 });
+
+describe("ResponseForm field blocks", () => {
+  async function renderAnsweringStartRejected() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === RESPONSE_PUT && method === "PUT") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_failed",
+              message: "invalid",
+              fields: [{ path: "start_place_id", code: "required" }],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderForm(collectingBody);
+    await screen.findByLabelText(/approximate/i);
+    return container;
+  }
+
+  it("T-001-100/AC-1 the start search label points at its input and the server's start error shows in one p after the input", async () => {
+    const container = await renderAnsweringStartRejected();
+    expect(container.querySelector("#hp-start-search-error")).toBeNull();
+    fireEvent.click(within(firstWindow()).getByLabelText("Busy"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText(en.errors.fields.required);
+    const input = container.querySelector("input#hp-start-search") as HTMLInputElement;
+    const label = container.querySelector('label[for="hp-start-search"]');
+    expect(label?.getAttribute("for")).toBe(input.id);
+    const errors = container.querySelectorAll("#hp-start-search-error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].tagName).toBe("P");
+    expect(errors[0].textContent).toBe(en.errors.fields.required);
+    expect(
+      input.compareDocumentPosition(errors[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("T-001-100/AC-2 a window time field with no error renders no error element and keeps its translated label", async () => {
+    const container = await renderAnsweringStartRejected();
+    fireEvent.click(within(firstWindow()).getByLabelText(en.respond.free));
+    const earliestId = `hp-window-${windowOne.id}-earliest`;
+    expect(container.querySelector(`label[for="${earliestId}"]`)?.textContent).toBe(
+      en.respond.earliest,
+    );
+    expect(container.querySelector(`#${earliestId}-error`)).toBeNull();
+    expect(container.querySelector('label[for="hp-start-search"]')?.textContent).toBe(
+      en.respond.startApproximate,
+    );
+  });
+});

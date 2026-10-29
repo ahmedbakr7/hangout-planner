@@ -819,3 +819,61 @@ describe("CreateForm error bodies", () => {
     expect(mixed.markup).toBe(alone.markup);
   });
 });
+
+describe("CreateForm field blocks", () => {
+  async function submitWithTitleRejected() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(200, nourAccount);
+        }
+        if (url === "/api/v1/plans" && method === "POST") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_failed",
+              message: "invalid fields",
+              fields: [{ path: "title", code: "too_long" }],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderCreate();
+    await screen.findByLabelText(en.Create.planTitle);
+    const before = container.querySelector("#hp-title-error");
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: en.Create.submit }));
+    await screen.findByText(en.errors.fields.too_long);
+    return { container, before };
+  }
+
+  it("T-001-100/AC-1 the plan title label points at its input and the server's title error shows in one p after the input", async () => {
+    const { container, before } = await submitWithTitleRejected();
+    expect(before).toBeNull();
+    const input = container.querySelector("input#hp-title") as HTMLInputElement;
+    const label = container.querySelector('label[for="hp-title"]');
+    expect(label?.getAttribute("for")).toBe(input.id);
+    const errors = container.querySelectorAll("#hp-title-error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].tagName).toBe("P");
+    expect(errors[0].textContent).toBe(en.errors.fields.too_long);
+    expect(
+      input.compareDocumentPosition(errors[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("T-001-100/AC-2 a field with no error renders no error element and keeps its translated label", async () => {
+    const { container } = await submitWithTitleRejected();
+    expect(container.querySelector("#hp-threshold-error")).toBeNull();
+    expect(container.querySelector('label[for="hp-threshold"]')?.textContent).toBe(
+      en.Create.threshold,
+    );
+    expect(container.querySelector('label[for="hp-title"]')?.textContent).toBe(
+      en.Create.planTitle,
+    );
+  });
+});

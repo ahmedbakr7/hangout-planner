@@ -761,3 +761,62 @@ describe("JoinPanel error bodies", () => {
     expect(mixed.markup).toBe(alone.markup);
   });
 });
+
+describe("JoinPanel field blocks", () => {
+  async function renderOpening() {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(401, missingSession);
+        }
+        if (url === JOIN_GET && method === "GET") {
+          return jsonResponse(200, joinOpening);
+        }
+        if (url === JOIN_POST && method === "POST") {
+          return jsonResponse(400, {
+            error: {
+              code: "validation_failed",
+              message: "invalid fields",
+              fields: [{ path: "display_name", code: "too_long" }],
+            },
+          });
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderJoin({ token: JOIN_TOKEN });
+    await screen.findByRole("heading", { name: "Thursday in Maadi" });
+    return container;
+  }
+
+  it("T-001-100/AC-1 the display name label points at its input and the server's display name error shows in one p after the input", async () => {
+    const container = await renderOpening();
+    expect(container.querySelector("#hp-join-display-name-error")).toBeNull();
+    fireEvent.change(screen.getByLabelText(en.join.displayName), {
+      target: { value: "Nour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.join.joinWithoutAccount }));
+    await screen.findByText(en.errors.fields.too_long);
+    const input = container.querySelector("input#hp-join-display-name") as HTMLInputElement;
+    const label = container.querySelector('label[for="hp-join-display-name"]');
+    expect(label?.getAttribute("for")).toBe(input.id);
+    const errors = container.querySelectorAll("#hp-join-display-name-error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0].tagName).toBe("P");
+    expect(errors[0].textContent).toBe(en.errors.fields.too_long);
+    expect(
+      input.compareDocumentPosition(errors[0]) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("T-001-100/AC-2 the display name field with no error renders no error element and keeps its translated label", async () => {
+    const container = await renderOpening();
+    expect(container.querySelector("#hp-join-display-name-error")).toBeNull();
+    expect(
+      container.querySelector('label[for="hp-join-display-name"]')?.textContent,
+    ).toBe(en.join.displayName);
+  });
+});

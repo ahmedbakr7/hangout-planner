@@ -9,6 +9,7 @@ import React, {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { FieldBlock } from "@/components/field-block";
 import { LanguageControl } from "@/components/language-control";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +20,6 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useSessionSlide } from "@/components/use-session-slide";
 import {
   parseError,
@@ -78,32 +78,6 @@ function GateShell({ children }: { children: ReactNode }): ReactNode {
         {children}
       </Card>
     </main>
-  );
-}
-
-function FieldBlock({
-  id,
-  label,
-  errorId,
-  error,
-  children,
-}: {
-  id: string;
-  label: string;
-  errorId: string;
-  error: string | null;
-  children: ReactNode;
-}): ReactNode {
-  return (
-    <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {error ? (
-        <p id={errorId} className="text-sm text-destructive text-start">
-          {error}
-        </p>
-      ) : null}
-    </div>
   );
 }
 
