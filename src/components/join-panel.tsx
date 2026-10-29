@@ -18,6 +18,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSessionSlide } from "@/components/use-session-slide";
+import {
+  parseError,
+  readJson,
+  type FieldError,
+  type ParsedError,
+} from "@/lib/api-error";
 import { planPath } from "@/lib/plan-paths";
 
 const DISPLAY_NAME_MAX = 40;
@@ -32,17 +38,6 @@ type OpeningNext =
 type ParticipantNext = "respond" | "proposal" | "confirmed";
 type SessionState = "checking" | "signed_out" | "signed_in";
 type LoadState = "loading" | "loaded" | "unknown" | "error" | "redirecting";
-
-type FieldError = {
-  path: string;
-  code: string;
-};
-
-type ParsedError = {
-  code?: string;
-  reason?: string;
-  fields: FieldError[];
-};
 
 type PreviewWindow = {
   localDate: string;
@@ -84,47 +79,6 @@ function isOpeningNext(value: unknown): value is OpeningNext {
 
 function isParticipantNext(value: unknown): value is ParticipantNext {
   return value === "respond" || value === "proposal" || value === "confirmed";
-}
-
-function parseError(body: unknown): ParsedError {
-  if (typeof body !== "object" || body === null) {
-    return { fields: [] };
-  }
-  const error = (body as { error?: unknown }).error;
-  if (typeof error !== "object" || error === null) {
-    return { fields: [] };
-  }
-  const record = error as {
-    code?: unknown;
-    reason?: unknown;
-    fields?: unknown;
-  };
-  const fields: FieldError[] = [];
-  if (Array.isArray(record.fields)) {
-    for (const field of record.fields) {
-      if (typeof field !== "object" || field === null) {
-        continue;
-      }
-      const path = (field as { path?: unknown }).path;
-      const code = (field as { code?: unknown }).code;
-      if (typeof path === "string" && typeof code === "string") {
-        fields.push({ path, code });
-      }
-    }
-  }
-  return {
-    code: typeof record.code === "string" ? record.code : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-    fields,
-  };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
 }
 
 function parseWindows(value: unknown): PreviewWindow[] | null {

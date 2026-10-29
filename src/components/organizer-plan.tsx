@@ -17,6 +17,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  parseError,
+  readJson,
+  type FieldError,
+  type ParsedError,
+} from "@/lib/api-error";
 
 const AMOUNT_MINOR_MAX = 100_000_000_000;
 const TITLE_MAX = 80;
@@ -50,17 +56,6 @@ type LoadState = "loading" | "loaded" | "error" | "locked";
 type CurrencyOption = {
   code: string;
   exponent: number;
-};
-
-type FieldError = {
-  path: string;
-  code: string;
-};
-
-type ParsedError = {
-  code?: string;
-  reason?: string;
-  fields: FieldError[];
 };
 
 type Editable = {
@@ -143,47 +138,6 @@ function isThresholdMode(value: unknown): value is ThresholdEditMode {
 
 function isParticipantStatus(value: unknown): value is ParticipantStatus {
   return value === "answered" || value === "in_progress";
-}
-
-function parseError(body: unknown): ParsedError {
-  if (typeof body !== "object" || body === null) {
-    return { fields: [] };
-  }
-  const error = (body as { error?: unknown }).error;
-  if (typeof error !== "object" || error === null) {
-    return { fields: [] };
-  }
-  const record = error as {
-    code?: unknown;
-    reason?: unknown;
-    fields?: unknown;
-  };
-  const fields: FieldError[] = [];
-  if (Array.isArray(record.fields)) {
-    for (const field of record.fields) {
-      if (typeof field !== "object" || field === null) {
-        continue;
-      }
-      const path = (field as { path?: unknown }).path;
-      const code = (field as { code?: unknown }).code;
-      if (typeof path === "string" && typeof code === "string") {
-        fields.push({ path, code });
-      }
-    }
-  }
-  return {
-    code: typeof record.code === "string" ? record.code : undefined,
-    reason: typeof record.reason === "string" ? record.reason : undefined,
-    fields,
-  };
-}
-
-async function readJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
 }
 
 function parseEditable(value: unknown): Editable | null {

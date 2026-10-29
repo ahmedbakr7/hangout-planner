@@ -541,3 +541,65 @@ describe("ConfirmedView", () => {
     expect(router.replace).not.toHaveBeenCalled();
   });
 });
+
+describe("ConfirmedView error bodies", () => {
+  type Shown = { requests: string[]; replaced: unknown[][]; markup: string };
+
+  async function retryAnswering(confirmed: () => Response): Promise<Shown> {
+    router.replace.mockReset();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === CONFIRMED_GET && method === "GET") {
+        return confirmed();
+      }
+      if (url === OPENING_GET && method === "GET") {
+        return jsonResponse(200, openingBody("respond"));
+      }
+      throw new Error(`unexpected fetch ${method} ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = renderView(null);
+    fireEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    await waitFor(() => {
+      expect(
+        router.replace.mock.calls.length > 0 ||
+          screen.queryByRole("button", { name: "Retry" }) !== null,
+      ).toBe(true);
+    });
+    const shown: Shown = {
+      requests: fetchMock.mock.calls.map(([input]) => String(input)),
+      replaced: router.replace.mock.calls.map((call) => [...call]),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-3 a 409 not_locked with no code follows the opening like one with code conflict, and a 409 whose reason is 1 acts like a 409 with {}", async () => {
+    const noCode = await retryAnswering(() =>
+      jsonResponse(409, { error: { reason: "not_locked", message: "not locked" } }),
+    );
+    const conflict = await retryAnswering(() =>
+      jsonResponse(409, {
+        error: { code: "conflict", reason: "not_locked", message: "not locked" },
+      }),
+    );
+    expect(conflict.requests).toEqual([CONFIRMED_GET, OPENING_GET]);
+    expect(conflict.replaced).toEqual([[`/plans/${PLAN_ID}/respond`]]);
+    expect(noCode.requests).toEqual(conflict.requests);
+    expect(noCode.replaced).toEqual(conflict.replaced);
+    expect(noCode.markup).toBe(conflict.markup);
+
+    const numberReason = await retryAnswering(() =>
+      jsonResponse(409, { error: { reason: 1, message: "not locked" } }),
+    );
+    const empty = await retryAnswering(() => jsonResponse(409, {}));
+    expect(empty.requests).toEqual([CONFIRMED_GET]);
+    expect(empty.replaced).toEqual([]);
+    expect(empty.markup).toContain(en.confirmed.loadError);
+    expect(numberReason.requests).toEqual(empty.requests);
+    expect(numberReason.replaced).toEqual(empty.replaced);
+    expect(numberReason.markup).toBe(empty.markup);
+  });
+});

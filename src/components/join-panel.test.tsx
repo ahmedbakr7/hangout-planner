@@ -684,3 +684,80 @@ describe("JoinPanel initial data", () => {
     expect(urls.filter((url) => url === "/api/v1/me")).toHaveLength(1);
   });
 });
+
+describe("JoinPanel error bodies", () => {
+  type Shown = { alerts: string[]; fields: string[]; markup: string };
+
+  async function joinAnswering(response: () => Response): Promise<Shown> {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === "/api/v1/me" && method === "GET") {
+          return jsonResponse(401, missingSession);
+        }
+        if (url === JOIN_GET && method === "GET") {
+          return jsonResponse(200, joinOpening);
+        }
+        if (url === JOIN_POST && method === "POST") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderJoin({ token: JOIN_TOKEN });
+    await screen.findByRole("heading", { name: "Thursday in Maadi" });
+    fireEvent.change(screen.getByLabelText(en.join.displayName), {
+      target: { value: "Nour" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.join.joinWithoutAccount }));
+    await screen.findByRole("alert");
+    await waitFor(() => {
+      expect(
+        (
+          screen.getByRole("button", {
+            name: en.join.joinWithoutAccount,
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false);
+    });
+    const shown: Shown = {
+      alerts: screen.getAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await joinAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await joinAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.join.joinFailed]);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+
+  it("T-001-99/AC-2 malformed fields entries beside a valid one show the same field errors as the valid one alone", async () => {
+    const envelope = (fields: unknown[]) => ({
+      error: { code: "validation_failed", message: "invalid fields", fields },
+    });
+    const valid = { path: "display_name", code: "too_long" };
+    const mixed = await joinAnswering(() =>
+      jsonResponse(400, envelope([valid, { path: 1, code: "too_long" }, "junk", null])),
+    );
+    const alone = await joinAnswering(() => jsonResponse(400, envelope([valid])));
+    expect(alone.fields).toEqual([
+      `hp-join-display-name-error:${en.errors.fields.too_long}`,
+    ]);
+    expect(mixed.fields).toEqual(alone.fields);
+    expect(mixed.alerts).toEqual(alone.alerts);
+    expect(mixed.markup).toBe(alone.markup);
+  });
+});

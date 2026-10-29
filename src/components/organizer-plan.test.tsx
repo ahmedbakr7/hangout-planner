@@ -848,3 +848,101 @@ describe("OrganizerPlan reload on unmount", () => {
     ]);
   });
 });
+
+describe("OrganizerPlan error bodies", () => {
+  type Shown = {
+    alerts: string[];
+    fields: string[];
+    markup: string;
+    replaced: unknown[][];
+  };
+
+  async function saveAnswering(response: () => Response): Promise<Shown> {
+    router.replace.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === `/api/v1/plans/${collectingId}` && method === "PATCH") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderPlan(collectingId);
+    fireEvent.change(await screen.findByLabelText("Plan title"), {
+      target: { value: "Edited title" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("alert") !== null || router.replace.mock.calls.length > 0,
+      ).toBe(true);
+    });
+    await waitFor(() => {
+      const save = screen.queryByRole("button", { name: "Save" });
+      expect(save === null || !(save as HTMLButtonElement).disabled).toBe(true);
+    });
+    const shown: Shown = {
+      alerts: screen.queryAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+      replaced: router.replace.mock.calls.map((call) => [...call]),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await saveAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await saveAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.Create.saveError]);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+
+  it("T-001-99/AC-2 malformed fields entries beside a valid one show the same field errors as the valid one alone", async () => {
+    const envelope = (fields: unknown[]) => ({
+      error: { code: "validation_failed", message: "invalid fields", fields },
+    });
+    const valid = { path: "title", code: "too_long" };
+    const mixed = await saveAnswering(() =>
+      jsonResponse(400, envelope([valid, { path: 1, code: "too_long" }, "junk", null])),
+    );
+    const alone = await saveAnswering(() => jsonResponse(400, envelope([valid])));
+    expect(alone.fields).toContain(`hp-title-error:${en.errors.fields.too_long}`);
+    expect(mixed.fields).toEqual(alone.fields);
+    expect(mixed.alerts).toEqual(alone.alerts);
+    expect(mixed.markup).toBe(alone.markup);
+  });
+
+  it("T-001-99/AC-3 a 409 plan_locked with no code leaves for the confirmed page like one with code conflict, and a 409 whose reason is 1 acts like a 409 with {}", async () => {
+    const noCode = await saveAnswering(() =>
+      jsonResponse(409, { error: { reason: "plan_locked", message: "locked" } }),
+    );
+    const conflict = await saveAnswering(() =>
+      jsonResponse(409, {
+        error: { code: "conflict", reason: "plan_locked", message: "locked" },
+      }),
+    );
+    expect(conflict.replaced).toEqual([[`/plans/${collectingId}/confirmed`]]);
+    expect(conflict.markup).not.toContain("Edited title");
+    expect(noCode.replaced).toEqual(conflict.replaced);
+    expect(noCode.markup).toBe(conflict.markup);
+
+    const numberReason = await saveAnswering(() =>
+      jsonResponse(409, { error: { reason: 1, message: "locked" } }),
+    );
+    const empty = await saveAnswering(() => jsonResponse(409, {}));
+    expect(empty.replaced).toEqual([]);
+    expect(empty.alerts).toEqual([en.Create.saveError]);
+    expect(numberReason.replaced).toEqual(empty.replaced);
+    expect(numberReason.markup).toBe(empty.markup);
+  });
+});

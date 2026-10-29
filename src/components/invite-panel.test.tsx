@@ -979,3 +979,104 @@ describe("InvitationsList", () => {
     expect(gets[0]?.[1]?.credentials).toBe("same-origin");
   });
 });
+
+describe("InvitePanel error bodies", () => {
+  type Shown = {
+    alerts: string[];
+    fields: string[];
+    markup: string;
+    replaced: unknown[][];
+  };
+
+  async function sendAnswering(response: () => Response): Promise<Shown> {
+    router.replace.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = (init?.method ?? "GET").toUpperCase();
+        if (url === INVITE_POST && method === "POST") {
+          return response();
+        }
+        throw new Error(`unexpected fetch ${method} ${url}`);
+      }),
+    );
+    const { container } = renderInvite();
+    await screen.findByText(shareUrl());
+    fireEvent.change(screen.getByLabelText(en.invite.email), {
+      target: { value: "hana@example.com" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: en.invite.send }));
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("alert") !== null || router.replace.mock.calls.length > 0,
+      ).toBe(true);
+    });
+    await waitFor(() => {
+      const send = screen.queryByRole("button", { name: en.invite.send });
+      expect(send === null || !(send as HTMLButtonElement).disabled).toBe(true);
+    });
+    const shown: Shown = {
+      alerts: screen.queryAllByRole("alert").map((el) => el.textContent ?? ""),
+      fields: Array.from(container.querySelectorAll('p[id$="-error"]')).map(
+        (el) => `${el.id}:${el.textContent}`,
+      ),
+      markup: container.innerHTML.replace(/_r_[0-9a-z]+_/g, "_r_"),
+      replaced: router.replace.mock.calls.map((call) => [...call]),
+    };
+    cleanup();
+    return shown;
+  }
+
+  it("T-001-99/AC-1 a 400 whose body is not JSON shows the same alert and field errors as a 400 with {}", async () => {
+    const notJson = await sendAnswering(
+      () => new Response("<html>bad gateway</html>", { status: 400 }),
+    );
+    const empty = await sendAnswering(() => jsonResponse(400, {}));
+    expect(empty.alerts).toEqual([en.invite.sendFailed]);
+    expect(notJson.alerts).toEqual(empty.alerts);
+    expect(notJson.fields).toEqual(empty.fields);
+    expect(notJson.markup).toBe(empty.markup);
+  });
+
+  it("T-001-99/AC-2 malformed fields entries beside a valid one show the same field errors as the valid one alone", async () => {
+    const envelope = (fields: unknown[]) => ({
+      error: { code: "validation_failed", message: "invalid fields", fields },
+    });
+    const valid = { path: "email", code: "bad_email" };
+    const mixed = await sendAnswering(() =>
+      jsonResponse(400, envelope([valid, { path: 1, code: "bad_email" }, "junk", null])),
+    );
+    const alone = await sendAnswering(() => jsonResponse(400, envelope([valid])));
+    expect(alone.fields).toEqual([
+      `hp-invite-email-error:${en.errors.fields.bad_email}`,
+    ]);
+    expect(mixed.fields).toEqual(alone.fields);
+    expect(mixed.alerts).toEqual(alone.alerts);
+    expect(mixed.markup).toBe(alone.markup);
+  });
+
+  it("T-001-99/AC-3 a 409 plan_locked with no code leaves for the confirmed page like one with code conflict, and a 409 whose reason is 1 acts like a 409 with {}", async () => {
+    const noCode = await sendAnswering(() =>
+      jsonResponse(409, { error: { reason: "plan_locked", message: "locked" } }),
+    );
+    const conflict = await sendAnswering(() =>
+      jsonResponse(409, {
+        error: { code: "conflict", reason: "plan_locked", message: "locked" },
+      }),
+    );
+    expect(conflict.replaced).toEqual([[`/plans/${PLAN_ID}/confirmed`]]);
+    expect(conflict.markup).not.toContain(en.invite.send);
+    expect(noCode.replaced).toEqual(conflict.replaced);
+    expect(noCode.markup).toBe(conflict.markup);
+
+    const numberReason = await sendAnswering(() =>
+      jsonResponse(409, { error: { reason: 1, message: "locked" } }),
+    );
+    const empty = await sendAnswering(() => jsonResponse(409, {}));
+    expect(empty.replaced).toEqual([]);
+    expect(empty.alerts).toEqual([en.invite.sendFailed]);
+    expect(numberReason.replaced).toEqual(empty.replaced);
+    expect(numberReason.markup).toBe(empty.markup);
+  });
+});
